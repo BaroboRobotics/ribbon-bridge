@@ -1,5 +1,6 @@
 extend UserValue {
-    optional int32 UserValue_v = 1;
+    optional int32 UserValue_int32 = 1;
+    optional float UserValue_float = 2;
 }
 
 /////////////////////////////////////////

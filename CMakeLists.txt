@@ -14,11 +14,13 @@ add_custom_command(OUTPUT ${PROTO_OUTPUT}
     VERBATIM)
 
 include_directories(pb)
+include_directories(${PROJECT_BINARY_DIR})
 
 set(SOURCES
     rpc.cpp
     pb/pb_decode.c
     pb/pb_encode.c)
 
+set_source_files_properties(rpc.cpp PROPERTIES COMPILE_FLAGS -std=c++11)
+
 add_executable(rpc ${SOURCES} ${PROTO_OUTPUT})
-set_target_properties(rpc PROPERTIES COMPILE_FLAGS "-std=c++11 -DPB_FIELD_16BIT")

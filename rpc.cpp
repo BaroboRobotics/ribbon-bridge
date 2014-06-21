@@ -14,15 +14,13 @@ void dumpGet (const Get& get) {
 
 void dumpSet (const Set& set) {
     std::cout << "SET { messageId : " << set.messageId
-        << ", name : " << set.name
-        << ", value : ";
-#if 0
-    std::cout << std::hex;
-    for (int i = 0; i < set.value.size; ++i) {
-        std::cout << static_cast<int>(set.value.bytes[i]);
+        << ", name : " << set.name;
+
+    for (auto ext = set.value.extensions; ext; ext = ext->next) {
+        if (ext->found) {
+            std::cout << ", (extension)";
+        }
     }
-    std::cout << std::dec;
-#endif
     std::cout << " }\n";
 }
 
@@ -82,16 +80,26 @@ int main () {
         outMessage.set.messageId = 666;
         outMessage.set.name = 333;
 
-        /* The value of the extension field. */
-        int32_t value = 123;
+        int32_t int32 = 123;
 
-        /* Bullshit overhead. */
-        pb_extension_t ext;
-        ext.type = &UserValue_v;    // pb_field_t
-        ext.dest = &value;
-        ext.next = nullptr;         // next extension field goes here
+        pb_extension_t ext_int32;
 
-        outMessage.value.extensions = &ext;
+        ext_int32.type = &UserValue_int32;
+        ext_int32.dest = &int32;
+        ext_int32.next = nullptr;
+
+#if 1
+        float float_ = 3.14159;
+
+        pb_extension_t ext_float;
+        ext_int32.next = &ext_float;
+
+        ext_float.type = &UserValue_float;
+        ext_float.dest = &float_;
+        ext_float.next = nullptr;
+#endif
+
+        outMessage.set.value.extensions = &ext_int32;
 
         dumpRpcMessage(outMessage);
 
@@ -107,6 +115,26 @@ int main () {
         RpcMessage inMessage;
         memset(&inMessage, 0, sizeof(inMessage));
 
+        int32_t int32 = 987654321;
+        float float_ = 1.23456789;
+
+        pb_extension_t ext_int32;
+        pb_extension_t ext_float;
+
+        ext_int32.type = &UserValue_int32;
+        ext_int32.dest = &int32;
+        ext_int32.next = &ext_float;
+        ext_int32.found = false;
+
+        ext_float.type = &UserValue_float;
+        ext_float.dest = &float_;
+        ext_float.next = nullptr;
+        ext_float.found = false;
+
+        inMessage.set.value.extensions = &ext_int32;
+
+        std::cout << "(before) int32 = " << int32 << ", float_ = " << float_ << '\n';
+
         auto istream = pb_istream_from_buffer(buf, sizeof(buf));
         std::cout << "istream.bytes_left: " << istream.bytes_left << '\n';
         if (!pb_decode(&istream, RpcMessage_fields, &inMessage)) {
@@ -114,6 +142,7 @@ int main () {
         }
         std::cout << "istream.bytes_left: " << istream.bytes_left << '\n';
 
+        std::cout << "(after) int32 = " << int32 << ", float_ = " << float_ << '\n';
         dumpRpcMessage(inMessage);
     }
 }
