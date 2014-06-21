@@ -1,0 +1,70 @@
+extend UserValue {
+    optional int32 UserValue_v = 1;
+}
+
+/////////////////////////////////////////
+
+message UserValue {
+    extensions 1 to 18999;
+}
+
+message Get {
+    required uint32 messageId = 1;
+    required uint32 name = 2;
+}
+
+message Set {
+    required uint32 messageId = 1;
+    required uint32 name = 2;
+    required UserValue value = 3;
+}
+
+message Subscribe {
+    required uint32 messageId = 1;
+    required uint32 name = 2;
+}
+
+message Unsubscribe {
+    required uint32 messageId = 1;
+    required uint32 name = 2;
+}
+
+message Fire {
+    required uint32 messageId = 1;
+    required uint32 name = 2;
+    required bytes inArgs = 3;
+}
+
+message Reply {
+    enum RpcError {
+        NO_SUCH_OBJECT = 1;
+        TYPE_SIGNATURE_MISMATCH = 2;
+        FORBIDDEN = 3;
+    }
+
+    required uint32 messageId = 1;
+
+    optional bytes outArgs = 2;
+    optional uint32 error = 3;
+    optional RpcError rpcError = 4;
+}
+
+message RpcMessage {
+    enum Type {
+        GET = 1;
+        SET = 2;
+        SUBSCRIBE = 3;
+        UNSUBSCRIBE = 4;
+        FIRE = 5;
+        REPLY = 6;
+    }
+
+    required Type type = 1;
+
+    optional Get get = 16;
+    optional Set set = 17;
+    optional Subscribe subscribe = 18;
+    optional Unsubscribe unsubscribe = 19;
+    optional Fire fire = 20;
+    optional Reply reply = 21;
+}
