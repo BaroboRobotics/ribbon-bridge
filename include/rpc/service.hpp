@@ -10,6 +10,7 @@ class Service {
 public:
     template <class Object>
     void registerObject (Object&& object) {
+        (void)object;
     }
 
 private:
