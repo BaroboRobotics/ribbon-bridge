@@ -26,6 +26,9 @@ add_custom_command(OUTPUT ${PROTO_OUTPUT}
 
 include_directories(deps/pb)
 include_directories(deps/simavr/simavr/sim/avr)
+if(NOT UNIX)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -isystem ${PROJECT_SOURCE_DIR}/deps/stlport-avr/stlport")
+endif()
 include_directories(include)
 include_directories(src)
 include_directories(${PROJECT_BINARY_DIR})
@@ -39,11 +42,6 @@ set_source_files_properties(src/rpc.cpp PROPERTIES
     COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS")
 
 add_executable(rpc ${SOURCES} ${PROTO_OUTPUT})
-
-set(SOURCES src/hello.c)
-set_source_files_properties(src/hello.c PROPERTIES
-    COMPILE_FLAGS "-std=c11 -D__STDC_FORMAT_MACROS")
-add_executable(hello ${SOURCES})
 
 include(${PROJECT_SOURCE_DIR}/arm_macros.cmake)
 extract_bin_file(rpc)
