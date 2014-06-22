@@ -1,7 +1,10 @@
 #include "rpc/service.hpp"
-//#include <iostream>
+
+#include <cstdio>
 
 /* GENERATED CODE */
+
+#include <cstdint>
 
 namespace com {
 namespace barobo {
@@ -17,17 +20,32 @@ namespace rpc {
 template <>
 struct Method<com::barobo::Robot> {
     struct move {
-        struct {
+        struct in {
             float desiredAngle1;
             float desiredAngle2;
             float desiredAngle3;
         } in;
 
-        struct {
+        struct out {
+            int32_t i;
         } out;
 
-        enum class error {
+        enum class defaultError {
         } error;
+
+        constexpr static const struct in defaultIn () {
+            return {
+                float(),
+                float(),
+                float()
+            };
+        }
+
+        constexpr static const struct out defaultOut () {
+            return {
+                int32_t()
+            };
+        }
     };
 };
 
@@ -43,7 +61,12 @@ public:
     Robot (Impl& impl) : mImpl(impl) { }
 
     void move (float desiredAngle1, float desiredAngle2, float desiredAngle3) {
-        typename rpc::Method<Robot>::move args { { desiredAngle1, desiredAngle2, desiredAngle3 } };
+        using method = typename rpc::Method<Robot>::move;
+        method args {
+            { desiredAngle1, desiredAngle2, desiredAngle3 },
+            method::defaultOut(),
+            method::defaultError()
+        };
         mImpl.on(args);
     }
 
@@ -68,7 +91,8 @@ public:
 
     void on (Method::move args) {
         auto& in = args.in;
-        //std::cout << in.desiredAngle1 << ' ' << in.desiredAngle2 << ' ' << in.desiredAngle3 << '\n';
+        printf("%f %f %f\n", double(in.desiredAngle1),
+                double(in.desiredAngle2), double(in.desiredAngle3));
     }
 
     /* More methods ... */
