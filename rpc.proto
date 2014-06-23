@@ -9,44 +9,78 @@ message UserValue {
     extensions 1 to 18999;
 }
 
+message UserError {
+    extensions 1 to 18999;
+}
+
 message Get {
     required uint32 messageId = 1;
-    required uint32 name = 2;
+    required uint32 objectId = 2;
+    required uint32 interfaceId = 3;
+    required uint32 id = 4; // attribute
 }
 
 message Set {
     required uint32 messageId = 1;
-    required uint32 name = 2;
-    required UserValue value = 3;
+    required uint32 objectId = 2;
+    required uint32 interfaceId = 3;
+    required uint32 id = 4; // attribute
+    required UserValue value = 5;
 }
 
 message Subscribe {
+    enum AttributeOrBroadcast {
+        ATTRIBUTE = 1;
+        BROADCAST = 2;
+    }
+
     required uint32 messageId = 1;
-    required uint32 name = 2;
+    required uint32 objectId = 2;
+    required uint32 interfaceId = 3;
+    required uint32 id = 4; // attribute or broadcast
 }
 
 message Unsubscribe {
+    enum AttributeOrBroadcast {
+        ATTRIBUTE = 1;
+        BROADCAST = 2;
+    }
+
     required uint32 messageId = 1;
-    required uint32 name = 2;
+    required uint32 objectId = 2;
+    required uint32 interfaceId = 3;
+    required uint32 id = 4; // attribute or broadcast
 }
 
 message Fire {
     required uint32 messageId = 1;
-    required uint32 name = 2;
-    required bytes inArgs = 3;
+    required uint32 objectId = 2;
+    required uint32 interfaceId = 3;
+    required uint32 id = 4; // method
+    repeated UserValue in = 5; // arguments
+}
+
+message Broadcast {
+    required uint32 objectId = 1;
+    required uint32 interfaceId = 2;
+    required uint32 id = 3; // attribute or broadcast
+    repeated UserValue out = 4; // attribute value or broadcast output parameters
 }
 
 message Reply {
     enum RpcError {
         NO_SUCH_OBJECT = 1;
-        TYPE_SIGNATURE_MISMATCH = 2;
-        FORBIDDEN = 3;
+        NO_SUCH_INTERFACE = 2;
+        BUFFER_OVERFLOW = 3;
+        TYPE_SIGNATURE_MISMATCH = 4;
+        FORBIDDEN = 5;
+        OTHER = 6;
     }
 
-    required uint32 messageId = 1;
+    required uint32 inReplyToMessageId = 1;
 
-    optional bytes outArgs = 2;
-    optional uint32 error = 3;
+    repeated UserValue out = 2; // output parameters
+    optional UserError error = 3;
     optional RpcError rpcError = 4;
 }
 
@@ -57,7 +91,8 @@ message RpcMessage {
         SUBSCRIBE = 3;
         UNSUBSCRIBE = 4;
         FIRE = 5;
-        REPLY = 6;
+        BROADCAST = 6;
+        REPLY = 7;
     }
 
     required Type type = 1;
@@ -67,5 +102,6 @@ message RpcMessage {
     optional Subscribe subscribe = 18;
     optional Unsubscribe unsubscribe = 19;
     optional Fire fire = 20;
-    optional Reply reply = 21;
+    optional Broadcast broadcast = 21;
+    optional Reply reply = 22;
 }

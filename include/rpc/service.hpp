@@ -1,7 +1,18 @@
 #ifndef RPC_SERVICE_HPP
 #define RPC_SERVICE_HPP
 
+struct _pb_extension_t;
+
 namespace rpc {
+
+template <class UnionType>
+UnionType& getStaticExtensionUnion () {
+    static UnionType u;
+    return u;
+}
+
+template <class UnionType>
+_pb_extension_t& getStaticExtensionChain ();
 
 template <template <class> class Interface>
 struct Method;
