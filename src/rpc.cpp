@@ -5,7 +5,7 @@
 #endif
 
 #include "rpc.pb.h"
-#include "gen-rpc.pb.hpp"
+//#include "gen-rpc.pb.hpp"
 #include "potqueue.hpp"
 
 #include <pb_encode.h>
@@ -24,14 +24,19 @@ void onGet (const Get& get) {
 }
 
 void onSet (const Set& set) {
-    printf("SET { messageId : %" PRId32 ", id : %" PRId32, set.messageId, set.id);
+    printf("SET { messageId : %" PRId32
+               ", objectId : %" PRId32
+               ", interfaceId : %" PRId32
+               ", id : %" PRId32,
+               set.messageId, set.objectId, set.interfaceId, set.id);
 
-    for (auto ext = set.value.extensions; ext; ext = ext->next) {
-        if (ext->found) {
-            auto& u = rpc::getStaticExtensionUnion<rpc::extensions::com::barobo::Robot>();
-            (void)u;
+    if (set.value.size) {
+        printf(", value :");
+        for (size_t i = 0; i < set.value.size; ++i) {
+            printf(" %x", int(set.value.bytes[i]));
         }
     }
+
     printf(" }\n");
 }
 
@@ -105,30 +110,11 @@ bool sendSet (SQ& sizeQueue, MQ& messageQueue) {
     outMessage.type = RpcMessage_Type_SET;
     outMessage.has_set = true;
     outMessage.set.messageId = 666;
+    outMessage.set.objectId = 123;
+    outMessage.set.interfaceId = 456;
     outMessage.set.id = 333;
-
-    int32_t int32 = 123;
-
-    pb_extension_t ext_int32;
-
-    ext_int32.type = &UserValue_int32;
-    ext_int32.dest = &int32;
-    ext_int32.next = nullptr;
-    ext_int32.found = true;
-
-#if 0
-    float float_ = 3.14159;
-
-    pb_extension_t ext_float;
-    memset(&ext_float, 0, sizeof(ext_float));
-    ext_int32.next = &ext_float;
-
-    ext_float.type = &UserValue_float;
-    ext_float.dest = &float_;
-    ext_float.next = nullptr;
-#endif
-
-    outMessage.set.value.extensions = &ext_int32;
+    outMessage.set.value.bytes[0] = 0x99;
+    outMessage.set.value.size = 1;
 
     onRpcMessage(outMessage);
 
@@ -147,12 +133,9 @@ bool sendSet (SQ& sizeQueue, MQ& messageQueue) {
 
 //////////////////////////////////////////////////////////////////////////////
 
-bool recvRpcMessage (const size_t size, Buffer& buffer,
-        pb_extension_t* extensions) {
+bool recvRpcMessage (const size_t size, Buffer& buffer) {
     RpcMessage rpcMessage;
     memset(&rpcMessage, 0, sizeof(rpcMessage));
-
-    rpcMessage.set.value.extensions = extensions;
 
     auto istream = pb_istream_from_buffer(buffer.buffer, size);
     bool success = true;
@@ -172,8 +155,7 @@ int main () {
     PotQueue<size_t, 2> sizeQueue;
 
     sendSet(sizeQueue, bufferQueue);
-    recvRpcMessage(sizeQueue.front(), bufferQueue.front(),
-            &rpc::getStaticExtensionChain<rpc::extensions::com::barobo::Robot>());
+    recvRpcMessage(sizeQueue.front(), bufferQueue.front());
 
     sizeQueue.pop();
     bufferQueue.pop();
