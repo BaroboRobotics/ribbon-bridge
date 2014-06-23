@@ -1,0 +1,82 @@
+package com.barobo.rpc;
+
+//////////////////////////////////////////////////////////////////////////////
+// Spontaneous messages TO objects
+
+message ToObject {
+    enum Type {
+        GET = 1;
+        SET = 2;
+        SUBSCRIBE_ATTRIBUTE = 3;
+        UNSUBSCRIBE_ATTRIBUTE = 4;
+        SUBSCRIBE_BROADCAST = 5;
+        UNSUBSCRIBE_BROADCAST = 6;
+        FIRE = 7;
+    }
+
+    required Type type = 1;
+    required uint32 messageId = 2;
+
+    required uint32 objectId = 3;
+    required uint32 interfaceId = 4;
+    // element type (attribute, method, or broadcast) is inferred from
+    // message type
+    required uint32 elementId = 6;
+
+    // a single encoded value for SET, multiple encoded values for FIRE
+    // null for GET, SUBSCRIBEs, and UNSUBSCRIBEs
+    required bytes payload = 7;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Spontaneous messages FROM objects
+
+message FromObject {
+    enum Type {
+        ATTRIBUTE_UPDATE = 1;
+        BROADCAST = 2;
+    }
+
+    required Type type = 1;
+
+    required uint32 objectId = 2;
+    required uint32 interfaceId = 3;
+    // element type is inferred from message type
+    required uint32 elementId = 4;
+
+    // a single encoded value for ATTRIBUTE_UPDATE, multiple encoded values for
+    // BROADCAST
+    required bytes payload = 5;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Replies (from objects)
+
+message Reply {
+    enum Type {
+        OUT = 1;        // in reply to GET or FIRE
+        ERROR = 2;      // in reply to FIRE
+        RPC_ERROR = 3;  // in reply to any ToObject message
+    }
+
+    enum RpcError {
+        NO_SUCH_OBJECT = 1;
+        NO_SUCH_INTERFACE = 2;
+        BUFFER_OVERFLOW = 3;
+        TYPE_SIGNATURE_MISMATCH = 4;
+        FORBIDDEN = 5;
+        OTHER = 6;
+    }
+
+    required uint32 inReplyToMessageId = 1;
+    required Type type = 2;
+    required bytes payload = 3;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+message Message {
+    optional ToObject toObject = 1;
+    optional FromObject fromObject = 2;
+    optional Reply reply = 3;
+}
