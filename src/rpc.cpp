@@ -1,8 +1,4 @@
-#if __GNU__ && __AVR__
-#define assert(x)
-#else
-#include <cassert>
-#endif
+#include "stdlibheaders.hpp"
 
 #include "rpc.pb.h"
 //#include "gen-rpc.pb.hpp"
@@ -10,10 +6,6 @@
 
 #include <pb_encode.h>
 #include <pb_decode.h>
-
-#include <cstdio>
-
-#include <inttypes.h>
 
 struct Buffer {
     uint8_t buffer[256];

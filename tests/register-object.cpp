@@ -1,10 +1,8 @@
+#include "stdlibheaders.hpp"
+
 #include "rpc/service.hpp"
 
-#include <cstdio>
-
 /* GENERATED CODE */
-
-#include <cstdint>
 
 namespace com {
 namespace barobo {

@@ -30,9 +30,6 @@ add_custom_command(OUTPUT ${PROTO_OUTPUT}
 
 include_directories(deps/${NANOPB_BASENAME})
 #include_directories(deps/simavr/simavr/sim/avr)
-if(NOT UNIX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -isystem ${PROJECT_SOURCE_DIR}/deps/stlport-avr/stlport")
-endif()
 include_directories(include)
 include_directories(src)
 include_directories(${PROJECT_BINARY_DIR})

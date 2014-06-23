@@ -1,6 +1,10 @@
 #ifndef RPC_POTRINGBUFFER_HPP
 #define RPC_POTRINGBUFFER_HPP
 
+#if __GNU__ && __AVR__
+#include "avr.hpp"
+#endif
+
 /* Power-of-two sized ringbuffer. */
 template <class T, size_t N>
 class PotRingbuffer {
