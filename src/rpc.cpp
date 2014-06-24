@@ -1,15 +1,12 @@
 #include "stdlibheaders.hpp"
 
+#include "rpc/service.hpp"
+
 #include "rpc.pb.h"
 #include "potqueue.hpp"
 
 #include <pb_encode.h>
 #include <pb_decode.h>
-
-struct Buffer {
-    size_t size;
-    uint8_t bytes[256];
-};
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -117,7 +114,7 @@ void buildFire (com_barobo_rpc_Message& message,
     message.toObject.payload.size = sizeof(payload);
 }
 
-bool encodeMessage (Buffer& buffer, const com_barobo_rpc_Message& message) {
+bool encodeMessage (rpc::Buffer& buffer, const com_barobo_rpc_Message& message) {
     printMessage(message);
 
     auto ostream = pb_ostream_from_buffer(buffer.bytes, sizeof(buffer.bytes));
@@ -136,7 +133,7 @@ bool encodeMessage (Buffer& buffer, const com_barobo_rpc_Message& message) {
 
 //////////////////////////////////////////////////////////////////////////////
 
-bool recvRpcMessage (Buffer& buffer) {
+bool recvRpcMessage (rpc::Buffer& buffer) {
     com_barobo_rpc_Message message;
     memset(&message, 0, sizeof(message));
 
@@ -158,9 +155,9 @@ bool recvRpcMessage (Buffer& buffer) {
 #include "robot.pb.h"
 
 int main () {
-    PotQueue<Buffer, 2> bufferQueue;
+    PotQueue<rpc::Buffer, 2> bufferQueue;
 
-    Buffer buffer;
+    rpc::Buffer buffer;
     com_barobo_rpc_Message message;
     com_barobo_Robot_MethodmoveIn args = {
         1.23,

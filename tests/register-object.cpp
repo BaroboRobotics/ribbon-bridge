@@ -7,7 +7,7 @@
 namespace com {
 namespace barobo {
 
-template <typename Impl>
+template <class Derived>
 class Robot;
 
 } // namespace barobo
@@ -52,24 +52,18 @@ struct Method<com::barobo::Robot> {
 namespace com {
 namespace barobo {
 
-template <typename Impl>
-class Robot {
-
-public:
-    Robot (Impl& impl) : mImpl(impl) { }
-
+template <class RpcObject>
+struct Robot {
     void move (float desiredAngle1, float desiredAngle2, float desiredAngle3) {
-        using method = typename rpc::Method<Robot>::move;
-        method args {
+        using Method = typename rpc::Method<Robot>::move;
+        Method args {
             { desiredAngle1, desiredAngle2, desiredAngle3 },
-            method::defaultOut(),
-            method::defaultError()
+            Method::defaultOut(),
+            Method::defaultError()
         };
-        mImpl.on(args);
+        auto& rpcObject = static_cast<RpcObject&>(*this);
+        rpc::getInstance(rpcObject).on(args);
     }
-
-private:
-    Impl& mImpl;
 };
 
 } // namespace barobo
@@ -80,14 +74,11 @@ private:
 
 class RobotImpl {
 public:
-    using Interface = com::barobo::Robot<RobotImpl>;
-    using Method = rpc::Method<com::barobo::Robot>;
-
-    RobotImpl (Interface& self) : mSelf(self) { }
+    using RobotMethod = rpc::Method<com::barobo::Robot>;
 
     /* Magic for attributes and broadcasts goes here. */
 
-    void on (Method::move args) {
+    void on (RobotMethod::move args) {
         auto& in = args.in;
         printf("%f %f %f\n", double(in.desiredAngle1),
                 double(in.desiredAngle2), double(in.desiredAngle3));
@@ -96,15 +87,13 @@ public:
     /* More methods ... */
 
 private:
-    Interface& mSelf;
+    /* Implementation details ... */
 };
 
-
 int main () {
-    rpc::Service rpcService;
-    rpc::Object<RobotImpl> robot;
-    rpcService.registerObject(robot);
+    using Robot = rpc::Object<RobotImpl, com::barobo::Robot>;
 
+    Robot robot;
     robot.move(-1, 0, 1);
 
 #if 0

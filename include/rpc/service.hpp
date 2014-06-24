@@ -1,41 +1,39 @@
 #ifndef RPC_SERVICE_HPP
 #define RPC_SERVICE_HPP
 
-struct _pb_extension_t;
+#define RPC_MESSAGE_MAX_SIZE 256
 
 namespace rpc {
 
-template <class UnionType>
-UnionType& getStaticExtensionUnion () {
-    static UnionType u;
-    return u;
-}
+/* Buffer to hold encoded rpc messages. */
+struct Buffer {
+    size_t size;
+    uint8_t bytes[RPC_MESSAGE_MAX_SIZE];
+};
 
-template <class UnionType>
-_pb_extension_t& getStaticExtensionChain ();
-
+/* Metafunction to access the input, output, and error parameter structures of
+ * an interface's methods. Specialized in generated code. */
 template <template <class> class Interface>
 struct Method;
 
-class Service {
-public:
-    template <class Object>
-    void registerObject (Object&& object) {
-        (void)object;
-    }
+template <class T, template <class> class... Is>
+class Object;
 
-private:
-};
+template <class T, template <class> class... Is>
+T& getInstance (Object<T, Is...>&);
 
-template <class T, class I = typename T::Interface, class... Is>
-class Object : public I, public Is... {
-    /* TODO: static_assert that T implements I, Is.... */
-public:
-    Object () : I(mInstance), Is(mInstance)..., mInstance(*this) { }
+template <class T, template <class> class... Is>
+class Object : public Is<Object<T, Is...>>... {
+    /* TODO: static_assert that T implements Is.... */
+    friend T& getInstance<> (Object& object);
 
-private:
     T mInstance;
 };
+
+template <class T, template <class> class... Is>
+T& getInstance (Object<T, Is...>& object) {
+    return object.mInstance;
+}
 
 } // namespace rpc
 
