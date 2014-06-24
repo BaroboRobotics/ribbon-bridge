@@ -1,8 +1,13 @@
 package com.barobo.rpc;
 
-//////////////////////////////////////////////////////////////////////////////
-// Spontaneous messages TO objects
+// The basic RPC Message union
+message Message {
+    optional ToObject toObject = 1;
+    optional FromObject fromObject = 2;
+    optional Reply reply = 3;
+}
 
+// Spontaneous messages TO objects
 message ToObject {
     enum Type {
         GET = 1;
@@ -21,16 +26,14 @@ message ToObject {
     required uint32 interfaceId = 4;
     // element type (attribute, method, or broadcast) is inferred from
     // message type
-    required uint32 elementId = 6;
+    required uint32 elementId = 5;
 
     // a single encoded value for SET, multiple encoded values for FIRE
     // null for GET, SUBSCRIBEs, and UNSUBSCRIBEs
-    required bytes payload = 7;
+    required bytes payload = 6;
 }
 
-//////////////////////////////////////////////////////////////////////////////
 // Spontaneous messages FROM objects
-
 message FromObject {
     enum Type {
         ATTRIBUTE_UPDATE = 1;
@@ -49,34 +52,60 @@ message FromObject {
     required bytes payload = 5;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// Replies (from objects)
+enum Error {
+    NO_SUCH_OBJECT = 1;
+    NO_SUCH_INTERFACE = 2;
+    NO_SUCH_ELEMENT = 3;
+    ATTRIBUTE_IS_READONLY = 4;
+    SUBSCRIPTION_FORBIDDEN = 5;
+    DECODE_FAILURE = 6;
+    BUFFER_OVERFLOW = 7;
+}
 
+// Replies (from objects)
+// Scenarios:
+
+//   client fires a fireAndForget method        NO Reply
+//   client fires a method without output       Reply { type == OUT,
+//                                                      payload.size == 0,
+//                                                      NO rpcError }
+//   client fires a method with output          Reply { type == OUT,
+//                                                      payload.size > 0,
+//                                                      NO rpcError }
+//   client fires a method that fails           Reply { type == ERROR,
+//                                                      payload.size > 0,
+//                                                      NO rpcError }
+//   client fires a method incorrectly (e.g.,   Reply { type == ERROR,
+//   wrong type signature, no such object)              payload.size == 0,
+//                                                      YES rpcError }
+
+//   client gets an attribute                   Reply { type == OUT,
+//                                                      payload.size > 0,
+//                                                      NO rpcError }
+//   client gets a nonexistent attribute        Reply { type == ERROR,
+//                                                      payload.size == 0,
+//                                                      YES rpcError }
+
+//   client sets an attribute                   NO Reply
+//   client sets a nonexistent attribute        Reply { type == ERROR,
+//                                                      payload.size == 0,
+//                                                      YES rpcError }
+//   client sets an attribute incorrectly       Reply { type == ERROR,
+//   (e.g., nonexistent attribute, readonly)            payload.size == 0
+//                                                      YES rpcError }
+
+//   client subscribes to an attribute          NO Reply
+//   client subscribes to a noSubscriptions     Reply { type == ERROR,
+//   attribute                                          payload.size == 0,
+//                                                      YES rpcError }
 message Reply {
     enum Type {
         OUT = 1;        // in reply to GET or FIRE
-        ERROR = 2;      // in reply to FIRE
-        RPC_ERROR = 3;  // in reply to any ToObject message
-    }
-
-    enum RpcError {
-        NO_SUCH_OBJECT = 1;
-        NO_SUCH_INTERFACE = 2;
-        BUFFER_OVERFLOW = 3;
-        TYPE_SIGNATURE_MISMATCH = 4;
-        FORBIDDEN = 5;
-        OTHER = 6;
+        ERROR = 2;      // in reply to SET, FIRE, SUBSCRIBEs
     }
 
     required uint32 inReplyToMessageId = 1;
     required Type type = 2;
     required bytes payload = 3;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-message Message {
-    optional ToObject toObject = 1;
-    optional FromObject fromObject = 2;
-    optional Reply reply = 3;
+    optional Error rpcError = 4;
 }

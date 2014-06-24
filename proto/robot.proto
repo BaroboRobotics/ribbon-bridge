@@ -1,0 +1,16 @@
+package com.barobo.Robot;
+
+// List all attribute user-defined types as messages
+
+// List all method in structures as messages
+message MethodmoveIn {
+    required float desiredAngle1 = 1;
+    required float desiredAngle2 = 2;
+    required float desiredAngle3 = 3;
+}
+
+// List all method out structures as messages
+
+// List all method error enums as enums
+
+// List all broadcast out structures as messages

@@ -7,7 +7,8 @@
 #include <pb_decode.h>
 
 struct Buffer {
-    uint8_t buffer[256];
+    size_t size;
+    uint8_t bytes[256];
 };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -41,7 +42,7 @@ const char* toObjectTypeToString (com_barobo_rpc_ToObject_Type type) {
     }
 }
 
-void onToObject (const com_barobo_rpc_ToObject& toObject) {
+void printToObject (const com_barobo_rpc_ToObject& toObject) {
     printf("%s {"
             "\n\tmessageId   : %" PRId32
             "\n\tobjectId    : %" PRId32
@@ -66,32 +67,25 @@ void onToObject (const com_barobo_rpc_ToObject& toObject) {
     printf("\n}\n");
 }
 
-void onFromObject (const com_barobo_rpc_FromObject& message) {
+void printFromObject (const com_barobo_rpc_FromObject& message) {
     (void)message;
 }
 
-void onReply (const com_barobo_rpc_Reply& message) {
+void printReply (const com_barobo_rpc_Reply& message) {
     (void)message;
 }
 
-void onMessage (const com_barobo_rpc_Message& message) {
+void printMessage (const com_barobo_rpc_Message& message) {
     if (message.has_toObject) {
-        if (message.has_fromObject) {
-            printf("Malformed message received: ToObject and FromObject together\n");
-        }
-        if (message.has_reply) {
-            printf("Malformed message received: ToObject and Reply together\n");
-        }
-        onToObject(message.toObject);
+        printToObject(message.toObject);
     }
-    else if (message.has_fromObject) {
-        if (message.has_reply) {
-            printf("Malformed message received: FromObject and Reply together\n");
-        }
-        onFromObject(message.fromObject);
+
+    if (message.has_fromObject) {
+        printFromObject(message.fromObject);
     }
-    else if (message.has_reply) {
-        onReply(message.reply);
+
+    if (message.has_reply) {
+        printReply(message.reply);
     }
 }
 
@@ -102,25 +96,31 @@ uint32_t getNextMessageId () {
     return messageId++;
 }
 
-template <class SQ, class BQ>
-bool sendSet (SQ& sizeQueue, BQ& bufferQueue) {
-    com_barobo_rpc_Message message;
+template <class Payload>
+void buildFire (com_barobo_rpc_Message& message,
+        uint32_t objectId,
+        uint32_t interfaceId,
+        uint32_t elementId,
+        const Payload& payload) {
+    static_assert(sizeof(payload) <= sizeof(message.toObject.payload.bytes),
+            "FIRE payload overflow");
+
     memset(&message, 0, sizeof(message));
 
     message.has_toObject = true;
-    message.toObject.type = com_barobo_rpc_ToObject_Type_SET;
+    message.toObject.type = com_barobo_rpc_ToObject_Type_FIRE;
     message.toObject.messageId = getNextMessageId();
-    message.toObject.objectId = 11;
-    message.toObject.interfaceId = 22;
-    message.toObject.elementId = 33;
-    message.toObject.payload.bytes[0] = 0x44;
-    message.toObject.payload.bytes[1] = 0x44;
-    message.toObject.payload.size = 2;
+    message.toObject.objectId = objectId;
+    message.toObject.interfaceId = interfaceId;
+    message.toObject.elementId = elementId;
+    memcpy(&message.toObject.payload.bytes, &payload, sizeof(payload));
+    message.toObject.payload.size = sizeof(payload);
+}
 
-    onMessage(message);
+bool encodeMessage (Buffer& buffer, const com_barobo_rpc_Message& message) {
+    printMessage(message);
 
-    Buffer buf;
-    auto ostream = pb_ostream_from_buffer(buf.buffer, sizeof(buf));
+    auto ostream = pb_ostream_from_buffer(buffer.bytes, sizeof(buffer.bytes));
     bool success = true;
     if (!pb_encode(&ostream, com_barobo_rpc_Message_fields, &message)) {
         success = false;
@@ -130,19 +130,17 @@ bool sendSet (SQ& sizeQueue, BQ& bufferQueue) {
         printf("encoded %zu bytes\n", ostream.bytes_written);
     }
 
-    sizeQueue.push(ostream.bytes_written);
-    bufferQueue.push(buf);
-
+    buffer.size = ostream.bytes_written;
     return success;
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-bool recvRpcMessage (const size_t size, Buffer& buffer) {
+bool recvRpcMessage (Buffer& buffer) {
     com_barobo_rpc_Message message;
     memset(&message, 0, sizeof(message));
 
-    auto istream = pb_istream_from_buffer(buffer.buffer, size);
+    auto istream = pb_istream_from_buffer(buffer.bytes, buffer.size);
     bool success = true;
     auto nBytesLeft = istream.bytes_left;
     if (!pb_decode(&istream, com_barobo_rpc_Message_fields, &message)) {
@@ -151,19 +149,29 @@ bool recvRpcMessage (const size_t size, Buffer& buffer) {
     }
     else {
         printf("decoded %zu bytes\n", nBytesLeft - istream.bytes_left);
-        onMessage(message);
+        printMessage(message);
     }
 
     return success;
 }
 
+#include "robot.pb.h"
+
 int main () {
     PotQueue<Buffer, 2> bufferQueue;
-    PotQueue<size_t, 2> sizeQueue;
 
-    sendSet(sizeQueue, bufferQueue);
-    recvRpcMessage(sizeQueue.front(), bufferQueue.front());
+    Buffer buffer;
+    com_barobo_rpc_Message message;
+    com_barobo_Robot_MethodmoveIn args = {
+        1.23,
+        4.56,
+        7.89
+    };
 
-    sizeQueue.pop();
+    buildFire(message, 0 /*object*/, 1 /*interface*/, 2 /*element*/, args);
+    encodeMessage(buffer, message);
+    bufferQueue.push(buffer);
+
+    recvRpcMessage(bufferQueue.front());
     bufferQueue.pop();
 }
