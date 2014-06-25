@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(rpc-test)
+project(rpc)
 
 set(CMAKE_C_FLAGS "-Wall -Wextra -Os -fno-exceptions")
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -Os -fno-rtti -fno-exceptions")
@@ -23,25 +23,12 @@ set(RPC_PROTO_OPTIONS rpc.options)
 set(RPC_PROTO_C_FILE rpc.pb.c)
 set(RPC_PROTO_H_FILE rpc.pb.h)
 
-set(ROBOT_PROTO_SOURCES robot.proto)
-#set(ROBOT_PROTO_OPTIONS robot.options)
-set(ROBOT_PROTO_C_FILE robot.pb.c)
-set(ROBOT_PROTO_H_FILE robot.pb.h)
-
 add_custom_command(OUTPUT ${RPC_PROTO_C_FILE} ${RPC_PROTO_H_FILE}
-    COMMAND ${PROTOC} --nanopb_out=${PROJECT_BINARY_DIR} ${RPC_PROTO_SOURCES}
+    COMMAND ${PROTOC} --nanopb_out=${CMAKE_CURRENT_BINARY_DIR} ${RPC_PROTO_SOURCES}
     MAIN_DEPENDENCY ${PROTO_SOURCE_DIR}/${RPC_PROTO_SOURCES}
     DEPENDS ${PROTO_SOURCE_DIR}/${RPC_PROTO_OPTIONS}
     WORKING_DIRECTORY ${PROTO_SOURCE_DIR}
     COMMENT "Generating RPC protocol buffers ..."
-    VERBATIM)
-
-add_custom_command(OUTPUT ${ROBOT_PROTO_C_FILE} ${ROBOT_PROTO_H_FILE}
-    COMMAND ${PROTOC} --nanopb_out=${PROJECT_BINARY_DIR} ${ROBOT_PROTO_SOURCES}
-    MAIN_DEPENDENCY ${PROTO_SOURCE_DIR}/${ROBOT_PROTO_SOURCES}
-    #    DEPENDS ${PROTO_SOURCE_DIR}/${ROBOT_PROTO_OPTIONS}
-    WORKING_DIRECTORY ${PROTO_SOURCE_DIR}
-    COMMENT "Generating Robot protocol buffers ..."
     VERBATIM)
 
 ##############################################################################
@@ -53,19 +40,15 @@ include_directories(src)
 include_directories(${PROJECT_BINARY_DIR})
 
 set(SOURCES
-    src/rpc.cpp
+    src/printmessage.cpp
     ${RPC_PROTO_C_FILE}
-    ${ROBOT_PROTO_C_FILE}
     deps/${NANOPB_BASENAME}/pb_decode.c
     deps/${NANOPB_BASENAME}/pb_encode.c)
 
-set_source_files_properties(src/rpc.cpp PROPERTIES
+set_source_files_properties(src/printmessage.cpp PROPERTIES
     COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS")
 
-add_executable(rpc ${SOURCES})
-
-include(${PROJECT_SOURCE_DIR}/arm_macros.cmake)
-extract_ihex_file(rpc)
+add_library(rpc STATIC ${SOURCES})
 
 ##############################################################################
 

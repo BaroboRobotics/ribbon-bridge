@@ -14,3 +14,22 @@ message MethodmoveIn {
 // List all method error enums as enums
 
 // List all broadcast out structures as messages
+
+message move {
+    message In {
+        required float desiredAngle1 = 1;
+        required float desiredAngle2 = 2;
+        required float desiredAngle3 = 3;
+    }
+
+    message Out {
+    }
+
+    enum Error {
+        NO_ERROR = 1;
+    }
+
+    required In in = 1;
+    required Out out = 2;
+    required Error error = 3;
+}
