@@ -1,7 +1,7 @@
 #ifndef RPC_POTQUEUE_HPP
 #define RPC_POTQUEUE_HPP
 
-#include "potringbuffer.hpp"
+#include "rpc/potringbuffer.hpp"
 
 template <class T, size_t N>
 class PotQueue {

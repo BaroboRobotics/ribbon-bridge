@@ -1,4 +1,4 @@
-#include "stdlibheaders.hpp"
+#include "rpc/stdlibheaders.hpp"
 #include "gen-robot.pb.hpp"
 #include "rpc/encode_decode.hpp"
 #include "rpc/object.hpp"
@@ -6,10 +6,10 @@
 namespace rpc {
 
 template <>
-void decodeToObjectPayload (ArgumentUnion<com::barobo::Robot>& args, com_barobo_rpc_ToObject& toObject) {
+void decodePayload (ArgumentUnion<com::barobo::Robot>& args, com_barobo_rpc_ToObject& toObject) {
     if (com_barobo_rpc_ToObject_Type_SET == toObject.type ||
             com_barobo_rpc_ToObject_Type_FIRE == toObject.type) {
-        switch (toObject.elementId) {
+        switch (toObject.componentId) {
             //////////////////////////////////////////////////////////////////
             // ATTRIBUTES
             case ComponentId<com::barobo::Robot>::motorPower:

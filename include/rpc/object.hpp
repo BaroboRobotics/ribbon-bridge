@@ -28,7 +28,7 @@ template <template <class> class Interface>
 union ArgumentUnion;
 
 template <template <class> class Interface>
-void decodeToObjectPayload (ArgumentUnion<Interface>& args, com_barobo_rpc_ToObject& toObject);
+void decodePayload (ArgumentUnion<Interface>& args, com_barobo_rpc_ToObject& toObject);
 
 template <template <class> class Interface>
 struct ComponentId;

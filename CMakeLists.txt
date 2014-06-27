@@ -33,11 +33,7 @@ add_custom_command(OUTPUT ${RPC_PROTO_C_FILE} ${RPC_PROTO_H_FILE}
 
 ##############################################################################
 
-include_directories(deps/${NANOPB_BASENAME})
 #include_directories(deps/simavr/simavr/sim/avr)
-include_directories(include)
-include_directories(src)
-include_directories(${PROJECT_BINARY_DIR})
 
 set(SOURCES
     src/printmessage.cpp
@@ -50,6 +46,13 @@ set_source_files_properties(src/printmessage.cpp src/encode_decode.cpp PROPERTIE
     COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS")
 
 add_library(rpc STATIC ${SOURCES})
+
+target_include_directories(rpc
+    PUBLIC deps/${NANOPB_BASENAME}
+    PUBLIC include
+    PRIVATE src
+    PUBLIC ${PROJECT_BINARY_DIR}
+    )
 
 ##############################################################################
 

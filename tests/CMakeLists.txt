@@ -11,9 +11,8 @@ add_custom_command(OUTPUT ${ROBOT_PROTO_C_FILE} ${ROBOT_PROTO_H_FILE}
     COMMENT "Generating Robot protocol buffers ..."
     VERBATIM)
 
-message(STATUS "CXXFLAGS: ${CMAKE_CXX_FLAGS}")
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
 set_source_files_properties(method-fire.cpp gen-robot.pb.cpp PROPERTIES COMPILE_FLAGS -std=c++11)
 add_executable(method-fire method-fire.cpp gen-robot.pb.cpp ${ROBOT_PROTO_C_FILE})
+target_include_directories(method-fire PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(method-fire rpc)
 add_test(NAME method-fire COMMAND method-fire)

@@ -1,4 +1,4 @@
-#include "stdlibheaders.hpp"
+#include "rpc/stdlibheaders.hpp"
 #include "rpc/printmessage.hpp"
 
 namespace rpc {
@@ -37,13 +37,13 @@ void printToObject (const com_barobo_rpc_ToObject& toObject) {
             "\n\tmessageId   : %" PRId32
             "\n\tobjectId    : %" PRId32
             "\n\tinterfaceId : %" PRId32
-            "\n\telementId   : %" PRId32
+            "\n\tcomponentId : %" PRId32
             "\n\tpayload     :",
             toObjectTypeToString(toObject.type),
             toObject.messageId,
             toObject.objectId,
             toObject.interfaceId,
-            toObject.elementId);
+            toObject.componentId);
 
     if (toObject.payload.size) {
         for (size_t i = 0; i < toObject.payload.size; ++i) {

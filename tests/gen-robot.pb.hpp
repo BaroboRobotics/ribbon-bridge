@@ -40,7 +40,7 @@ union ArgumentUnion<com::barobo::Robot> {
 };
 
 template <>
-void decodeToObjectPayload (ArgumentUnion<com::barobo::Robot>& args, com_barobo_rpc_ToObject& toObject);
+void decodePayload (ArgumentUnion<com::barobo::Robot>& args, com_barobo_rpc_ToObject& toObject);
 
 template <>
 struct ComponentId<com::barobo::Robot> {
@@ -50,6 +50,33 @@ struct ComponentId<com::barobo::Robot> {
         buttonPress
     };
 };
+
+template <class T>
+void fire (T& object,
+        ArgumentUnion<com::barobo::Robot>& argument,
+        com_barobo_rpc_ToObject& toObject) {
+    /* TODO: static_assert that T implements com::barobo::Robot */
+    switch (toObject.componentId) {
+        case ComponentId<com::barobo::Robot>::motorPower:
+            if (com_barobo_rpc_ToObject_Type_GET == toObject.type) {
+                object.on_(argument.motorPower, Get());
+            }
+            else if (com_barobo_rpc_ToObject_Type_SET == toObject.type) {
+                object.on_(argument.motorPower, Set());
+            }
+            else {
+                // yo wtf
+                assert(false);
+            }
+            break;
+        case ComponentId<com::barobo::Robot>::move:
+            object.on_(argument.move);
+            break;
+        default:
+            assert(false);
+            break;
+    }
+}
 
 } // namespace rpc
 

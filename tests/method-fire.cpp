@@ -1,11 +1,11 @@
-#include "stdlibheaders.hpp"
+#include "rpc/stdlibheaders.hpp"
 
 #include "rpc.pb.h"
 #include "rpc/object.hpp"
 #include "rpc/encode_decode.hpp"
 #include "rpc/printmessage.hpp"
 
-#include "potqueue.hpp"
+#include "rpc/potqueue.hpp"
 
 uint32_t getNextMessageId () {
     static uint32_t messageId = 0;
@@ -15,7 +15,7 @@ uint32_t getNextMessageId () {
 void buildFire (com_barobo_rpc_Message& message,
         uint32_t objectId,
         uint32_t interfaceId,
-        uint32_t elementId,
+        uint32_t componentId,
         uint8_t* bytes, size_t size) {
     /* Payloads are method input structures, and unlikely to need
      * runtime-variable length capacity. This assert should be a static_assert.
@@ -29,7 +29,7 @@ void buildFire (com_barobo_rpc_Message& message,
     message.toObject.messageId = getNextMessageId();
     message.toObject.objectId = objectId;
     message.toObject.interfaceId = interfaceId;
-    message.toObject.elementId = elementId;
+    message.toObject.componentId = componentId;
     memcpy(message.toObject.payload.bytes, bytes, size);
     message.toObject.payload.size = size;
 }
@@ -96,11 +96,21 @@ void serverSide (uint8_t* buffer, size_t size) {
 
     if (message.has_toObject) {
 
-        /* Check object, interface, and element ids for sanity. */
+        /* Check object, interface, and component ids for sanity. */
 
-        rpc::ArgumentUnion<com::barobo::Robot> argument;
-        decodeToObjectPayload(argument, message.toObject);
-        //rpc::fire(robot, argument);
+        if (com_barobo_rpc_ToObject_Type_GET == message.toObject.type ||
+                com_barobo_rpc_ToObject_Type_SET == message.toObject.type ||
+                com_barobo_rpc_ToObject_Type_FIRE == message.toObject.type) {
+            rpc::ArgumentUnion<com::barobo::Robot> argument;
+            rpc::decodePayload(argument, message.toObject);
+            rpc::fire(robot, argument, message.toObject);
+        }
+        else if (com_barobo_rpc_ToObject_Type_SUBSCRIBE_ATTRIBUTE == message.toObject.type ||
+                com_barobo_rpc_ToObject_Type_SUBSCRIBE_BROADCAST == message.toObject.type) {
+        }
+        else if (com_barobo_rpc_ToObject_Type_UNSUBSCRIBE_ATTRIBUTE == message.toObject.type ||
+                com_barobo_rpc_ToObject_Type_UNSUBSCRIBE_BROADCAST == message.toObject.type) {
+        }
     }
 
     if (message.has_fromObject) {

@@ -1,7 +1,7 @@
 #ifndef RPC_STDLIBHEADERS_HPP
 #define RPC_STDLIBHEADERS_HPP
 
-#include "is_base_of.hpp"
+//#include "is_base_of.hpp"
 
 #if __GNUC__ && __AVR__
 // Use avr-libc
