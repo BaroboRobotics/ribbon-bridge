@@ -1,33 +1,59 @@
 #ifndef RPC_OBJECT_HPP
 #define RPC_OBJECT_HPP
 
+#include "rpc.pb.h"
+
 namespace rpc {
+
+/* Tag dispatching for setter and getter functions. */
+struct Set { };
+struct Get { };
+
+/* Metafunction to access the attribute structures of an interface. Specialized
+ * in generated code. */
+template <template <class> class Interface>
+struct Attribute;
 
 /* Metafunction to access the input, output, and error parameter structures of
  * an interface's methods. Specialized in generated code. */
 template <template <class> class Interface>
 struct Method;
 
-template <class T, template <class> class... Is>
-class Object;
+/* Metafunction to access the broadcast structures of an interface. Specialized
+ * in generated code. */
+template <template <class> class Interface>
+struct Broadcast;
 
-/* Break an rpc::Object's encapsulation and return the underlying
- * implementation instance (i.e., the user's object). */
-template <class T, template <class> class... Is>
-T& getInstance (Object<T, Is...>&);
+template <template <class> class Interface>
+union ArgumentUnion;
+
+template <template <class> class Interface>
+void decodeToObjectPayload (ArgumentUnion<Interface>& args, com_barobo_rpc_ToObject& toObject);
+
+template <template <class> class Interface>
+struct ComponentId;
 
 template <class T, template <class> class... Is>
 class Object : public Is<Object<T, Is...>>... {
     /* TODO: static_assert that T implements Is.... */
-    friend T& getInstance<> (Object& object);
+public:
+    using Subscription = uint32_t;
 
-    T mInstance;
+protected:
+    template <class B>
+    void broadcast_ (B& args) {
+        printf("Broadcasting ...\n");
+    }
+
+private:
+    template <class B>
+    Subscription subscribe_ () {
+        printf("Someone wants to subscribe ...\n");
+        return 0;
+    }
+
+
 };
-
-template <class T, template <class> class... Is>
-T& getInstance (Object<T, Is...>& object) {
-    return object.mInstance;
-}
 
 } // namespace rpc
 

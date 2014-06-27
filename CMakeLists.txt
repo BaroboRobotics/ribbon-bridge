@@ -41,11 +41,12 @@ include_directories(${PROJECT_BINARY_DIR})
 
 set(SOURCES
     src/printmessage.cpp
+    src/encode_decode.cpp
     ${RPC_PROTO_C_FILE}
     deps/${NANOPB_BASENAME}/pb_decode.c
     deps/${NANOPB_BASENAME}/pb_encode.c)
 
-set_source_files_properties(src/printmessage.cpp PROPERTIES
+set_source_files_properties(src/printmessage.cpp src/encode_decode.cpp PROPERTIES
     COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS")
 
 add_library(rpc STATIC ${SOURCES})

@@ -1,4 +1,10 @@
+#ifndef COM_BAROBO_ROBOT_INTERFACE
+#define COM_BAROBO_ROBOT_INTERFACE
+
 /* GENERATED CODE */
+
+#include "rpc/object.hpp"
+#include "robot.pb.h"
 
 namespace com {
 namespace barobo {
@@ -13,34 +19,35 @@ class Robot;
 namespace rpc {
 
 template <>
+struct Attribute<com::barobo::Robot> {
+    using motorPower = com_barobo_Robot_motorPower;
+};
+
+template <>
 struct Method<com::barobo::Robot> {
-    struct move {
-        struct in {
-            float desiredAngle1;
-            float desiredAngle2;
-            float desiredAngle3;
-        } in;
+    using move = com_barobo_Robot_move;
+};
 
-        struct out {
-            int32_t i;
-        } out;
+template <>
+struct Broadcast<com::barobo::Robot> {
+    using buttonPress = com_barobo_Robot_buttonPress;
+};
 
-        enum class defaultError {
-        } error;
+template <>
+union ArgumentUnion<com::barobo::Robot> {
+    typename Attribute<com::barobo::Robot>::motorPower motorPower;
+    typename Method<com::barobo::Robot>::move move;
+};
 
-        constexpr static const struct in defaultIn () {
-            return {
-                float(),
-                float(),
-                float()
-            };
-        }
+template <>
+void decodeToObjectPayload (ArgumentUnion<com::barobo::Robot>& args, com_barobo_rpc_ToObject& toObject);
 
-        constexpr static const struct out defaultOut () {
-            return {
-                int32_t()
-            };
-        }
+template <>
+struct ComponentId<com::barobo::Robot> {
+    enum {
+        motorPower,
+        move,
+        buttonPress
     };
 };
 
@@ -49,20 +56,28 @@ struct Method<com::barobo::Robot> {
 namespace com {
 namespace barobo {
 
-template <class RpcObject>
+template <class Derived>
 struct Robot {
+    typename rpc::Attribute<Robot>::motorPower motorPower () const {
+        rpc::Attribute<Robot>::motorPower args;
+        static_cast<Derived&>(*this).on_(args, rpc::Get());
+        return args;
+    }
+
+    void motorPower (typename rpc::Attribute<Robot>::motorPower args) {
+        static_cast<Derived&>(*this).on_(args, rpc::Set());
+    }
+
     void move (float desiredAngle1, float desiredAngle2, float desiredAngle3) {
         using Method = typename rpc::Method<Robot>::move;
         Method args {
-            { desiredAngle1, desiredAngle2, desiredAngle3 },
-            Method::defaultOut(),
-            Method::defaultError()
+            { desiredAngle1, desiredAngle2, desiredAngle3 }
         };
-        auto& rpcObject = static_cast<RpcObject&>(*this);
-        rpc::getInstance(rpcObject).on(args);
+        static_cast<Derived&>(*this).on_(args);
     }
 };
 
 } // namespace barobo
 } // namespace com
 
+#endif
