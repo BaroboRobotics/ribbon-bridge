@@ -1,9 +1,14 @@
 #include "rpc/stdlibheaders.hpp"
 #include "gen-robot.pb.hpp"
-#include "rpc/encode_decode.hpp"
+#include "rpc/message.hpp"
 #include "rpc/object.hpp"
 
 namespace rpc {
+
+template <>
+const pb_field_t* pbFields (com_barobo_Robot_move_In) {
+    return com_barobo_Robot_move_In_fields;
+}
 
 template <>
 void decodePayload (ArgumentUnion<com::barobo::Robot>& args, com_barobo_rpc_ToObject& toObject) {

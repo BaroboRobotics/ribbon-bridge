@@ -22,11 +22,10 @@ message ToObject {
     required Type type = 1;
     required uint32 messageId = 2;
 
-    required uint32 objectId = 3;
-    required uint32 interfaceId = 4;
     // component type (attribute, method, or broadcast) is inferred from
     // message type
-    required uint32 componentId = 5;
+    // fixed32 instead of uint32 because it's a hash
+    required fixed32 componentId = 5;
 
     // a single encoded value for SET, multiple encoded values for FIRE
     // null for GET, SUBSCRIBEs, and UNSUBSCRIBEs
@@ -42,8 +41,6 @@ message FromObject {
 
     required Type type = 1;
 
-    required uint32 objectId = 2;
-    required uint32 interfaceId = 3;
     // component type is inferred from message type
     required uint32 componentId = 4;
 

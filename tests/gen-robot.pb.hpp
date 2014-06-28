@@ -4,6 +4,8 @@
 /* GENERATED CODE */
 
 #include "rpc/object.hpp"
+#include "rpc/proxy.hpp"
+#include "rpc/hash.hpp"
 #include "robot.pb.h"
 
 namespace com {
@@ -44,12 +46,17 @@ void decodePayload (ArgumentUnion<com::barobo::Robot>& args, com_barobo_rpc_ToOb
 
 template <>
 struct ComponentId<com::barobo::Robot> {
-    enum {
-        motorPower,
-        move,
-        buttonPress
+    enum : uint32_t {
+        motorPower = hash("motorPower"),
+        move = hash("move"),
+        buttonPress = hash("buttonPress")
     };
 };
+
+template <>
+constexpr uint32_t componentId (Method<com::barobo::Robot>::move) {
+    return ComponentId<com::barobo::Robot>::move;
+}
 
 template <class T>
 void fire (T& object,

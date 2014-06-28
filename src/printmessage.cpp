@@ -34,15 +34,11 @@ const char* toObjectTypeToString (com_barobo_rpc_ToObject_Type type) {
 
 void printToObject (const com_barobo_rpc_ToObject& toObject) {
     printf("%s {"
-            "\n\tmessageId   : %" PRId32
-            "\n\tobjectId    : %" PRId32
-            "\n\tinterfaceId : %" PRId32
-            "\n\tcomponentId : %" PRId32
+            "\n\tmessageId   : %" PRIu32
+            "\n\tcomponentId : 0x%" PRIx32
             "\n\tpayload     :",
             toObjectTypeToString(toObject.type),
             toObject.messageId,
-            toObject.objectId,
-            toObject.interfaceId,
             toObject.componentId);
 
     if (toObject.payload.size) {
