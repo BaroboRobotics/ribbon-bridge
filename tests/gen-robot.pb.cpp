@@ -11,7 +11,7 @@ const pb_field_t* pbFields (com_barobo_Robot_move_In) {
 }
 
 template <>
-void decodePayload (ArgumentUnion<com::barobo::Robot>& args, com_barobo_rpc_ToObject& toObject) {
+void decodePayload (ComponentUnion<com::barobo::Robot>& args, com_barobo_rpc_ToObject& toObject) {
     if (com_barobo_rpc_ToObject_Type_SET == toObject.type ||
             com_barobo_rpc_ToObject_Type_FIRE == toObject.type) {
         switch (toObject.componentId) {

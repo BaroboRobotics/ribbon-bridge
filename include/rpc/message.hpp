@@ -10,14 +10,13 @@
 
 namespace rpc {
 
+using Message = com_barobo_rpc_Message;
+
 template <class M>
 const pb_field_t* pbFields (M);
 
 bool encodeProtobuf (const void* pbStruct, const pb_field_t* pbFields, uint8_t* bytes, size_t size, size_t& bytesWritten);
-
 bool decodeProtobuf (void* pbStruct, const pb_field_t* pbFields, uint8_t* bytes, size_t size);
-
-using Message = com_barobo_rpc_Message;
 
 template <class T>
 bool encode (T& message, uint8_t* bytes, size_t size, size_t& bytesWritten) {

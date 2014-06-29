@@ -3,56 +3,66 @@
 
 #include "rpc.pb.h"
 
+#include "rpc/enableif.hpp"
+#include "rpc/componenttraits.hpp"
+#include "rpc/buffer.hpp"
+#include "rpc/potqueue.hpp"
+
 namespace rpc {
 
-/* Tag dispatching for setter and getter functions. */
-struct Set { };
-struct Get { };
-
-/* Metafunction to access the attribute structures of an interface. Specialized
- * in generated code. */
 template <template <class> class Interface>
-struct Attribute;
+void decodePayload (ComponentUnion<Interface>& args, com_barobo_rpc_ToObject& toObject);
 
-/* Metafunction to access the input, output, and error parameter structures of
- * an interface's methods. Specialized in generated code. */
-template <template <class> class Interface>
-struct Method;
+bool makeBroadcast (uint8_t* buffer, size_t size, uint32_t componentId, const pb_field_t* fields, void* args);
 
-/* Metafunction to access the broadcast structures of an interface. Specialized
- * in generated code. */
-template <template <class> class Interface>
-struct Broadcast;
-
-template <template <class> class Interface>
-union ArgumentUnion;
-
-template <template <class> class Interface>
-void decodePayload (ArgumentUnion<Interface>& args, com_barobo_rpc_ToObject& toObject);
-
-template <template <class> class Interface>
-struct ComponentId;
-
-template <class T, template <class> class... Is>
-class Service : public Is<Service<T, Is...>>... {
+template <class T, template <class> class Interface, size_t QueueSize = 2, size_t BufferSize = 256>
+class Service : public Interface<Service<T, Interface>> {
     /* TODO: static_assert that T implements Is.... */
 public:
-    using Subscription = uint32_t;
+    using BufferType = Buffer<BufferSize>;
 
-protected:
-    template <class B>
-    void broadcast_ (B& args) {
-        printf("Broadcasting ...\n");
+    template <class Attribute>
+    void on_ (Attribute& args, rpc::Notify, ONLY_IF(IsAttribute<Attribute>)) {
+        BufferType buffer;
+        buffer.size = sizeof(buffer.bytes);
+        if (!makeBroadcast(
+                buffer.bytes, buffer.size,
+                componentId(args),
+                pbFields(args),
+                &args)) {
+            printf("attribute update encoding failed\n");
+            return;
+        }
+        mOutputQueue.push(buffer);
+    }
+
+    template <class Broadcast>
+    void on_ (Broadcast& args, ONLY_IF(IsBroadcast<Broadcast>)) {
+        BufferType buffer;
+        buffer.size = sizeof(buffer.bytes);
+        if (!makeBroadcast(
+                buffer.bytes, buffer.size,
+                componentId(args),
+                pbFields(args),
+                &args)) {
+            printf("broadcast encoding failed\n");
+            return;
+        }
+        mOutputQueue.push(buffer);
+    }
+
+    /* obviously not thread-safe */
+    bool tryPop_ (BufferType& buffer) {
+        if (!mOutputQueue.empty()) {
+            buffer = mOutputQueue.front();
+            mOutputQueue.pop();
+            return true;
+        }
+        return false;
     }
 
 private:
-    template <class B>
-    Subscription subscribe_ () {
-        printf("Someone wants to subscribe ...\n");
-        return 0;
-    }
-
-
+    PotQueue<BufferType, QueueSize> mOutputQueue;
 };
 
 } // namespace rpc

@@ -2,21 +2,14 @@
 #define RPC_PROXY_HPP
 
 #include "rpc/stdlibheaders.hpp"
-#include "rpc/service.hpp"
+#include "rpc/buffer.hpp"
+#include "rpc/componenttraits.hpp"
 #include "rpc/message.hpp"
 #include "rpc/potqueue.hpp"
+#include "rpc/enableif.hpp"
 #include "rpc.pb.h"
 
 namespace rpc {
-
-template <size_t N>
-struct Buffer {
-    uint8_t bytes[N];
-    size_t size;
-};
-
-template <class Payload>
-constexpr uint32_t componentId (Payload);
 
 bool makeMessage (uint8_t* buffer, size_t& size, com_barobo_rpc_ToObject_Type, uint32_t messageId, uint32_t componentId, const pb_field_t* fields, void* args);
 
@@ -26,7 +19,7 @@ public:
     using BufferType = Buffer<BufferSize>;
 
     template <class Method>
-    void on_ (Method& args) {
+    void on_ (Method& args, ONLY_IF(IsMethod<Method>)) {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
         if (!makeMessage(
@@ -43,7 +36,7 @@ public:
     }
 
     template <class Attribute>
-    void on_ (Attribute& args, rpc::Get) {
+    void on_ (Attribute& args, rpc::Get, ONLY_IF(IsAttribute<Attribute>)) {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
         if (!makeMessage(
@@ -60,7 +53,7 @@ public:
     }
 
     template <class Attribute>
-    void on_ (Attribute& args, rpc::Set) {
+    void on_ (Attribute& args, rpc::Set, ONLY_IF(IsAttribute<Attribute>)) {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
         if (!makeMessage(
@@ -77,7 +70,7 @@ public:
     }
 
     /* obviously not thread-safe */
-    bool tryPop (BufferType& buffer) {
+    bool tryPop_ (BufferType& buffer) {
         if (!mOutputQueue.empty()) {
             buffer = mOutputQueue.front();
             mOutputQueue.pop();

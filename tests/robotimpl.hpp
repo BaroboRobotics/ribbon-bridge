@@ -15,7 +15,6 @@ public:
 
     void on_ (RobotAttribute::motorPower& args, rpc::Set) {
         motorPower = args;
-        broadcast_(args);
     }
 
     void on_ (RobotAttribute::motorPower& args, rpc::Get) {
