@@ -1,0 +1,158 @@
+Concepts
+--------
+
+  Interfaces
+  ----------
+    
+  Services and Proxies
+  --------------------
+
+    We divide the use of a remote interface into two objects: a service and a
+    proxy. A proxy object implements the interface in question, but only
+    serializes the information necessary to reconstruct the call on the remote.
+    The service object provides the actual implementation of the interface,
+    written by the user. The RPC library provides the tools necessary to
+    extract serialized calls from a proxy object and apply them to a service
+    object. The transport of the serialized data is incumbent on the user.
+
+    In a typical scenario, a process will provide access to a service object,
+    and will feed it incoming serialized messages, and forward replies back to
+    the link with the proxy object. A process running on a potentially
+    different host will provide access to the proxy object and perform the
+    corresponding tasks for it. There is no defined connection handshake,
+    though the user may instruct the proxy object to unsubscribe to all
+    broadcasts (described later). If a more complex connection handshake is
+    required, it should be implemented in terms of the service object's
+    interface.
+
+
+  Attributes, Methods, and Broadcasts
+  -----------------------------------
+    
+    An interface can be defined using two basic components: the method and the
+    broadcast.
+    
+    Methods are invokable procedures on the service object. They can take an
+    arbitrary number and type of input arguments, and produce either an
+    arbitrary number and type of output values, or an error enumeration. If
+    they produce no output values or errors, they may be labeled
+    fire-and-forget, in which case no reply at all is warranted. A request to
+    invoke a fire-and-forget method might nevertheless get a reply if there is
+    a fundamental RPC communication error, in which case nothing is fired.
+
+    Broadcasts are automatic messages from the service object to the proxy
+    object, available on a subscription basis. The messages contain an
+    arbitrary number and type of output values. A distinction must be made here
+    about the word subscription: user code might translate the proxy's
+    broadcast interface components as signals which can trigger any number of
+    callbacks (subscriptions, connections) in the user code. A subscription
+    must also exist between the proxy and the service object, however--this
+    subscription begins in an unsubscribed state so as to conserve bandwidth.
+
+    Attributes are a third component of an interface, and can be implemented in
+    terms of one or two methods and an optional broadcast. The one required
+    method is a getter method, which takes no arguments and produces the
+    attribute value in return. The user may implement an optional setter
+    method, which takes the new attribute value as an argument and emits an
+    optional broadcast with the new value.
+
+
+  Component Messages
+  ------------------
+
+    In order to define an interface independent of any programming language, a
+    separate language must be used. The Franca IDL is a nice one, but its code
+    generation tools are currently insufficient for our purposes--we need
+    binary serialization code generation. A language that fits that bill is
+    Google Protocol Buffers.
+    
+    Protobufs are centered around the concept of a message. We must therefore
+    define a mapping between our three component types and protobuf messages.
+    The messages produced by this mapping will be called component messages.
+    
+    An interface component (an attribute, method, or broadcast) has a
+    camelcased name in the namespace of the interface. No naming collisions are
+    allowed. This name will be used as the name of its component message.
+
+    Attribute component messages have:
+      - a single value of the attribute's type, named value
+
+    Method component messages have any combination of the following:
+      - a nested submessage named In which contains all of the input
+        arguments
+      - a nested submessage named Out which contains all of the output
+        arguments
+      - an enum named Error which can represent all user-defined errors
+      - a value of type Error, named error (iff the enum exists)
+
+    Broadcast component messages have:
+      - all of the output values
+
+    The reason an attribute is a message rather than a simple type is to ease
+    implementation: the messages compile to structs in C/C++, and having unique
+    types associated with each component will help enforce type safety.
+
+    If a method has no input arguments and/or no output values and/or no error
+    enumerations, then the corresponding nested submessages (In, Out, or Error)
+    will not exist.
+    
+    The method component message is never encoded into a protocol buffer at
+    run-time in its entirety. Rather, only the nested submessage required for
+    the RPC request/reply will be encoded: In for a FIRE request, Out for an
+    OUT reply, and Error for an ERROR reply.
+
+    Google Protocol Buffers allow the specification of user-defined options
+    which appertain to any protobuf concept desired. We can therefore define
+    our own attribute, method, and broadcast message options, and require that
+    an interface defined using protocol buffers must use those options to hint
+    the protobuf compiler what type of code to generate.
+
+    We must be able to distinguish between components at both run-time and
+    compile-time. The compile-time distinguishers can simply be the message
+    type, as already discussed. The run-time distinguishers are a little
+    trickier, and will be discussed in the next section.
+
+  Requests, Replies, and Broadcasts
+  -----------------------------------------
+
+    Component Ids
+    Concurrent access concerns
+
+  Errors
+  ------
+  
+
+Request
+-------
+  There are two types of requests: those which invoke user code, and those which
+  interact solely with the RPC service object's state.
+  
+  Invocation Requests
+  -------------------
+    GET         - Invoke an attribute's getter method
+                  Always generates a Reply (attribute value or error)
+                  No user errors possible (if needed, use a method)
+                  Possible RPC errors: NO_SUCH_COMPONENT, ILLEGAL_OPERATION
+                  No payload
+
+    SET         - Invoke an attribute's setter method
+                  Generates a Reply only on error (Bandwidth savings versus
+                                                   simplicity of protocol?)
+                  No user errors possible
+                  Possible RPC errors: BAD_PAYLOAD, NO_SUCH_COMPONENT, ILLEGAL_OPERATION, READONLY
+                  Payload: attribute-message
+
+    FIRE        - Invoke a regular method
+                  Generates a Reply unless fire-and-forget (output values or error)
+                  Arbitrary user errors possible
+                  Possible RPC errors: NO_SUCH_COMPONENT, 
+                  Payload: method-in-message
+
+  - STATUS, SUBSCRIBE, UNSUBSCRIBE
+
+Reply
+-----
+
+
+
+
