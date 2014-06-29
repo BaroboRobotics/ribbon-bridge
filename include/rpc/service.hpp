@@ -1,5 +1,5 @@
-#ifndef RPC_OBJECT_HPP
-#define RPC_OBJECT_HPP
+#ifndef RPC_SERVICE_HPP
+#define RPC_SERVICE_HPP
 
 #include "rpc.pb.h"
 
@@ -34,7 +34,7 @@ template <template <class> class Interface>
 struct ComponentId;
 
 template <class T, template <class> class... Is>
-class Object : public Is<Object<T, Is...>>... {
+class Service : public Is<Service<T, Is...>>... {
     /* TODO: static_assert that T implements Is.... */
 public:
     using Subscription = uint32_t;

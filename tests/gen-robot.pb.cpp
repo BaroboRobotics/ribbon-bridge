@@ -1,7 +1,7 @@
 #include "rpc/stdlibheaders.hpp"
 #include "gen-robot.pb.hpp"
 #include "rpc/message.hpp"
-#include "rpc/object.hpp"
+#include "rpc/service.hpp"
 
 namespace rpc {
 

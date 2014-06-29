@@ -6,7 +6,7 @@
 /* You first need to include the generated interface code. */
 #include "gen-robot.pb.hpp"
 
-class RobotImpl : public rpc::Object<RobotImpl, com::barobo::Robot> {
+class RobotImpl : public rpc::Service<RobotImpl, com::barobo::Robot> {
 public:
     /* These typedefs aren't required, but it makes things more readable. If
      * you implement multiple interfaces, you might make multiple typedefs. */
@@ -15,7 +15,7 @@ public:
 
     void on_ (RobotAttribute::motorPower& args, rpc::Set) {
         motorPower = args;
-        rpc::Object<RobotImpl, com::barobo::Robot>::broadcast_(args);
+        broadcast_(args);
     }
 
     void on_ (RobotAttribute::motorPower& args, rpc::Get) {

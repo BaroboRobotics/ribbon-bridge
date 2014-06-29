@@ -1,7 +1,7 @@
 #include "rpc/stdlibheaders.hpp"
 
 #include "rpc.pb.h"
-#include "rpc/object.hpp"
+#include "rpc/service.hpp"
 #include "rpc/proxy.hpp"
 #include "rpc/message.hpp"
 #include "rpc/printmessage.hpp"
@@ -24,9 +24,6 @@ void serverSide (uint8_t* buffer, size_t size) {
     rpc::printMessage(message);
 
     if (message.has_toObject) {
-
-        /* Check object, interface, and component ids for sanity. */
-
         if (com_barobo_rpc_ToObject_Type_GET == message.toObject.type ||
                 com_barobo_rpc_ToObject_Type_SET == message.toObject.type ||
                 com_barobo_rpc_ToObject_Type_FIRE == message.toObject.type) {

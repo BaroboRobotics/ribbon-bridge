@@ -2,7 +2,7 @@
 #define RPC_PROXY_HPP
 
 #include "rpc/stdlibheaders.hpp"
-#include "rpc/object.hpp"
+#include "rpc/service.hpp"
 #include "rpc/message.hpp"
 #include "rpc/potqueue.hpp"
 #include "rpc.pb.h"

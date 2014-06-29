@@ -3,7 +3,7 @@
 
 /* GENERATED CODE */
 
-#include "rpc/object.hpp"
+#include "rpc/service.hpp"
 #include "rpc/proxy.hpp"
 #include "rpc/hash.hpp"
 #include "robot.pb.h"
@@ -59,17 +59,17 @@ constexpr uint32_t componentId (Method<com::barobo::Robot>::move) {
 }
 
 template <class T>
-void fire (T& object,
+void fire (T& service,
         ArgumentUnion<com::barobo::Robot>& argument,
         com_barobo_rpc_ToObject& toObject) {
     /* TODO: static_assert that T implements com::barobo::Robot */
     switch (toObject.componentId) {
         case ComponentId<com::barobo::Robot>::motorPower:
             if (com_barobo_rpc_ToObject_Type_GET == toObject.type) {
-                object.on_(argument.motorPower, Get());
+                service.on_(argument.motorPower, Get());
             }
             else if (com_barobo_rpc_ToObject_Type_SET == toObject.type) {
-                object.on_(argument.motorPower, Set());
+                service.on_(argument.motorPower, Set());
             }
             else {
                 // yo wtf
@@ -77,7 +77,7 @@ void fire (T& object,
             }
             break;
         case ComponentId<com::barobo::Robot>::move:
-            object.on_(argument.move);
+            service.on_(argument.move);
             break;
         default:
             assert(false);
