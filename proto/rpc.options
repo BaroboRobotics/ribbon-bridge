@@ -1,3 +1,0 @@
-com.barobo.rpc.ToObject.payload max_size:128
-com.barobo.rpc.FromObject.payload max_size:128
-com.barobo.rpc.Reply.payload max_size:128

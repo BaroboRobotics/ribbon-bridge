@@ -1,3 +1,4 @@
+import "nanopb.proto";
 package com.barobo.rpc;
 
 // The basic RPC Message union
@@ -29,7 +30,7 @@ message ToObject {
 
     // a single encoded value for SET, multiple encoded values for FIRE
     // null for GET, SUBSCRIBEs, and UNSUBSCRIBEs
-    required bytes payload = 6;
+    required bytes payload = 6 [(nanopb).max_size = 128];
 }
 
 // Spontaneous messages FROM objects
@@ -46,7 +47,7 @@ message FromObject {
 
     // a single encoded value for ATTRIBUTE_UPDATE, multiple encoded values for
     // BROADCAST
-    required bytes payload = 5;
+    required bytes payload = 5 [(nanopb).max_size = 128];
 }
 
 enum Error {
@@ -103,6 +104,6 @@ message Reply {
 
     required uint32 inReplyToMessageId = 1;
     required Type type = 2;
-    required bytes payload = 3;
+    required bytes payload = 3 [(nanopb).max_size = 128];
     optional Error rpcError = 4;
 }
