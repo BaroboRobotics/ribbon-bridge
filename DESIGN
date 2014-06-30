@@ -8,12 +8,15 @@ Concepts
   --------------------
 
     We divide the use of a remote interface into two objects: a service and a
-    proxy. A proxy object implements the interface in question, but only
+    proxy. A proxy object implements the interface in question, but only*
     serializes the information necessary to reconstruct the call on the remote.
     The service object provides the actual implementation of the interface,
     written by the user. The RPC library provides the tools necessary to
     extract serialized calls from a proxy object and apply them to a service
     object. The transport of the serialized data is incumbent on the user.
+
+    * This is a lie. One type of interface component--the broadcast--must be
+      implemented in the proxy object, but we'll get to that.
 
     In a typical scenario, a process will provide access to a service object,
     and will feed it incoming serialized messages, and forward replies back to
@@ -34,20 +37,27 @@ Concepts
     
     Methods are invokable procedures on the service object. They can take an
     arbitrary number and type of input arguments, and produce either an
-    arbitrary number and type of output values, or an error enumeration. If
-    they produce no output values or errors, they may be labeled
-    fire-and-forget, in which case no reply at all is warranted. A request to
-    invoke a fire-and-forget method might nevertheless get a reply if there is
-    a fundamental RPC communication error, in which case nothing is fired.
+    arbitrary number and type of output values, or an error enumeration. [hlh:
+    The rest of this paragraph might not get implemented, but including it for
+    completeness' sake.] If they produce no output values or errors, they may
+    be labeled fire-and-forget, in which case no reply at all is warranted. A
+    request to invoke a fire-and-forget method might nevertheless get a reply
+    if there is a fundamental RPC communication error, in which case nothing is
+    fired.
 
     Broadcasts are automatic messages from the service object to the proxy
     object, available on a subscription basis. The messages contain an
     arbitrary number and type of output values. A distinction must be made here
     about the word subscription: user code might translate the proxy's
     broadcast interface components as signals which can trigger any number of
-    callbacks (subscriptions, connections) in the user code. A subscription
-    must also exist between the proxy and the service object, however--this
-    subscription begins in an unsubscribed state so as to conserve bandwidth.
+    callbacks in the user code. These connections between the interface's
+    broadcast and a signal library are NOT subscriptions, though clearly if
+    such a connection is formed, a subscription should exist. A subscription
+    is purely a relationship between the proxy and the service object,
+    indicating whether the proxy wants to receive and handle a broadcast. The
+    code to handle the broadcast will be implemented by the user, with the
+    expectation that the user will probably just forward the broadcast to a
+    signal library.
 
     Attributes are a third component of an interface, and can be implemented in
     terms of one or two methods and an optional broadcast. The one required
@@ -68,7 +78,9 @@ Concepts
     
     Protobufs are centered around the concept of a message. We must therefore
     define a mapping between our three component types and protobuf messages.
-    The messages produced by this mapping will be called component messages.
+    The messages produced by this mapping will be called component messages (in
+    the code, I might also refer to them as component structures, as they get
+    translated into C structs.)
     
     An interface component (an attribute, method, or broadcast) has a
     camelcased name in the namespace of the interface. No naming collisions are
@@ -102,10 +114,10 @@ Concepts
     OUT reply, and Error for an ERROR reply.
 
     Google Protocol Buffers allow the specification of user-defined options
-    which appertain to any protobuf concept desired. We can therefore define
-    our own attribute, method, and broadcast message options, and require that
-    an interface defined using protocol buffers must use those options to hint
-    the protobuf compiler what type of code to generate.
+    which pertain to any protobuf concept desired. We can therefore define our
+    own attribute, method, and broadcast message options, and require that an
+    interface defined using protocol buffers must use those options to hint the
+    protobuf compiler what type of code to generate.
 
     We must be able to distinguish between components at both run-time and
     compile-time. The compile-time distinguishers can simply be the message
@@ -115,22 +127,146 @@ Concepts
   Requests, Replies, and Broadcasts
   -----------------------------------------
 
-    Component Ids
+    Every interaction with an interface will require a serialized
+    representation that we can encode into an RPC message. We can divide the
+    messages sent back and forth into three categories: requests, replies, and
+    broadcasts.
+
+    Requests are messages from a proxy to a service. Replies are messages
+    from a service to a proxy, generated in response to a proxy's request.
+    Broadcasts are messages from a service to a proxy generated automatically
+    based on conditions present on the service side.
+
+    All messages require a way to distinguish the component being manipulated.
+    For this purpose we define the concept of a component ID. It is tempting to
+    number the components sequentially, but this would significantly complicate
+    interface backwards compatibility: we would need to ensure that new
+    components were assigned an unused component ID on minor version bumps.
+    Protobufs have the concept of tags which must be manually maintained in
+    the .proto file, but it would be preferable to transition away from manual
+    maintenance.
+
+    Using a hash function to generate component IDs from their name strings
+    overcomes this problem. Assuming we can use the same hash function over the
+    development lifetime of an interface, component IDs will not change unless
+    the component is renamed. Adding components will not affect the component
+    IDs of any other component. Removing components will of course require a
+    major version bump. (Other cases requiring version bumps will be discussed
+    later.)
+
+    For the rough draft, I have chosen to go with a Larson hash, defined
+    iteratively with the following equations:
+
+      h[0] = 0
+      h[i+1] = 101 * h[i] + s[i]
+
+    where h is a vector of consecutive hash values and s is a vector of ASCII
+    characters representing the component name. For example, a method named
+    "move" would have a hash value of:
+
+      101 * (101 * (101 * (101 * 0 + 'm') + 'o') + 'v') + 'e'
+
+    I have not seriously evaluated this hash function's suitability for our
+    purposes in terms of collision resistance--the choice was made purely
+    because it was trivial to implement at compile-time. For now I am defining
+    the hash values as unsigned 32-bit integers. Unsigned arithmetic is
+    desirable since it has defined behavior in C/C++; signed arithmetic
+    overflow is undefined. We can fiddle with the bit-width as desired, to
+    balance where on the number line overflow occurs and compactness of binary
+    representation.
+
+    Using hash values as component IDs has two drawbacks: run-time lookup of
+    components can no longer have O(1) time complexity, and there is the
+    possibility of collisions.
+    
+    Since run-time lookup will likely take place in a switch statement, the
+    compiler should optimize the lookup down to a binary search, which scales
+    nicely (O(log n)).
+
+    Collisions can only occur when new components are added, which leads to the
+    solution. If maintaining backwards-compatibility is essential, the new
+    component which causes the collision must be renamed. If the new component
+    name is essential, then backwards compatibility must be broken, a new hash
+    function chosen, and the interface's major version number bumped.
+    Imperfect, but I think in practice it will work out well for our purposes.
+
+    Note that if we restrict ourselves to a particular class of hash function,
+    a new function could be chosen by simply manipulating the parameters (the
+    seed, for example, or the 101 constant in the Larson hash). This
+    information could be transmitted over the wire before any calls are made,
+    and enable us to maintain backwards compatibility even in the face of hash
+    collisions. However, there are two drawbacks: it increases RPC protocol
+    complexity, mandating the introduction of a connection phase, and it would
+    increase size requirements for the code. The strings representing the
+    component names would need to be stored on at least one side of the
+    connection, and component lookup could no longer occur in a switch case,
+    but must be done using a run-time generated data structure. None of this is
+    prohibitive, but it is more complex than I think the RPC toolkit needs to
+    be.
+
+    Since requests and replies come in pairs, and requests may take arbitrarily
+    long to fulfill, they must contain message IDs so that replies can be
+    successfully paired with the request. (Alternatively, we could mandate that
+    replies must come in the same order as the requests which initiated them,
+    but this feels like an artificial restriction to me. Open to discussion. If
+    we want to absolutely demand confirmation of receipt of every request, then
+    it would make sense to use such a mandate. However, my gut says that
+    reliability should happen at a lower network layer.) These message IDs can
+    be a monotonically increasing number.
+
+    State versus invocation
+
+    Requests additionally must identify the type of action requested. If a
+      - the type of interaction: method fire, attribute get, attribute set
+
+    Payload
+
     Concurrent access concerns
 
   Errors
   ------
-  
 
-Request
--------
+    Errors can only be generated in response to requests. If a proxy is unable
+    to decode or otherwise process a service's reply or broadcast messages, the
+    proxy should report the error to the end user and discontinue use of the
+    service.
+
+    Arbitrary error enumerations may be defined for methods. We call these user
+    errors, as opposed to RPC errors. If a user must pass more information for
+    an error state than can be represented by a simple enumeration (e.g., a
+    string describing the case), use an output value instead.
+
+    RPC errors involve more fundamental problems which may be encountered by
+    the RPC toolkit at run-time. These include:
+
+      BUFFER_OVERFLOW   - the request overflowed the service's input buffer
+
+      BAD_PAYLOAD       - service was unable to decode the request's payload
+                          (this will be generated in the case of method type
+                          signature mismatches, among other cases)
+
+      NO_SUCH_COMPONENT - the specified component ID does not exist
+
+      ILLEGAL_OPERATION - the specified component ID was used incorrectly
+                          (e.g., subscribe to a method)
+
+      READ_ONLY         - attribute set was called, but attribute is read-only
+
+      NO_SUBSCRIPTIONS  - attribute subscribe was called, but attribute is
+                          marked as no-subscriptions
+
+
+Request Message Definition
+--------------------------
+
   There are two types of requests: those which invoke user code, and those which
   interact solely with the RPC service object's state.
   
   Invocation Requests
   -------------------
+
     GET         - Invoke an attribute's getter method
-                  Always generates a Reply (attribute value or error)
+                  Always generates an OUT Reply (attribute value or error)
                   No user errors possible (if needed, use a method)
                   Possible RPC errors: NO_SUCH_COMPONENT, ILLEGAL_OPERATION
                   No payload
@@ -139,20 +275,75 @@ Request
                   Generates a Reply only on error (Bandwidth savings versus
                                                    simplicity of protocol?)
                   No user errors possible
-                  Possible RPC errors: BAD_PAYLOAD, NO_SUCH_COMPONENT, ILLEGAL_OPERATION, READONLY
+                  Possible RPC errors: BAD_PAYLOAD, NO_SUCH_COMPONENT, ILLEGAL_OPERATION, READ_ONLY
                   Payload: attribute-message
 
     FIRE        - Invoke a regular method
-                  Generates a Reply unless fire-and-forget (output values or error)
+                  Generates an OUT Reply unless fire-and-forget (output values or error)
                   Arbitrary user errors possible
-                  Possible RPC errors: NO_SUCH_COMPONENT, 
+                  Possible RPC errors: BAD_PAYLOAD, NO_SUCH_COMPONENT, ILLEGAL_OPERATION
                   Payload: method-in-message
 
-  - STATUS, SUBSCRIBE, UNSUBSCRIBE
+    [Note: whether an invocation request is a GET, SET, or FIRE can be
+    implicit: if the request's component is a method, it must be a FIRE. If the
+    component is an attribute and the request has no payload, it must be a GET.
+    If the component is an attribute and the request has a payload, it must be
+    a SET.]
 
-Reply
------
+
+  State Requests
+  --------------
+
+    STATUS      - Query the remote's RPC toolkit and interface versions
+                  Always generates a STATUS Reply
+                  No user errors possible
+                  No RPC errors possible (this is the one RPC message which must be
+                                          forwards-compatible)
+
+    SUBSCRIBE   - Request a subscription to an attribute or broadcast
+                  Generates a Reply only on error
+                  No user errors possible
+                  Possible RPC errors: NO_SUCH_COMPONENT, ILLEGAL_OPERATION, NO_SUBSCRIPTIONS
+                  No payload
+
+    UNSUBSCRIBE - Muzzle an attribute update or broadcast
+                  Generates a Reply only on error
+                  No user errors possible
+                  Possible RPC errors: NO_SUCH_COMPONENT, ILLEGAL_OPERATION
+                  No payload
 
 
+Reply Message Definition
+------------------------
+
+  Invocation Replies
+  ------------------
+
+    OUT         - Report method output values or attribute get value
+                  Payload: output values or attribute value
+
+    ERROR       - Report a user or RPC error
+                  Payload: user error, if any
 
 
+  State Replies
+  -------------
+
+    STATUS      - Report the RPC toolkit and interface version
+
+    ERROR       - Report an RPC error
+
+
+Broadcast Message Definition
+----------------------------
+
+  Two types of broadcast message exist:
+
+  UPDATE        - Notify the proxy of an updated attribute value
+                  Payload: the attribute's updated value
+
+  BROADCAST     - Notify the proxy of a broadcast
+                  Payload: the broadcast's output values
+
+  [Note: as with invocation requests, the type of broadcast message can be
+  disambiguated by examining the type of component being manipulated.]
