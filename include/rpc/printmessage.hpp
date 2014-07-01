@@ -5,11 +5,12 @@
 
 namespace rpc {
 
-const char* toObjectTypeToString (com_barobo_rpc_ToObject_Type type);
-void printToObject (const com_barobo_rpc_ToObject& toObject);
-void printFromObject (const com_barobo_rpc_FromObject& message);
-void printReply (const com_barobo_rpc_Reply& message);
-void printMessage (const com_barobo_rpc_Message& message);
+void printRequestComponentInvocation (const com_barobo_rpc_Request_Component_Invocation& invocation);
+void printRequestComponentSubscription (const com_barobo_rpc_Request_Component_Subscription& subscription);
+void printRequestComponent (const com_barobo_rpc_Request_Component& component);
+void printVersion (const com_barobo_rpc_Version& version);
+void printRequestStatus (const com_barobo_rpc_Request_Status& status);
+void printRequest (const com_barobo_rpc_Request& request);
 
 } // namespace rpc
 

@@ -3,6 +3,8 @@
 
 #include "rpc/potringbuffer.hpp"
 
+namespace rpc {
+
 template <class T, size_t N>
 class PotQueue {
 public:
@@ -15,5 +17,7 @@ public:
 private:
     PotRingbuffer<T, N> mRingbuffer;
 };
+
+} // namespace rpc
 
 #endif

@@ -58,7 +58,9 @@ union ComponentUnion<com::barobo::Robot> {
 };
 
 template <>
-void decodePayload (ComponentUnion<com::barobo::Robot>& args, com_barobo_rpc_ToObject& toObject);
+void decodePayload (ComponentUnion<com::barobo::Robot>& args,
+        uint32_t componentId,
+        com_barobo_rpc_Request_Component_Invocation& invocation);
 
 template <>
 struct ComponentId<com::barobo::Robot> {
@@ -75,25 +77,22 @@ constexpr uint32_t componentId (Method<com::barobo::Robot>::move) {
 }
 
 template <class T>
-void fire (T& service,
+void invoke (T& service,
         ComponentUnion<com::barobo::Robot>& argument,
-        com_barobo_rpc_ToObject& toObject) {
+        uint32_t componentId,
+        com_barobo_rpc_Request_Component_Invocation& invocation) {
     /* TODO: static_assert that T implements com::barobo::Robot */
-    switch (toObject.componentId) {
+    switch (componentId) {
         case ComponentId<com::barobo::Robot>::motorPower:
-            if (com_barobo_rpc_ToObject_Type_GET == toObject.type) {
-                service.on_(argument.motorPower, Get());
-            }
-            else if (com_barobo_rpc_ToObject_Type_SET == toObject.type) {
-                service.on_(argument.motorPower, Set());
+            if (invocation.payload.size) {
+                service.on(argument.motorPower, Set());
             }
             else {
-                // yo wtf
-                assert(false);
+                service.on(argument.motorPower, Get());
             }
             break;
         case ComponentId<com::barobo::Robot>::move:
-            service.on_(argument.move);
+            service.on(argument.move);
             break;
         default:
             assert(false);
@@ -111,25 +110,24 @@ struct Robot {
     /* Attribute motorPower getter */
     typename rpc::Attribute<Robot>::motorPower motorPower () const {
         rpc::Attribute<Robot>::motorPower args;
-        static_cast<Derived&>(*this).on_(args, rpc::Get());
+        reinterpret_cast<const Derived*>(this)->on(args, rpc::Get());
         return args;
     }
 
     /* Attribute motorPower setter - only present if attribute is not readonly */
     void motorPower (typename rpc::Attribute<Robot>::motorPower args) {
-        static_cast<Derived&>(*this).on_(args, rpc::Set());
+        reinterpret_cast<Derived*>(this)->on(args, rpc::Set());
         /* Attribute broadcast - only present if attribute is not
          * noSubscriptions */
-        static_cast<Derived&>(*this).on_(args, rpc::Notify());
+        reinterpret_cast<Derived*>(this)->on(args, rpc::Notify());
     }
 
     /* Method move */
     void move (float desiredAngle1, float desiredAngle2, float desiredAngle3) {
-        using Method = typename rpc::Method<Robot>::move;
-        Method args {
+        rpc::Method<Robot>::move args {
             { desiredAngle1, desiredAngle2, desiredAngle3 }
         };
-        static_cast<Derived&>(*this).on_(args);
+        reinterpret_cast<Derived*>(this)->on(args);
     }
 
     /* Broadcast buttonPress */
@@ -137,7 +135,7 @@ struct Robot {
         rpc::Broadcast<Robot>::buttonPress args {
             button, mask
         };
-        static_cast<Derived&>(*this).on_(args);
+        reinterpret_cast<Derived*>(this)->on(args);
     }
 };
 

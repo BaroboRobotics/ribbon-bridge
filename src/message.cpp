@@ -8,8 +8,8 @@
 namespace rpc {
 
 template <>
-const pb_field_t* pbFields (com_barobo_rpc_Message) {
-    return com_barobo_rpc_Message_fields;
+const pb_field_t* pbFields (com_barobo_rpc_Request) {
+    return com_barobo_rpc_Request_fields;
 };
 
 bool encodeProtobuf (const void* pbStruct, const pb_field_t* pbFields, uint8_t* bytes, size_t size, size_t& bytesWritten) {
@@ -41,26 +41,26 @@ bool decodeProtobuf (void* pbStruct, const pb_field_t* pbFields, uint8_t* bytes,
     return success;
 }
 
-bool makeMessage (uint8_t* buffer, size_t& size, com_barobo_rpc_ToObject_Type type, uint32_t messageId, uint32_t componentId, const pb_field_t* fields, void* args) {
-    Message message;
-    memset(&message, 0, sizeof(message));
+bool makeRequestComponentInvocation (uint8_t* buffer, size_t& size, uint32_t requestId, uint32_t componentId, const pb_field_t* fields, void* args) {
+    Request request;
+    memset(&request, 0, sizeof(request));
 
-    message.has_toObject = true;
-    message.toObject.type = type;
-    message.toObject.messageId = messageId;
-    message.toObject.componentId = componentId;
+    request.id = requestId;
+    request.has_component = true;
+    request.component.id = componentId;
+    request.component.has_invocation = true;
 
     /* Encode the args, if any. */
     bool success = true;
     if (fields && args) {
         success = encodeProtobuf(
                 args, fields,
-                message.toObject.payload.bytes,
-                sizeof(message.toObject.payload.bytes),
-                message.toObject.payload.size);
+                request.component.invocation.payload.bytes,
+                sizeof(request.component.invocation.payload.bytes),
+                request.component.invocation.payload.size);
     }
 
-    return success && rpc::encode(message, buffer, size, size);
+    return success && rpc::encode(request, buffer, size, size);
 }
 
 } // namespace rpc

@@ -10,7 +10,7 @@
 
 namespace rpc {
 
-using Message = com_barobo_rpc_Message;
+using Request = com_barobo_rpc_Request;
 
 template <class M>
 const pb_field_t* pbFields (M);

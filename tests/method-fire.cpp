@@ -15,49 +15,30 @@
 #include "robotimpl.hpp"
 
 void serverSide (uint8_t* buffer, size_t size) {
-    RobotImpl robot;
+    RobotService robot;
 
-    rpc::Message message;
-    rpc::decode(message, buffer, size);
+    rpc::Request request;
+    rpc::decode(request, buffer, size);
 
     printf("Received the following message:\n");
-    rpc::printMessage(message);
+    rpc::printRequest(request);
 
-    if (message.has_toObject) {
-        if (com_barobo_rpc_ToObject_Type_GET == message.toObject.type ||
-                com_barobo_rpc_ToObject_Type_SET == message.toObject.type ||
-                com_barobo_rpc_ToObject_Type_FIRE == message.toObject.type) {
+    if (request.has_component) {
+        if (request.component.has_invocation) {
             rpc::ComponentUnion<com::barobo::Robot> argument;
-            rpc::decodePayload(argument, message.toObject);
-            rpc::fire(robot, argument, message.toObject);
+            rpc::decodePayload(argument, request.component.id, request.component.invocation);
+            rpc::invoke(robot, argument, request.component.id, request.component.invocation);
         }
-        else if (com_barobo_rpc_ToObject_Type_SUBSCRIBE_ATTRIBUTE == message.toObject.type ||
-                com_barobo_rpc_ToObject_Type_SUBSCRIBE_BROADCAST == message.toObject.type) {
-            //rpc::subscribe(robot, message.toObject);
-        }
-        else if (com_barobo_rpc_ToObject_Type_UNSUBSCRIBE_ATTRIBUTE == message.toObject.type ||
-                com_barobo_rpc_ToObject_Type_UNSUBSCRIBE_BROADCAST == message.toObject.type) {
-            //rpc::unsubscribe(robot, message.toObject);
-        }
-    }
-
-    if (message.has_fromObject) {
-        assert(false);
-    }
-
-    if (message.has_reply) {
-        assert(false);
     }
 }
 
 int main () {
-    using RobotProxy = rpc::Proxy<com::barobo::Robot>;
     RobotProxy robotProxy;
 
-    robotProxy.move(-234, 8, 1e-3);
+    robotProxy->move(-234, 8, 1e-3);
 
     RobotProxy::BufferType buffer;
-    auto success = robotProxy.tryPop_(buffer);
+    auto success = robotProxy.tryPop(buffer);
     assert(success);
 
     serverSide(buffer.bytes, buffer.size);

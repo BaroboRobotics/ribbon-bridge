@@ -1,9 +1,7 @@
 #ifndef RPC_POTRINGBUFFER_HPP
 #define RPC_POTRINGBUFFER_HPP
 
-#if __GNU__ && __AVR__
-#include "avr.hpp"
-#endif
+namespace rpc {
 
 /* Power-of-two sized ringbuffer. */
 template <class T, size_t N>
@@ -94,5 +92,7 @@ private:
     size_t mEnd = 0;
     T mData[N];
 };
+
+} // namespace rpc
 
 #endif

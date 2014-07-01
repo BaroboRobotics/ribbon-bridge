@@ -3,75 +3,83 @@
 
 namespace rpc {
 
-const char* toObjectTypeToString (com_barobo_rpc_ToObject_Type type) {
-    switch (type) {
-        case com_barobo_rpc_ToObject_Type_GET:
-            return "GET";
-            break;
-        case com_barobo_rpc_ToObject_Type_SET:
-            return "SET";
-            break;
-        case com_barobo_rpc_ToObject_Type_SUBSCRIBE_ATTRIBUTE:
-            return "SUBSCRIBE_ATTRIBUTE";
-            break;
-        case com_barobo_rpc_ToObject_Type_UNSUBSCRIBE_ATTRIBUTE:
-            return "UNSUBSCRIBE_ATTRIBUTE";
-            break;
-        case com_barobo_rpc_ToObject_Type_SUBSCRIBE_BROADCAST:
-            return "SUBSCRIBE_BROADCAST";
-            break;
-        case com_barobo_rpc_ToObject_Type_UNSUBSCRIBE_BROADCAST:
-            return "UNSUBSCRIBE_BROADCAST";
-            break;
-        case com_barobo_rpc_ToObject_Type_FIRE:
-            return "FIRE";
-            break;
-        default:
-            return "(unknown message type)";
-            break;
-    }
-}
-
-void printToObject (const com_barobo_rpc_ToObject& toObject) {
-    printf("%s {"
-            "\n\tmessageId   : %" PRIu32
-            "\n\tcomponentId : 0x%" PRIx32
-            "\n\tpayload     :",
-            toObjectTypeToString(toObject.type),
-            toObject.messageId,
-            toObject.componentId);
-
-    if (toObject.payload.size) {
-        for (size_t i = 0; i < toObject.payload.size; ++i) {
-            printf(" %x", int(toObject.payload.bytes[i]));
+void printRequestComponentInvocation (const com_barobo_rpc_Request_Component_Invocation& invocation) {
+    if (invocation.payload.size) {
+        printf("{");
+        for (size_t i = 0; i < invocation.payload.size; ++i) {
+            printf(" %x", int(invocation.payload.bytes[i]));
         }
     }
     else {
-        printf(" (empty)");
+        printf("(empty)");
     }
 
-    printf("\n}\n");
+    printf(" }\n");
 }
 
-void printFromObject (const com_barobo_rpc_FromObject& message) {
-    (void)message;
+void printRequestComponentSubscription (const com_barobo_rpc_Request_Component_Subscription& subscription) {
+    if (com_barobo_rpc_Request_Component_Subscription_Type_SUBSCRIBE == subscription.type) {
+        printf("SUBSCRIBE\n");
+    }
+    else {
+        printf("UNSUBSCRIBE\n");
+    }
 }
 
-void printReply (const com_barobo_rpc_Reply& message) {
-    (void)message;
-}
+void printRequestComponent (const com_barobo_rpc_Request_Component& component) {
+    printf("{\n");
+    printf("\t\tid : %" PRIu32 "\n", component.id);
 
-void printMessage (const com_barobo_rpc_Message& message) {
-    if (message.has_toObject) {
-        printToObject(message.toObject);
+    if (component.has_invocation) {
+        printf("\t\tinvocation : ");
+        printRequestComponentInvocation(component.invocation);
     }
 
-    if (message.has_fromObject) {
-        printFromObject(message.fromObject);
+    if (component.has_subscription) {
+        printf("\t\tsubscription : ");
+        printRequestComponentSubscription(component.subscription);
+    }
+}
+
+void printVersion (const com_barobo_rpc_Version& version) {
+    printf("{\n"
+           "\t\t\tmajor : %" PRIu32 "\n"
+           "\t\t\tminor : %" PRIu32 "\n"
+           "\t\t\tpatch : %" PRIu32 "\n"
+           "\t\t}\n",
+           version.major,
+           version.minor,
+           version.patch);
+}
+
+void printRequestStatus (const com_barobo_rpc_Request_Status& status) {
+    printf("\tStatus {\n");
+    printf("\t\trpcVersion : {\n");
+    printf("\t\t\tmajor : %" PRIu32 "\n"
+           "\t\t\tminor : %" PRIu32 "\n"
+           "\t\t\tpatch : %" PRIu32 "\n"
+           "\t\t}\n",
+           status.rpcVersion.major,
+           status.rpcVersion.minor,
+           status.rpcVersion.patch);
+    printf("\t\trpcVersion : ");
+    printVersion(status.rpcVersion);
+    printf("\t\tinterfaceVersion : ");
+    printVersion(status.interfaceVersion);
+}
+
+void printRequest (const com_barobo_rpc_Request& request) {
+    printf("Request {\n");
+    printf("\tid : %" PRIu32 "\n", request.id);
+
+    if (request.has_component) {
+        printf("\tcomponent : ");
+        printRequestComponent(request.component);
     }
 
-    if (message.has_reply) {
-        printReply(message.reply);
+    if (request.has_status) {
+        printf("\tstatus : ");
+        printRequestStatus(request.status);
     }
 }
 
