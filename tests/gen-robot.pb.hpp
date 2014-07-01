@@ -76,29 +76,32 @@ constexpr uint32_t componentId (Method<com::barobo::Robot>::move) {
     return ComponentId<com::barobo::Robot>::move;
 }
 
-template <class T>
-void invoke (T& service,
-        ComponentUnion<com::barobo::Robot>& argument,
-        uint32_t componentId,
-        com_barobo_rpc_Request_Component_Invocation& invocation) {
-    /* TODO: static_assert that T implements com::barobo::Robot */
-    switch (componentId) {
-        case ComponentId<com::barobo::Robot>::motorPower:
-            if (invocation.payload.size) {
-                service.on(argument.motorPower, Set());
-            }
-            else {
-                service.on(argument.motorPower, Get());
-            }
-            break;
-        case ComponentId<com::barobo::Robot>::move:
-            service.on(argument.move);
-            break;
-        default:
-            assert(false);
-            break;
+template <>
+struct Invoker<com::barobo::Robot> {
+    template <class T>
+    static void invoke (T& service,
+            ComponentUnion<com::barobo::Robot>& argument,
+            uint32_t componentId,
+            com_barobo_rpc_Request_Component_Invocation& invocation) {
+        /* TODO: static_assert that T implements com::barobo::Robot */
+        switch (componentId) {
+            case ComponentId<com::barobo::Robot>::motorPower:
+                if (invocation.payload.size) {
+                    service.on(argument.motorPower, Set());
+                }
+                else {
+                    service.on(argument.motorPower, Get());
+                }
+                break;
+            case ComponentId<com::barobo::Robot>::move:
+                service.on(argument.move);
+                break;
+            default:
+                assert(false);
+                break;
+        }
     }
-}
+};
 
 } // namespace rpc
 
@@ -106,28 +109,37 @@ namespace com {
 namespace barobo {
 
 template <class Derived>
-struct Robot {
+struct Robot;
+
+template <template <class, template <class> class> class R, class T, template <class> class I>
+struct Robot<R<T, I>> {
+    using Derived = R<T, I>;
+
+    template <class C>
+    using ReturnType = 
+        typename rpc::ImplementationTraits<T>::template ReturnType<C>;
+
     /* Attribute motorPower getter */
-    typename rpc::Attribute<Robot>::motorPower motorPower () const {
+
+    ReturnType<typename rpc::Attribute<Robot>::motorPower> motorPower () const {
         rpc::Attribute<Robot>::motorPower args;
-        reinterpret_cast<const Derived*>(this)->on(args, rpc::Get());
-        return args;
+        return ReturnType<typename rpc::Attribute<Robot>::motorPower>(reinterpret_cast<const Derived*>(this)->on(args, rpc::Get()));
     }
 
     /* Attribute motorPower setter - only present if attribute is not readonly */
-    void motorPower (typename rpc::Attribute<Robot>::motorPower args) {
+    ReturnType<void> motorPower (typename rpc::Attribute<Robot>::motorPower args) {
         reinterpret_cast<Derived*>(this)->on(args, rpc::Set());
         /* Attribute broadcast - only present if attribute is not
          * noSubscriptions */
-        reinterpret_cast<Derived*>(this)->on(args, rpc::Notify());
+        return ReturnType<void>(reinterpret_cast<Derived*>(this)->on(args, rpc::Notify()));
     }
 
     /* Method move */
-    void move (float desiredAngle1, float desiredAngle2, float desiredAngle3) {
+    ReturnType<typename rpc::Method<Robot>::move> move (float desiredAngle1, float desiredAngle2, float desiredAngle3) {
         rpc::Method<Robot>::move args {
             { desiredAngle1, desiredAngle2, desiredAngle3 }
         };
-        reinterpret_cast<Derived*>(this)->on(args);
+        return ReturnType<typename rpc::Method<Robot>::move>(reinterpret_cast<Derived*>(this)->on(args));
     }
 
     /* Broadcast buttonPress */

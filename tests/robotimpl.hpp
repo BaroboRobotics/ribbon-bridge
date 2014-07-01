@@ -8,6 +8,28 @@
 /* You first need to include the generated interface code. */
 #include "gen-robot.pb.hpp"
 
+template <class T>
+struct Future { };
+
+class RobotService;
+class RobotProxy;
+
+namespace rpc {
+
+template <>
+struct ImplementationTraits<RobotService> {
+    template <class>
+    using ReturnType = void;
+};
+
+template <>
+struct ImplementationTraits<RobotProxy> {
+    template <class C>
+    using ReturnType = ::Future<C>;
+};
+
+}
+
 class RobotService : public rpc::Service<RobotService, com::barobo::Robot> {
 public:
     void post (BufferType buffer) {
@@ -49,6 +71,22 @@ class RobotProxy : public rpc::Proxy<RobotProxy, com::barobo::Robot> {
 public:
     void post (BufferType buffer) {
         mOutputQueue.push(buffer);
+    }
+
+    template <class C>
+    using ReturnType = typename rpc::ImplementationTraits<RobotProxy>::template ReturnType<C>;
+
+    template <class Component>
+    ReturnType<Component> promise () {
+        printf("encoding error\n");
+        //throw "encoding error";
+        return { };
+    }
+
+    template <class Component>
+    ReturnType<Component> promise (uint32_t requestId) {
+        printf("okay, I promise %" PRId32 "\n", requestId);
+        return { };
     }
 
     using RobotBroadcast = rpc::Broadcast<com::barobo::Robot>;
