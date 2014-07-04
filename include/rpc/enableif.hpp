@@ -12,6 +12,6 @@ struct EnableIf<true, T> { using type = T; };
 } // namespace rpc
 
 /* For use as the last, dummy run-time parameter of a function template. */
-#define ONLY_IF(x) typename ::rpc::EnableIf<x::value, void>::type* = 0
+#define ONLY_IF(x) typename ::rpc::EnableIf<x, void>::type* = 0
 
 #endif

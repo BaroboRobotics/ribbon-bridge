@@ -37,13 +37,13 @@ add_custom_command(OUTPUT ${RPC_PROTO_C_FILE} ${RPC_PROTO_H_FILE}
 #include_directories(deps/simavr/simavr/sim/avr)
 
 set(SOURCES
-    src/printmessage.cpp
+    #src/printmessage.cpp
     src/message.cpp
     ${RPC_PROTO_C_FILE}
     deps/${NANOPB_BASENAME}/pb_decode.c
     deps/${NANOPB_BASENAME}/pb_encode.c)
 
-set_source_files_properties(src/printmessage.cpp src/message.cpp PROPERTIES
+set_source_files_properties(src/message.cpp PROPERTIES
     COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS")
 
 add_library(rpc STATIC ${SOURCES})

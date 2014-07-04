@@ -16,3 +16,9 @@ add_executable(method-fire method-fire.cpp gen-robot.pb.cpp ${ROBOT_PROTO_C_FILE
 target_include_directories(method-fire PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(method-fire rpc)
 add_test(NAME method-fire COMMAND method-fire)
+
+#set_source_files_properties(attribute-set.cpp gen-robot.pb.cpp PROPERTIES COMPILE_FLAGS -std=c++11)
+#add_executable(attribute-set attribute-set.cpp gen-robot.pb.cpp ${ROBOT_PROTO_C_FILE})
+#target_include_directories(attribute-set PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+#target_link_libraries(attribute-set rpc)
+#add_test(NAME attribute-set COMMAND attribute-set)

@@ -11,33 +11,124 @@ const pb_field_t* pbFields (com_barobo_Robot_move_In) {
 }
 
 template <>
-void decodePayload (ComponentUnion<com::barobo::Robot>& args,
-        uint32_t componentId,
-        com_barobo_rpc_Request_Component_Invocation& invocation) {
-    if (!invocation.payload.size) {
-        return;
-    }
-
-    switch (componentId) {
-        // ATTRIBUTES
-        case ComponentId<com::barobo::Robot>::motorPower:
-            decodeProtobuf(&args.motorPower, com_barobo_Robot_motorPower_fields, invocation.payload.bytes, invocation.payload.size);
-            break;
-
-        // METHODS
-        case ComponentId<com::barobo::Robot>::move:
-            // Pay special attention here! The payload is ONLY the input
-            // parameters, so use <interface>_<method>_In_fields.
-            //                                                  vv <-- here
-            decodeProtobuf(&args.move.in, com_barobo_Robot_move_In_fields, invocation.payload.bytes, invocation.payload.size);
-            break;
-
-        // Broadcast payloads are never serialized in requests.
-        
+bool isAttribute<com::barobo::Robot> (uint32_t id) {
+    using Id = ComponentId<com::barobo::Robot>;
+    switch (id) {
+        case Id::motorPower:
+            return true;
         default:
-            printf("TODO: freak out and return an error when an interface"
-                    "component isn't found ...\n");
-            break;
+            return false;
+    }
+}
+
+template <>
+bool isMethod<com::barobo::Robot> (uint32_t id) {
+    using Id = ComponentId<com::barobo::Robot>;
+    switch (id) {
+        case Id::move:
+            return true;
+        default:
+            return false;
+    }
+}
+
+template <>
+bool isBroadcast<com::barobo::Robot> (uint32_t id) {
+    using Id = ComponentId<com::barobo::Robot>;
+    switch (id) {
+        case Id::buttonPress:
+            return true;
+        default:
+            return false;
+    }
+}
+
+template <>
+Error decodeSetPayload (ComponentUnion<com::barobo::Robot>& args,
+        uint32_t componentId,
+        const com_barobo_rpc_Request_Set_payload_t& payload) {
+    using Id = ComponentId<com::barobo::Robot>;
+    switch (componentId) {
+        // list of non-read-only attributes
+        case Id::motorPower:
+            return decodeProtobuf(&args.motorPower, com_barobo_Robot_motorPower_fields, payload.bytes, payload.size);
+        default:
+            if (isAttribute(componentId)) {
+                return Error::READ_ONLY;
+            }
+            return isComponent(componentId) ?
+                Error::ILLEGAL_OPERATION :
+                Error::NO_SUCH_COMPONENT;
+    }
+}
+
+template <>
+Error decodeFirePayload (ComponentUnion<com::barobo::Robot>& args,
+        uint32_t componentId,
+        const com_barobo_rpc_Request_Fire_payload_t& payload) {
+    using Id = ComponentId<com::barobo::Robot>;
+    switch (componentId) {
+        // list of methods
+        case Id::move:
+            return decodeProtobuf(&args.move.in, com_barobo_Robot_move_In_fields, payload.bytes, payload.size);
+        default:
+            return isComponent(componentId) ?
+                Error::ILLEGAL_OPERATION :
+                Error::NO_SUCH_COMPONENT;
+    }
+}
+
+template <>
+Error decodeBroadcastPayload (ComponentUnion<com::barobo::Robot>& args,
+        uint32_t componentId,
+        const com_barobo_rpc_Request_Broadcast_payload_t& payload) {
+    using Id = ComponentId<com::barobo::Robot>;
+    switch (componentId) {
+        // list of subscribable attributes
+        case Id::motorPower:
+            return decodeProtobuf(&args.motorPower, com_barobo_Robot_motorPower_fields, payload.bytes, payload.size);
+        // list of broadcasts
+        case Id::buttonPress:
+            return decodeProtobuf(&args.buttonPress, com_barobo_Robot_buttonPress_fields, payload.bytes, payload.size);
+        default:
+            if (isAttribute(componentId)) {
+                return Error::NO_SUBSCRIPTIONS;
+            }
+            return isComponent(componentId) ?
+                Error::ILLEGAL_OPERATION :
+                Error::NO_SUCH_COMPONENT;
+    }
+}
+
+template <>
+Error decodeOutputErrorPayload (ComponentUnion<com::barobo::Robot>& args,
+        uint32_t componentId,
+        const com_barobo_rpc_Reply_Output_payload_t& payload) {
+    using Id = ComponentId<com::barobo::Robot>;
+    switch (componentId) {
+        // list of methods
+        case Id::move:
+            return decodeProtobuf(&args.move.error, com_barobo_Robot_move_Error_fields, payload.bytes, payload.size);
+        default:
+            return isComponent(componentId) ?
+                Error::ILLEGAL_OPERATION :
+                Error::NO_SUCH_COMPONENT;
+    }
+}
+
+template <>
+Error decodeOutputOutPayload (ComponentUnion<com::barobo::Robot>& args,
+        uint32_t componentId,
+        const com_barobo_rpc_Reply_Output_payload_t& payload) {
+    using Id = ComponentId<com::barobo::Robot>;
+    switch (componentId) {
+        // list of methods
+        case Id::move:
+            return decodeProtobuf(&args.move.out, com_barobo_Robot_move_Out_fields, payload.bytes, payload.size);
+        default:
+            return isComponent(componentId) ?
+                Error::ILLEGAL_OPERATION :
+                Error::NO_SUCH_COMPONENT;
     }
 }
 
