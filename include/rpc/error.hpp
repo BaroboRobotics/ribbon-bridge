@@ -22,7 +22,7 @@ enum class Error {
 static_assert(0 == static_cast<int>(Error::NO_ERROR),
         "Error::NO_ERROR must have zero value");
 
-bool hasError (Error e) {
+static inline bool hasError (Error e) {
     return Error::NO_ERROR != e;
 }
 

@@ -11,7 +11,10 @@ struct Attribute;
 
 // Access the method component messages of an interface by name.
 template <class Interface>
-struct Method;
+struct MethodIn;
+
+template <class Interface>
+struct MethodOut;
 
 // Access the broadcast component messages of an interface by name.
 template <class Interface>
@@ -55,7 +58,10 @@ bool isComponent (uint32_t id) {
 
 // Union containing a data member for every component message of an interface.
 template <class Interface>
-union ComponentUnion;
+union ComponentInUnion;
+
+template <class Interface>
+union ComponentOutUnion;
 
 template <class Interface>
 class Subscriptions;
@@ -84,17 +90,11 @@ template <class Interface>
 struct BroadcastInvoker;
 
 template <class Interface>
-struct FulfillWithErrorInvoker;
-
-template <class Interface>
-struct FulfillWithOutputErrorInvoker;
-
-template <class Interface>
-struct FulfillWithOutputOutInvoker;
+struct FulfillWithOutputInvoker;
 
 template <class T, class Interface>
 Error invokeGet (T& service,
-        ComponentUnion<Interface>& argument,
+        ComponentInUnion<Interface>& argument,
         uint32_t componentId,
         com_barobo_rpc_Reply_Output_payload_t& payload) {
     return GetInvoker<Interface>::invoke(service, argument, componentId, payload);
@@ -102,72 +102,53 @@ Error invokeGet (T& service,
 
 template <class T, class Interface>
 Error invokeSet (T& service,
-        ComponentUnion<Interface>& argument,
+        ComponentInUnion<Interface>& argument,
         uint32_t componentId) {
     return SetInvoker<Interface>::invoke(service, argument, componentId);
 }
 
 template <class T, class Interface>
 Error invokeFire (T& service,
-        ComponentUnion<Interface>& argument,
+        ComponentInUnion<Interface>& argument,
         uint32_t componentId,
-        com_barobo_rpc_Reply_Output_payload_t& payload,
-        bool& isExceptional) {
-    return FireInvoker<Interface>::invoke(service, argument, componentId, payload, isExceptional);
+        com_barobo_rpc_Reply_Output_payload_t& payload) {
+    return FireInvoker<Interface>::invoke(service, argument, componentId, payload);
 }
 
 template <class T, class Interface>
 Error invokeBroadcast (T& service,
-        ComponentUnion<Interface>& argument,
+        ComponentOutUnion<Interface>& argument,
         uint32_t componentId) {
     return BroadcastInvoker<Interface>::invoke(service, argument, componentId);
 }
 
 template <class T, class Interface>
-Error invokeFulfillWithError (T& service,
-        Error argument,
+Error invokeFulfillWithOutput (T& service,
+        ComponentOutUnion<Interface>& argument,
+        uint32_t componentId,
         uint32_t requestId) {
-    return FulfillWithErrorInvoker<Interface>::invoke(service, argument, requestId);
-}
-
-template <class T, class Interface>
-Error invokeFulfillWithOutputError (T& service,
-        ComponentUnion<Interface>& argument,
-        uint32_t requestId) {
-    return FulfillWithOutputErrorInvoker<Interface>::invoke(service, argument, requestId);
-}
-
-template <class T, class Interface>
-Error invokeFulfillWithOutputOut (T& service,
-        ComponentUnion<Interface>& argument,
-        uint32_t requestId) {
-    return FulfillWithOutputOutInvoker<Interface>::invoke(service, argument, requestId);
+    return FulfillWithOutputInvoker<Interface>::invoke(service, argument, componentId, requestId);
 }
 
 template <class Interface>
-Error decodeSetPayload (ComponentUnion<Interface>& args,
+Error decodeSetPayload (ComponentInUnion<Interface>& args,
         uint32_t componentId,
-        const com_barobo_rpc_Request_Set_payload_t& payload);
+        com_barobo_rpc_Request_Set_payload_t& payload);
 
 template <class Interface>
-Error decodeFirePayload (ComponentUnion<Interface>& args,
+Error decodeFirePayload (ComponentInUnion<Interface>& args,
         uint32_t componentId,
-        const com_barobo_rpc_Request_Fire_payload_t& payload);
+        com_barobo_rpc_Request_Fire_payload_t& payload);
 
 template <class Interface>
-Error decodeBroadcastPayload (ComponentUnion<Interface>& args,
+Error decodeBroadcastPayload (ComponentOutUnion<Interface>& args,
         uint32_t componentId,
-        const com_barobo_rpc_Reply_Broadcast_payload_t& payload);
+        com_barobo_rpc_Reply_Broadcast_payload_t& payload);
 
 template <class Interface>
-Error decodeOutputErrorPayload (ComponentUnion<Interface>& args,
+Error decodeOutputPayload (ComponentOutUnion<Interface>& args,
         uint32_t componentId,
-        const com_barobo_rpc_Reply_Output_payload_t& payload);
-
-template <class Interface>
-Error decodeOutputOutPayload (ComponentUnion<Interface>& args,
-        uint32_t componentId,
-        const com_barobo_rpc_Reply_Output_payload_t& payload);
+        com_barobo_rpc_Reply_Output_payload_t& payload);
 
 } // namespace rpc
 

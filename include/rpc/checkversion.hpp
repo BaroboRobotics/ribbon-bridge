@@ -13,7 +13,7 @@ namespace rpc {
 template <class Interface>
 struct Version;
 
-bool checkRpcVersion (const com_barobo_rpc_VersionTriplet& version) {
+static inline bool checkRpcVersion (const com_barobo_rpc_VersionTriplet& version) {
     return RPC_VERSION_MAJOR == version.major &&
            RPC_VERSION_MINOR == version.minor &&
            RPC_VERSION_PATCH == version.patch;

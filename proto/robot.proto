@@ -49,24 +49,29 @@ message move {
         required float desiredAngle3 = 3;
     }
 
-     /* The Out message contains the output parameters, and is used as the
-      * payload for a Reply OUT message in response to a ToObject FIRE. This
-      * message would only exist if the method has output parameters. */
-     message Out {
-         required float someOutputParameter = 1;
-     }
 
-     /* The Error message contains the error code reportable by the method, and
-      * is used as the payload for a Reply ERROR message in response to a
-      * ToObject FIRE. This message would only exist if the method has error
-      * codes. */
-     message Error {
-         enum Value {
-             SOME_ERROR = 1;
-         }
-         required Value value = 1;
-     }
+    message Output {
+        /* The Out message contains the output parameters, and is used as the
+         * payload for a Reply OUT message in response to a ToObject FIRE. This
+         * message would only exist if the method has output parameters. */
+        message Out {
+            required float funFactor = 1;
+        }
 
+        /* The Error message contains the error code reportable by the method, and
+         * is used as the payload for a Reply ERROR message in response to a
+         * ToObject FIRE. This message would only exist if the method has error
+         * codes. */
+        message Error {
+            enum Value {
+                IN_USE = 0;
+            }
+            required Value value = 1;
+        }
+
+        optional Out out = 1;
+        optional Error error = 2;
+    }
 
     /* Since method component messages are never sent over the wire, it makes
      * no difference if these are optional are not. We could use the the
@@ -74,8 +79,7 @@ message move {
      * implementors signal an error state, but we should find a more elegant
      * way. */
     required In in = 1;
-    required Out out = 2;
-    required Error error = 3;
+    required Output output = 2;
 }
 
 //////////////////////////////////////////////////////////////////////////////

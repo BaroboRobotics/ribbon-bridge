@@ -28,17 +28,17 @@ Error decode (T& message, uint8_t* bytes, size_t size) {
     return rpc::decodeProtobuf(&message, pbFields(message), bytes, size);
 }
 
-Error makeGet (uint8_t* bytes, size_t size, uint32_t requestId,
+Error makeGet (uint8_t* bytes, size_t& size, uint32_t requestId,
         uint32_t componentId);
-Error makeSet (uint8_t* bytes, size_t size, uint32_t requestId,
+Error makeSet (uint8_t* bytes, size_t& size, uint32_t requestId,
         uint32_t componentId, const pb_field_t* fields, void* payload);
-Error makeFire (uint8_t* bytes, size_t size, uint32_t requestId,
+Error makeFire (uint8_t* bytes, size_t& size, uint32_t requestId,
         uint32_t componentId, const pb_field_t* fields, void* payload);
-Error makeSubscribe (uint8_t* bytes, size_t size, uint32_t requestId,
+Error makeSubscribe (uint8_t* bytes, size_t& size, uint32_t requestId,
         uint32_t componentId);
-Error makeUnsubscribe (uint8_t* bytes, size_t size, uint32_t requestId,
+Error makeUnsubscribe (uint8_t* bytes, size_t& size, uint32_t requestId,
         uint32_t componentId);
-Error makeBroadcast (uint8_t* bytes, size_t size,
+Error makeBroadcast (uint8_t* bytes, size_t& size,
         uint32_t componentId, const pb_field_t* fields, void* payload);
 
 } // namespace rpc

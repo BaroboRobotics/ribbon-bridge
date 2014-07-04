@@ -12,7 +12,7 @@
 #include "robotimpl.hpp"
 
 int main () {
-    using RobotMethod = rpc::Method<com::barobo::Robot>;
+    using RobotMethod = rpc::MethodIn<com::barobo::Robot>;
 
     /* The service would run on the firmware. */
     RobotService robotService;
@@ -27,6 +27,6 @@ int main () {
     error = robotProxy.deliver(response);
     assert(!rpc::hasError(error));
 
-    assert(std::future_status::ready == invocation.future().wait_for(std::chrono::seconds(0)));
+    //assert(std::future_status::ready == invocation.future().wait_for(std::chrono::seconds(0)));
 }
 

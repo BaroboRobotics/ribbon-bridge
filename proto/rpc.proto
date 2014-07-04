@@ -87,13 +87,10 @@ message Reply {
     }
 
     message Output {
-        enum Type {
-            OUT = 1;
-            ERROR = 2;
-        }
-
-        required Type type = 1;
-        required uint32 id = 2;
+        required uint32 id = 2; // The component id. The Proxy should be able
+                                // to figure this out by keeping a map of
+                                // request IDs, but duplicating it here makes
+                                // implementation much easier.
         required bytes payload = 3 [(nanopb).max_size = 128];
     }
 

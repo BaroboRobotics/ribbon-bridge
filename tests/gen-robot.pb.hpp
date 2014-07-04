@@ -35,17 +35,27 @@ struct IsAttribute<Attribute<com::barobo::Robot>::motorPower> {
 };
 
 template <>
-struct Method<com::barobo::Robot> {
+struct MethodIn<com::barobo::Robot> {
     using move = com_barobo_Robot_move_In;
 };
 
 template <>
-struct ResultOf<com_barobo_Robot_move_In> {
-    using type = Variant<com_barobo_Robot_move_Out, com_barobo_Robot_move_Error>;
+struct MethodOut<com::barobo::Robot> {
+    using move = com_barobo_Robot_move_Output;
 };
 
 template <>
-struct IsMethod<Method<com::barobo::Robot>::move> {
+struct ResultOf<com_barobo_Robot_move_In> {
+    using type = com_barobo_Robot_move_Output;
+};
+
+template <>
+struct IsMethod<MethodIn<com::barobo::Robot>::move> {
+    constexpr static const bool value = true;
+};
+
+template <>
+struct IsMethod<MethodOut<com::barobo::Robot>::move> {
     constexpr static const bool value = true;
 };
 
@@ -60,9 +70,15 @@ struct IsBroadcast<Broadcast<com::barobo::Robot>::buttonPress> {
 };
 
 template <>
-union ComponentUnion<com::barobo::Robot> {
+union ComponentInUnion<com::barobo::Robot> {
     typename Attribute<com::barobo::Robot>::motorPower motorPower;
-    typename Method<com::barobo::Robot>::move move;
+    typename MethodIn<com::barobo::Robot>::move move;
+};
+
+template <>
+union ComponentOutUnion<com::barobo::Robot> {
+    typename Attribute<com::barobo::Robot>::motorPower motorPower;
+    typename MethodOut<com::barobo::Robot>::move move;
     typename Broadcast<com::barobo::Robot>::buttonPress buttonPress;
 };
 
@@ -93,12 +109,7 @@ constexpr uint32_t componentId (com_barobo_Robot_move_In) {
 }
 
 template <>
-constexpr uint32_t componentId (com_barobo_Robot_move_Out) {
-    return ComponentId<com::barobo::Robot>::move;
-}
-
-template <>
-constexpr uint32_t componentId (com_barobo_Robot_move_Error) {
+constexpr uint32_t componentId (com_barobo_Robot_move_Output) {
     return ComponentId<com::barobo::Robot>::move;
 }
 
@@ -106,6 +117,9 @@ template <>
 constexpr uint32_t componentId (com_barobo_Robot_buttonPress) {
     return ComponentId<com::barobo::Robot>::buttonPress;
 }
+
+template <>
+bool isMethod<com::barobo::Robot> (uint32_t id);
 
 template <>
 class Subscriptions<com::barobo::Robot> {
@@ -167,7 +181,7 @@ template <>
 struct GetInvoker<com::barobo::Robot> {
     template <class T>
     static Error invoke (T& service,
-            ComponentUnion<com::barobo::Robot>& argument,
+            ComponentInUnion<com::barobo::Robot>& argument,
             uint32_t componentId,
             com_barobo_rpc_Reply_Output_payload_t& payload) {
         /* TODO: static_assert that T implements com::barobo::Robot */
@@ -191,7 +205,7 @@ template <>
 struct SetInvoker<com::barobo::Robot> {
     template <class T>
     static Error invoke (T& service,
-            ComponentUnion<com::barobo::Robot>& argument,
+            ComponentInUnion<com::barobo::Robot>& argument,
             uint32_t componentId) {
         /* TODO: static_assert that T implements com::barobo::Robot */
         using Id = ComponentId<com::barobo::Robot>;
@@ -215,10 +229,9 @@ template <>
 struct FireInvoker<com::barobo::Robot> {
     template <class T>
     static Error invoke (T& service,
-            ComponentUnion<com::barobo::Robot>& argument,
+            ComponentInUnion<com::barobo::Robot>& argument,
             uint32_t componentId,
-            com_barobo_rpc_Reply_Output_payload_t& payload,
-            bool& isExceptional) {
+            com_barobo_rpc_Reply_Output_payload_t& payload) {
         /* TODO: static_assert that T implements com::barobo::Robot */
         using Id = ComponentId<com::barobo::Robot>;
         switch (componentId) {
@@ -226,13 +239,7 @@ struct FireInvoker<com::barobo::Robot> {
             case Id::move: {
                 auto val = service.on(argument.move);
                 payload.size = sizeof(payload.bytes);
-                if (val.isOut()) {
-                    return encodeProtobuf(&val.getOut(), pbFields(val.getOut()), payload.bytes, payload.size, payload.size);
-                }
-                else {
-                    isExceptional = true;
-                    return encodeProtobuf(&val.getError(), pbFields(val.getError()), payload.bytes, payload.size, payload.size);
-                }
+                return encodeProtobuf(&val, pbFields(val), payload.bytes, payload.size, payload.size);
             }
             default:
                 return isComponent<com::barobo::Robot>(componentId) ?
@@ -246,7 +253,7 @@ template <>
 struct BroadcastInvoker<com::barobo::Robot> {
     template <class T>
     static Error invoke (T& service,
-            ComponentUnion<com::barobo::Robot>& argument,
+            ComponentOutUnion<com::barobo::Robot>& argument,
             uint32_t componentId) {
         /* TODO: static_assert that T implements com::barobo::Robot */
         using Id = ComponentId<com::barobo::Robot>;
@@ -270,28 +277,29 @@ struct BroadcastInvoker<com::barobo::Robot> {
     }
 };
 
-#if 0
-template <class T, class Interface>
-Error invokeFulfillWithError (T& service,
-        Error argument,
-        uint32_t requestId) {
-    return FulfillWithErrorInvoker<Interface>::invoke(service, argument, requestId);
-}
-
-template <class T, class Interface>
-Error invokeFulfillWithOutputError (T& service,
-        ComponentUnion<Interface>& argument,
-        uint32_t requestId) {
-    return FulfillWithErrorInvoker<Interface>::invoke(service, argument, requestId);
-}
-
-template <class T, class Interface>
-Error invokeFulfillWithOutputOut (T& service,
-        ComponentUnion<Interface>& argument,
-        uint32_t requestId) {
-    return FulfillWithErrorInvoker<Interface>::invoke(service, argument, requestId);
-}
-#endif
+template <>
+struct FulfillWithOutputInvoker<com::barobo::Robot> {
+    template <class T>
+    static Error invoke (T& service,
+            ComponentOutUnion<com::barobo::Robot>& argument,
+            uint32_t componentId,
+            uint32_t requestId) {
+        /* TODO: static_assert that T implements com::barobo::Robot */
+        using Id = ComponentId<com::barobo::Robot>;
+        switch (componentId) {
+            // list of attributes
+            case Id::motorPower:
+                return service.fulfillWithOutput(requestId, argument.motorPower);
+            // list of methods
+            case Id::move:
+                return service.fulfillWithOutput(requestId, argument.move);
+            default:
+                return isBroadcast<com::barobo::Robot>(componentId) ?
+                    Error::ILLEGAL_OPERATION :
+                    Error::NO_SUCH_COMPONENT;
+        }
+    }
+};
 
 } // namespace rpc
 

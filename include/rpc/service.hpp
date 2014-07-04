@@ -12,7 +12,7 @@
 
 namespace rpc {
 
-template <class T, class Interface>
+template <class T, class Interface, template <class> class Future>
 class Service {
     /* TODO: static_assert that T implements Is.... */
 public:
@@ -29,24 +29,26 @@ public:
     }
 
     template <class C>
-    void broadcast (C args, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
+    Future<void> broadcast (C args, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
         if (mSubscriptions.isActive(componentId(args))) {
             BufferType buffer;
             buffer.size = sizeof(buffer.bytes);
-            if (makeBroadcast(
+            auto error = makeBroadcast(
                     buffer.bytes, buffer.size,
                     componentId(args),
                     pbFields(args),
-                    &args)) {
+                    &args);
+            if (hasError(error)) {
                 printf("broadcast encoding failed\n");
-                return;
+                return static_cast<T*>(this)->finalize(error);
+
             }
-            static_cast<T*>(this)->finalize(buffer);
+            return static_cast<T*>(this)->finalize(buffer);
         }
     }
 
     template <class Method>
-    ResultOf<Method> on (Method args, ONLY_IF(IsMethod<Method>::value)) {
+    typename ResultOf<Method>::type on (Method args, ONLY_IF(IsMethod<Method>::value)) {
         return static_cast<T*>(this)->on(args);
     }
 
@@ -70,7 +72,7 @@ public:
             //printRequest(request);
 
             switch (request.type) {
-                ComponentUnion<Interface> argument;
+                ComponentInUnion<Interface> argument;
 
                 case com_barobo_rpc_Request_Type_GET:
                     reply.error.value = decltype(reply.error.value)(invokeGet(*this, argument, request.get.id, reply.output.payload));
@@ -81,7 +83,7 @@ public:
                     else {
                         reply.type = com_barobo_rpc_Reply_Type_OUTPUT;
                         reply.has_output = true;
-                        reply.output.type = com_barobo_rpc_Reply_Output_Type_OUT;
+                        reply.output.id = request.get.id;
                     }
                     break;
                 case com_barobo_rpc_Request_Type_SET:
@@ -99,12 +101,11 @@ public:
                         reply.has_error = true;
                     }
                     else {
-                        bool isExceptional = false;
-                        reply.error.value = decltype(reply.error.value)(invokeFire(*this, argument, request.fire.id, reply.output.payload, isExceptional));
+                        reply.error.value = decltype(reply.error.value)(invokeFire(*this, argument, request.fire.id, reply.output.payload));
                         if (reply.output.payload.size) {
                             reply.type = com_barobo_rpc_Reply_Type_OUTPUT;
                             reply.has_output = true;
-                            reply.output.type = isExceptional ? com_barobo_rpc_Reply_Output_Type_ERROR : com_barobo_rpc_Reply_Output_Type_OUT;
+                            reply.output.id = request.fire.id;
                         }
                         else {
                             reply.type = com_barobo_rpc_Reply_Type_ERROR;

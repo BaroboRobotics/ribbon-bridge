@@ -11,14 +11,14 @@
 
 namespace rpc {
 
-template <class T, class Interface, template <class> class FutureResultOf>
+template <class T, class Interface, template <class> class Future>
 class Proxy {
     /* TODO: static_assert that T implements Is.... */
 public:
     using BufferType = Buffer<256>;
 
     template <class Attribute>
-    FutureResultOf<Attribute> get (Attribute args, ONLY_IF(IsAttribute<Attribute>::value)) {
+    Future<Attribute> get (Attribute args, ONLY_IF(IsAttribute<Attribute>::value)) {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
         auto requestId = nextRequestId();
@@ -33,7 +33,7 @@ public:
     }
 
     template <class Attribute>
-    FutureResultOf<void> set (Attribute args, ONLY_IF(IsAttribute<Attribute>::value)) {
+    Future<void> set (Attribute args, ONLY_IF(IsAttribute<Attribute>::value)) {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
         auto requestId = nextRequestId();
@@ -54,49 +54,52 @@ public:
         static_cast<T*>(this)->broadcast(args);
     }
 
-    template <class Method>
-    FutureResultOf<Method> on (Method args, ONLY_IF(IsMethod<Method>::value)) {
+    template <class MethodIn>
+    Future<typename ResultOf<MethodIn>::type> on (MethodIn args, ONLY_IF(IsMethod<MethodIn>::value)) {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
         auto requestId = nextRequestId();
-        if (hasError(makeFire(
+        auto error = makeFire(
                 buffer.bytes, buffer.size,
                 requestId,
                 componentId(args),
                 pbFields(args),
-                &args))) {
+                &args);
+        if (hasError(error)) {
             printf("shit\n");
-            return static_cast<T*>(this)->template finalize<Method>(requestId, componentId(args));
+            return static_cast<T*>(this)->template finalize<typename ResultOf<MethodIn>::type>(requestId, componentId(args), error);
         }
-        return static_cast<T*>(this)->template finalize<Method>(requestId, componentId(args), buffer);
+        return static_cast<T*>(this)->template finalize<typename ResultOf<MethodIn>::type>(requestId, componentId(args), buffer);
     }
 
     template <class C>
-    FutureResultOf<void> subscribe (C, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
+    Future<void> subscribe (C, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
         auto requestId = nextRequestId;
-        if (hasError(makeSubscribe(
+        auto error = makeSubscribe(
                     buffer.bytes, buffer.size,
                     requestId,
-                    componentId(C())))) {
+                    componentId(C()));
+        if (hasError(error)) {
             printf("shit\n");
-            return static_cast<T*>(this)->template finalize<C>(requestId, componentId(C()));
+            return static_cast<T*>(this)->template finalize<C>(requestId, componentId(C()), error);
         }
         return static_cast<T*>(this)->template finalize<C>(requestId, componentId(C()), buffer);
     }
 
     template <class C>
-    FutureResultOf<void> unsubscribe (C, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
+    Future<void> unsubscribe (C, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
         auto requestId = nextRequestId;
-        if (hasError(makeUnsubscribe(
+        auto error = makeUnsubscribe(
                     buffer.bytes, buffer.size,
                     requestId,
-                    componentId(C())))) {
+                    componentId(C()));
+        if (hasError(error)) {
             printf("shit\n");
-            return static_cast<T*>(this)->template finalize<C>(requestId, componentId(C()));
+            return static_cast<T*>(this)->template finalize<C>(requestId, componentId(C()), error);
         }
         return static_cast<T*>(this)->template finalize<C>(requestId, componentId(C()), buffer);
     }
@@ -113,35 +116,22 @@ public:
         //printReply(reply);
 
         switch (reply.type) {
-            ComponentUnion<Interface> argument;
+            ComponentOutUnion<Interface> argument;
 
             case com_barobo_rpc_Reply_Type_ERROR:
                 if (!reply.has_error) {
                     return Error::INCONSISTENT_REPLY;
                 }
-                return invokeFulfillWithError<Proxy, Interface>(*this, Error(reply.error.value), reply.inReplyTo);
+                return static_cast<T*>(this)->fulfillWithError(reply.inReplyTo, Error(reply.error.value));
             case com_barobo_rpc_Reply_Type_OUTPUT:
                 if (!reply.has_output) {
                     return Error::INCONSISTENT_REPLY;
                 }
-                if (com_barobo_rpc_Reply_Output_Type_ERROR == reply.output.type) {
-                    err = decodeOutputErrorPayload(argument, reply.output.id, reply.output.payload);
-                    if (!hasError(err)) {
-                        err = invokeFulfillWithOutputError(*this, argument, reply.inReplyTo);
-                    }
-                    return err;
+                err = decodeOutputPayload(argument, reply.output.id, reply.output.payload);
+                if (!hasError(err)) {
+                    err = invokeFulfillWithOutput(*this, argument, reply.output.id, reply.inReplyTo);
                 }
-                else {
-                    if (!com_barobo_rpc_Reply_Output_Type_OUT == reply.output.type) {
-                        return Error::INCONSISTENT_REPLY;
-                    }
-                    err = decodeOutputOutPayload(argument, reply.output.id, reply.output.payload);
-                    if (!hasError(err)) {
-                        err = invokeFulfillWithOutputOut(*this, argument, reply.inReplyTo);
-                    }
-                    return err;
-                }
-                break;
+                return err;
             case com_barobo_rpc_Reply_Type_VERSION:
                 if (!reply.has_version) {
                     return Error::INCONSISTENT_REPLY;
@@ -164,6 +154,11 @@ public:
         }
 
         return Error::NO_ERROR;
+    }
+
+    template <class Out>
+    Error fulfillWithOutput (uint32_t requestId, Out& out) {
+        return static_cast<T*>(this)->fulfillWithOutput(requestId, out);
     }
 
 private:
