@@ -8,7 +8,9 @@
 /* You first need to include the generated interface code. */
 #include "gen-robot.pb.hpp"
 
+#include <boost/any.hpp>
 #include <future>
+#include <map>
 
 template <class Out>
 struct StupidFutureTemplate {
@@ -96,7 +98,8 @@ public:
 
     template <class C>
     StupidFutureTemplate<C> finalize (uint32_t requestId, uint32_t componentId, BufferType& buffer) {
-        return { std::future<C>(), buffer };
+        mPromises[requestId] = std::move(std::promise<C>());
+        return { boost::any_cast<std::promise<C>&>(mPromises[requestId]).get_future(), buffer };
     }
 
     using RobotAttribute = rpc::Attribute<com::barobo::Robot>;
@@ -111,6 +114,7 @@ public:
     }
 
 private:
+    std::map<uint32_t, boost::any> mPromises;
 };
 
 #endif
