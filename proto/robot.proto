@@ -50,7 +50,7 @@ message move {
     }
 
 
-    message Output {
+    message Result {
         /* The Out message contains the output parameters, and is used as the
          * payload for a Reply OUT message in response to a ToObject FIRE. This
          * message would only exist if the method has output parameters. */
@@ -79,7 +79,7 @@ message move {
      * implementors signal an error state, but we should find a more elegant
      * way. */
     required In in = 1;
-    required Output output = 2;
+    required Result result = 2;
 }
 
 //////////////////////////////////////////////////////////////////////////////

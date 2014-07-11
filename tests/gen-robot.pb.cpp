@@ -16,8 +16,8 @@ const pb_field_t* pbFields (com_barobo_Robot_move_In) {
 }
 
 template <>
-const pb_field_t* pbFields (com_barobo_Robot_move_Output) {
-    return com_barobo_Robot_move_Output_fields;
+const pb_field_t* pbFields (com_barobo_Robot_move_Result) {
+    return com_barobo_Robot_move_Result_fields;
 }
 
 template <>
@@ -111,9 +111,9 @@ Status decodeBroadcastPayload (ComponentOutUnion<com::barobo::Robot>& args,
 }
 
 template <>
-Status decodeOutputPayload (ComponentOutUnion<com::barobo::Robot>& args,
+Status decodeResultPayload (ComponentOutUnion<com::barobo::Robot>& args,
         uint32_t componentId,
-        com_barobo_rpc_Reply_Output_payload_t& payload) {
+        com_barobo_rpc_Reply_Result_payload_t& payload) {
     using Id = ComponentId<com::barobo::Robot>;
     switch (componentId) {
         // list of attributes
@@ -121,7 +121,7 @@ Status decodeOutputPayload (ComponentOutUnion<com::barobo::Robot>& args,
             return decodeProtobuf(&args.motorPower, com_barobo_Robot_motorPower_fields, payload.bytes, payload.size);
         // list of methods
         case Id::move:
-            return decodeProtobuf(&args.move, com_barobo_Robot_move_Output_fields, payload.bytes, payload.size);
+            return decodeProtobuf(&args.move, com_barobo_Robot_move_Result_fields, payload.bytes, payload.size);
         default:
             return isComponent<com::barobo::Robot>(componentId) ?
                 Status::ILLEGAL_OPERATION :

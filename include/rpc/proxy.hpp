@@ -118,13 +118,13 @@ public:
                     return Status::INCONSISTENT_REPLY;
                 }
                 return static_cast<T*>(this)->fulfillWithStatus(reply.inReplyTo, Status(reply.status.value));
-            case com_barobo_rpc_Reply_Type_OUTPUT:
-                if (!reply.has_output) {
+            case com_barobo_rpc_Reply_Type_RESULT:
+                if (!reply.has_result) {
                     return Status::INCONSISTENT_REPLY;
                 }
-                err = decodeOutputPayload(argument, reply.output.id, reply.output.payload);
+                err = decodeResultPayload(argument, reply.result.id, reply.result.payload);
                 if (!hasError(err)) {
-                    err = invokeFulfillWithOutput(*this, argument, reply.output.id, reply.inReplyTo);
+                    err = invokeFulfillWithResult(*this, argument, reply.result.id, reply.inReplyTo);
                 }
                 return err;
             case com_barobo_rpc_Reply_Type_VERSION:
@@ -152,8 +152,8 @@ public:
     }
 
     template <class Out>
-    Status fulfillWithOutput (uint32_t requestId, Out& out) {
-        return static_cast<T*>(this)->fulfillWithOutput(requestId, out);
+    Status fulfillWithResult (uint32_t requestId, Out& out) {
+        return static_cast<T*>(this)->fulfillWithResult(requestId, out);
     }
 
 private:

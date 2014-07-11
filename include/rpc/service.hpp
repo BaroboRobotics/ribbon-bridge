@@ -72,15 +72,15 @@ public:
                 ComponentInUnion<Interface> argument;
 
                 case com_barobo_rpc_Request_Type_GET:
-                    reply.status.value = decltype(reply.status.value)(invokeGet(*this, argument, request.get.id, reply.output.payload));
+                    reply.status.value = decltype(reply.status.value)(invokeGet(*this, argument, request.get.id, reply.result.payload));
                     if (com_barobo_rpc_Status_OK != reply.status.value) {
                         reply.type = com_barobo_rpc_Reply_Type_STATUS;
                         reply.has_status = true;
                     }
                     else {
-                        reply.type = com_barobo_rpc_Reply_Type_OUTPUT;
-                        reply.has_output = true;
-                        reply.output.id = request.get.id;
+                        reply.type = com_barobo_rpc_Reply_Type_RESULT;
+                        reply.has_result = true;
+                        reply.result.id = request.get.id;
                     }
                     break;
                 case com_barobo_rpc_Request_Type_SET:
@@ -98,11 +98,11 @@ public:
                         reply.has_status = true;
                     }
                     else {
-                        reply.status.value = decltype(reply.status.value)(invokeFire(*this, argument, request.fire.id, reply.output.payload));
-                        if (reply.output.payload.size) {
-                            reply.type = com_barobo_rpc_Reply_Type_OUTPUT;
-                            reply.has_output = true;
-                            reply.output.id = request.fire.id;
+                        reply.status.value = decltype(reply.status.value)(invokeFire(*this, argument, request.fire.id, reply.result.payload));
+                        if (reply.result.payload.size) {
+                            reply.type = com_barobo_rpc_Reply_Type_RESULT;
+                            reply.has_result = true;
+                            reply.result.id = request.fire.id;
                         }
                         else {
                             reply.type = com_barobo_rpc_Reply_Type_STATUS;

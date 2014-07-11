@@ -31,15 +31,14 @@ int main () try {
     assert(!rpc::hasError(status));
     assert(std::future_status::ready == invocation.future().wait_for(std::chrono::seconds(0)));
 
-    const auto& output = invocation.future().get();
-    if (output.has_out) {
-        std::cout << "robotProxy->move() returned " << output.out.funFactor << '\n';
+    const auto& result = invocation.future().get();
+    if (result.has_out) {
+        std::cout << "robotProxy->move() returned " << result.out.funFactor << '\n';
     }
     else {
-        assert(output.has_error);
-        std::cout << "robotProxy->move() returned error " << output.error.value << '\n';
+        assert(result.has_error);
+        std::cout << "robotProxy->move() returned error " << result.error.value << '\n';
     }
-
 }
 catch (std::exception& exc) {
     std::cout << exc.what() << '\n';

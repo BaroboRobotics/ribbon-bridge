@@ -41,12 +41,12 @@ struct MethodIn<com::barobo::Robot> {
 
 template <>
 struct MethodOut<com::barobo::Robot> {
-    using move = com_barobo_Robot_move_Output;
+    using move = com_barobo_Robot_move_Result;
 };
 
 template <>
 struct ResultOf<com_barobo_Robot_move_In> {
-    using type = com_barobo_Robot_move_Output;
+    using type = com_barobo_Robot_move_Result;
 };
 
 template <>
@@ -119,7 +119,7 @@ constexpr uint32_t componentId (com_barobo_Robot_move_In) {
 }
 
 template <>
-constexpr uint32_t componentId (com_barobo_Robot_move_Output) {
+constexpr uint32_t componentId (com_barobo_Robot_move_Result) {
     return ComponentId<com::barobo::Robot>::move;
 }
 
@@ -193,7 +193,7 @@ struct GetInvoker<com::barobo::Robot> {
     static Status invoke (T& service,
             ComponentInUnion<com::barobo::Robot>& argument,
             uint32_t componentId,
-            com_barobo_rpc_Reply_Output_payload_t& payload) {
+            com_barobo_rpc_Reply_Result_payload_t& payload) {
         /* TODO: static_assert that T implements com::barobo::Robot */
         using Id = ComponentId<com::barobo::Robot>;
         switch (componentId) {
@@ -241,7 +241,7 @@ struct FireInvoker<com::barobo::Robot> {
     static Status invoke (T& service,
             ComponentInUnion<com::barobo::Robot>& argument,
             uint32_t componentId,
-            com_barobo_rpc_Reply_Output_payload_t& payload) {
+            com_barobo_rpc_Reply_Result_payload_t& payload) {
         /* TODO: static_assert that T implements com::barobo::Robot */
         using Id = ComponentId<com::barobo::Robot>;
         switch (componentId) {
@@ -288,7 +288,7 @@ struct BroadcastInvoker<com::barobo::Robot> {
 };
 
 template <>
-struct FulfillWithOutputInvoker<com::barobo::Robot> {
+struct FulfillWithResultInvoker<com::barobo::Robot> {
     template <class T>
     static Status invoke (T& service,
             ComponentOutUnion<com::barobo::Robot>& argument,
@@ -299,10 +299,10 @@ struct FulfillWithOutputInvoker<com::barobo::Robot> {
         switch (componentId) {
             // list of attributes
             case Id::motorPower:
-                return service.fulfillWithOutput(requestId, argument.motorPower);
+                return service.fulfillWithResult(requestId, argument.motorPower);
             // list of methods
             case Id::move:
-                return service.fulfillWithOutput(requestId, argument.move);
+                return service.fulfillWithResult(requestId, argument.move);
             default:
                 return isBroadcast<com::barobo::Robot>(componentId) ?
                     Status::ILLEGAL_OPERATION :

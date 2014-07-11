@@ -69,10 +69,10 @@ public:
     RobotMethodOut::move fire (RobotMethodIn::move& args) {
         printf("%f %f %f\n", double(args.desiredAngle1),
                 double(args.desiredAngle2), double(args.desiredAngle3));
-        RobotMethodOut::move output;
-        output.has_out = true;
-        output.out.funFactor = 1.23;
-        return output;
+        RobotMethodOut::move result;
+        result.has_out = true;
+        result.out.funFactor = 1.23;
+        return result;
     }
 
     /* More methods ... */
@@ -93,7 +93,7 @@ public:
     }
 
     template <class Out>
-    rpc::Status fulfillWithOutput (uint32_t requestId, Out& out) {
+    rpc::Status fulfillWithResult (uint32_t requestId, Out& out) {
         auto iter = mPromises.find(requestId);
         if (mPromises.end() == iter) {
             // FIXME better error

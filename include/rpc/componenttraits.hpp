@@ -93,13 +93,13 @@ template <class Interface>
 struct BroadcastInvoker;
 
 template <class Interface>
-struct FulfillWithOutputInvoker;
+struct FulfillWithResultInvoker;
 
 template <class T, class Interface>
 Status invokeGet (T& service,
         ComponentInUnion<Interface>& argument,
         uint32_t componentId,
-        com_barobo_rpc_Reply_Output_payload_t& payload) {
+        com_barobo_rpc_Reply_Result_payload_t& payload) {
     return GetInvoker<Interface>::invoke(service, argument, componentId, payload);
 }
 
@@ -114,7 +114,7 @@ template <class T, class Interface>
 Status invokeFire (T& service,
         ComponentInUnion<Interface>& argument,
         uint32_t componentId,
-        com_barobo_rpc_Reply_Output_payload_t& payload) {
+        com_barobo_rpc_Reply_Result_payload_t& payload) {
     return FireInvoker<Interface>::invoke(service, argument, componentId, payload);
 }
 
@@ -126,11 +126,11 @@ Status invokeBroadcast (T& service,
 }
 
 template <class T, class Interface>
-Status invokeFulfillWithOutput (T& service,
+Status invokeFulfillWithResult (T& service,
         ComponentOutUnion<Interface>& argument,
         uint32_t componentId,
         uint32_t requestId) {
-    return FulfillWithOutputInvoker<Interface>::invoke(service, argument, componentId, requestId);
+    return FulfillWithResultInvoker<Interface>::invoke(service, argument, componentId, requestId);
 }
 
 template <class Interface>
@@ -149,9 +149,9 @@ Status decodeBroadcastPayload (ComponentOutUnion<Interface>& args,
         com_barobo_rpc_Reply_Broadcast_payload_t& payload);
 
 template <class Interface>
-Status decodeOutputPayload (ComponentOutUnion<Interface>& args,
+Status decodeResultPayload (ComponentOutUnion<Interface>& args,
         uint32_t componentId,
-        com_barobo_rpc_Reply_Output_payload_t& payload);
+        com_barobo_rpc_Reply_Result_payload_t& payload);
 
 } // namespace rpc
 
