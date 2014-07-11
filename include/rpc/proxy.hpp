@@ -22,14 +22,14 @@ public:
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
         auto requestId = nextRequestId();
-        if (hasError(makeGet(
+        auto status = makeGet(
                 buffer.bytes, buffer.size,
                 requestId,
-                componentId(args)))) {
-            printf("shit\n");
-            return static_cast<T*>(this)->template finalize<Attribute>(requestId, componentId(args));
+                componentId(args));
+        if (hasError(status)) {
+            return static_cast<T*>(this)->template finalize<Attribute>(requestId, status);
         }
-        return static_cast<T*>(this)->template finalize<Attribute>(requestId, componentId(args), buffer);
+        return static_cast<T*>(this)->template finalize<Attribute>(requestId, buffer);
     }
 
     template <class Attribute>
@@ -37,16 +37,16 @@ public:
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
         auto requestId = nextRequestId();
-        if (hasError(makeSet(
+        auto status = makeSet(
                 buffer.bytes, buffer.size,
                 requestId,
                 componentId(args),
                 pbFields(args),
-                &args))) {
-            printf("shit\n");
-            return static_cast<T*>(this)->template finalize<Attribute>(requestId, componentId(args));
+                &args);
+        if (hasError(status)) {
+            return static_cast<T*>(this)->template finalize<Attribute>(requestId, status);
         }
-        return static_cast<T*>(this)->template finalize<Attribute>(requestId, componentId(args), buffer);
+        return static_cast<T*>(this)->template finalize<Attribute>(requestId, buffer);
     }
 
     template <class C>
@@ -56,20 +56,20 @@ public:
 
     template <class MethodIn>
     Future<typename ResultOf<MethodIn>::type> fire (MethodIn args, ONLY_IF(IsMethod<MethodIn>::value)) {
+        using Result = typename ResultOf<MethodIn>::type;
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
         auto requestId = nextRequestId();
-        auto error = makeFire(
+        auto status = makeFire(
                 buffer.bytes, buffer.size,
                 requestId,
                 componentId(args),
                 pbFields(args),
                 &args);
-        if (hasError(error)) {
-            printf("shit\n");
-            return static_cast<T*>(this)->template finalize<typename ResultOf<MethodIn>::type>(requestId, componentId(args), error);
+        if (hasError(status)) {
+            return static_cast<T*>(this)->template finalize<Result>(requestId, status);
         }
-        return static_cast<T*>(this)->template finalize<typename ResultOf<MethodIn>::type>(requestId, componentId(args), buffer);
+        return static_cast<T*>(this)->template finalize<Result>(requestId, buffer);
     }
 
     template <class C>
@@ -77,13 +77,12 @@ public:
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
         auto requestId = nextRequestId;
-        auto error = makeSubscribe(
+        auto status = makeSubscribe(
                     buffer.bytes, buffer.size,
                     requestId,
                     componentId(C()));
-        if (hasError(error)) {
-            printf("shit\n");
-            return static_cast<T*>(this)->template finalize<C>(requestId, componentId(C()), error);
+        if (hasError(status)) {
+            return static_cast<T*>(this)->template finalize<C>(requestId, componentId(C()), status);
         }
         return static_cast<T*>(this)->template finalize<C>(requestId, componentId(C()), buffer);
     }
@@ -93,15 +92,14 @@ public:
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
         auto requestId = nextRequestId;
-        auto error = makeUnsubscribe(
+        auto status = makeUnsubscribe(
                     buffer.bytes, buffer.size,
                     requestId,
                     componentId(C()));
-        if (hasError(error)) {
-            printf("shit\n");
-            return static_cast<T*>(this)->template finalize<C>(requestId, componentId(C()), error);
+        if (hasError(status)) {
+            return static_cast<T*>(this)->template finalize<C>(requestId, status);
         }
-        return static_cast<T*>(this)->template finalize<C>(requestId, componentId(C()), buffer);
+        return static_cast<T*>(this)->template finalize<C>(requestId, buffer);
     }
 
     Status deliver (BufferType buffer) {

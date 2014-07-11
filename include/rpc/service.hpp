@@ -12,7 +12,7 @@
 
 namespace rpc {
 
-template <class T, class Interface, template <class> class Future>
+template <class T, class Interface>
 class Service {
     /* TODO: static_assert that T implements Is.... */
 public:
@@ -29,7 +29,7 @@ public:
     }
 
     template <class C>
-    Future<void> broadcast (C args, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
+    void broadcast (C args, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
         if (mSubscriptions.isActive(componentId(args))) {
             BufferType buffer;
             buffer.size = sizeof(buffer.bytes);

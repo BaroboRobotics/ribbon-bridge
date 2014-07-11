@@ -46,7 +46,7 @@ private:
 class RobotService;
 class RobotProxy;
 
-class RobotService : public rpc::Service<RobotService, com::barobo::Robot, StupidFutureTemplate> {
+class RobotService : public rpc::Service<RobotService, com::barobo::Robot> {
 public:
     /* These typedefs aren't required, but it makes things more readable. If
      * you implement multiple interfaces, you might make multiple typedefs. */
@@ -84,7 +84,6 @@ private:
 class RobotProxy : public rpc::Proxy<RobotProxy, com::barobo::Robot, StupidFutureTemplate> {
     template <class... Ts>
     using MakePromiseVariant = boost::variant<std::promise<Ts>...>;
-
     using PromiseVariant = typename rpc::ComponentOutVariadic<com::barobo::Robot, MakePromiseVariant>::type;
 
 public:
@@ -111,12 +110,12 @@ public:
     }
 
     template <class C>
-    StupidFutureTemplate<C> finalize (uint32_t requestId, uint32_t componentId, rpc::Status status) {
+    StupidFutureTemplate<C> finalize (uint32_t requestId, rpc::Status status) {
         return { status };
     }
 
     template <class C>
-    StupidFutureTemplate<C> finalize (uint32_t requestId, uint32_t componentId, BufferType& buffer) {
+    StupidFutureTemplate<C> finalize (uint32_t requestId, BufferType& buffer) {
         typename decltype(mPromises)::iterator iter;
         bool success;
         std::tie(iter, success) = mPromises.emplace(std::piecewise_construct,
