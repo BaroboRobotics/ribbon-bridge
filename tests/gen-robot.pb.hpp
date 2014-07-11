@@ -82,6 +82,16 @@ union ComponentOutUnion<com::barobo::Robot> {
     typename Broadcast<com::barobo::Robot>::buttonPress buttonPress;
 };
 
+template <template <class...> class F>
+struct ComponentOutVariadic<com::barobo::Robot, F> {
+    using type = F
+        < void
+        , typename Attribute<com::barobo::Robot>::motorPower
+        , typename MethodOut<com::barobo::Robot>::move
+        , typename Broadcast<com::barobo::Robot>::buttonPress
+        >;
+};
+
 /* COMPONENT IDs */
 
 template <>
@@ -126,33 +136,33 @@ class Subscriptions<com::barobo::Robot> {
 public:
     using Id = ComponentId<com::barobo::Robot>;
 
-    Error activate (uint32_t id) {
+    Status activate (uint32_t id) {
         switch (id) {
             case Id::motorPower:
                 motorPower = true;
-                return Error::NO_ERROR;
+                return Status::OK;
             case Id::buttonPress:
                 buttonPress = true;
-                return Error::NO_ERROR;
+                return Status::OK;
             default:
                 return isMethod<com::barobo::Robot>(id) ?
-                           Error::ILLEGAL_OPERATION :
-                           Error::NO_SUCH_COMPONENT;
+                           Status::ILLEGAL_OPERATION :
+                           Status::NO_SUCH_COMPONENT;
         }
     }
 
-    Error deactivate (uint32_t id) {
+    Status deactivate (uint32_t id) {
         switch (id) {
             case Id::motorPower:
                 motorPower = false;
-                return Error::NO_ERROR;
+                return Status::OK;
             case Id::buttonPress:
                 buttonPress = false;
-                return Error::NO_ERROR;
+                return Status::OK;
             default:
                 return isMethod<com::barobo::Robot>(id) ?
-                           Error::ILLEGAL_OPERATION :
-                           Error::NO_SUCH_COMPONENT;
+                           Status::ILLEGAL_OPERATION :
+                           Status::NO_SUCH_COMPONENT;
         }
     }
 
@@ -180,7 +190,7 @@ private:
 template <>
 struct GetInvoker<com::barobo::Robot> {
     template <class T>
-    static Error invoke (T& service,
+    static Status invoke (T& service,
             ComponentInUnion<com::barobo::Robot>& argument,
             uint32_t componentId,
             com_barobo_rpc_Reply_Output_payload_t& payload) {
@@ -195,8 +205,8 @@ struct GetInvoker<com::barobo::Robot> {
             }
             default:
                 return isComponent<com::barobo::Robot>(componentId) ?
-                    Error::ILLEGAL_OPERATION :
-                    Error::NO_SUCH_COMPONENT;
+                    Status::ILLEGAL_OPERATION :
+                    Status::NO_SUCH_COMPONENT;
         }
     }
 };
@@ -204,7 +214,7 @@ struct GetInvoker<com::barobo::Robot> {
 template <>
 struct SetInvoker<com::barobo::Robot> {
     template <class T>
-    static Error invoke (T& service,
+    static Status invoke (T& service,
             ComponentInUnion<com::barobo::Robot>& argument,
             uint32_t componentId) {
         /* TODO: static_assert that T implements com::barobo::Robot */
@@ -213,14 +223,14 @@ struct SetInvoker<com::barobo::Robot> {
             // list of non-read-only attributes
             case Id::motorPower:
                 service.set(argument.motorPower);
-                return Error::NO_ERROR;
+                return Status::OK;
             default:
                 if (isAttribute<com::barobo::Robot>(componentId)) {
-                    return Error::READ_ONLY;
+                    return Status::READ_ONLY;
                 }
                 return isComponent<com::barobo::Robot>(componentId) ?
-                    Error::ILLEGAL_OPERATION :
-                    Error::NO_SUCH_COMPONENT;
+                    Status::ILLEGAL_OPERATION :
+                    Status::NO_SUCH_COMPONENT;
         }
     }
 };
@@ -228,7 +238,7 @@ struct SetInvoker<com::barobo::Robot> {
 template <>
 struct FireInvoker<com::barobo::Robot> {
     template <class T>
-    static Error invoke (T& service,
+    static Status invoke (T& service,
             ComponentInUnion<com::barobo::Robot>& argument,
             uint32_t componentId,
             com_barobo_rpc_Reply_Output_payload_t& payload) {
@@ -243,8 +253,8 @@ struct FireInvoker<com::barobo::Robot> {
             }
             default:
                 return isComponent<com::barobo::Robot>(componentId) ?
-                    Error::ILLEGAL_OPERATION :
-                    Error::NO_SUCH_COMPONENT;
+                    Status::ILLEGAL_OPERATION :
+                    Status::NO_SUCH_COMPONENT;
         }
     }
 };
@@ -252,7 +262,7 @@ struct FireInvoker<com::barobo::Robot> {
 template <>
 struct BroadcastInvoker<com::barobo::Robot> {
     template <class T>
-    static Error invoke (T& service,
+    static Status invoke (T& service,
             ComponentOutUnion<com::barobo::Robot>& argument,
             uint32_t componentId) {
         /* TODO: static_assert that T implements com::barobo::Robot */
@@ -261,18 +271,18 @@ struct BroadcastInvoker<com::barobo::Robot> {
             // list of subscribable attributes
             case Id::motorPower:
                 service.broadcast(argument.motorPower);
-                return Error::NO_ERROR;
+                return Status::OK;
             // list of broadcasts
             case Id::buttonPress:
                 service.broadcast(argument.buttonPress);
-                return Error::NO_ERROR;
+                return Status::OK;
             default:
                 if (isAttribute<com::barobo::Robot>(componentId)) {
-                    return Error::NO_SUBSCRIPTIONS;
+                    return Status::NO_SUBSCRIPTIONS;
                 }
                 return isComponent<com::barobo::Robot>(componentId) ?
-                    Error::ILLEGAL_OPERATION :
-                    Error::NO_SUCH_COMPONENT;
+                    Status::ILLEGAL_OPERATION :
+                    Status::NO_SUCH_COMPONENT;
         }
     }
 };
@@ -280,7 +290,7 @@ struct BroadcastInvoker<com::barobo::Robot> {
 template <>
 struct FulfillWithOutputInvoker<com::barobo::Robot> {
     template <class T>
-    static Error invoke (T& service,
+    static Status invoke (T& service,
             ComponentOutUnion<com::barobo::Robot>& argument,
             uint32_t componentId,
             uint32_t requestId) {
@@ -295,8 +305,8 @@ struct FulfillWithOutputInvoker<com::barobo::Robot> {
                 return service.fulfillWithOutput(requestId, argument.move);
             default:
                 return isBroadcast<com::barobo::Robot>(componentId) ?
-                    Error::ILLEGAL_OPERATION :
-                    Error::NO_SUCH_COMPONENT;
+                    Status::ILLEGAL_OPERATION :
+                    Status::NO_SUCH_COMPONENT;
         }
     }
 };

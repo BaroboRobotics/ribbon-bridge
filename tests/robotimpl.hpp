@@ -9,8 +9,11 @@
 #include "gen-robot.pb.hpp"
 
 #include <boost/any.hpp>
+#include <boost/unordered_map.hpp>
 #include <future>
-#include <map>
+#include <utility>
+#include <tuple>
+#include <boost/variant.hpp>
 
 template <class Out>
 struct StupidFutureTemplate {
@@ -19,8 +22,8 @@ public:
             : mFuture(std::move(future))
             , mBuffer(buffer) { }
 
-    StupidFutureTemplate (rpc::Error error)
-            : mError(error) { }
+    StupidFutureTemplate (rpc::Status status)
+            : mStatus(status) { }
 
     std::future<Out>& future () {
         return mFuture;
@@ -30,14 +33,14 @@ public:
         return mBuffer;
     }
 
-    rpc::Error error () {
-        return mError;
+    rpc::Status status () {
+        return mStatus;
     }
 
 private:
     std::future<Out> mFuture;
     rpc::Buffer<256> mBuffer;
-    rpc::Error mError = rpc::Error::NO_ERROR;
+    rpc::Status mStatus = rpc::Status::OK;
 };
 
 class RobotService;
@@ -79,27 +82,62 @@ private:
 };
 
 class RobotProxy : public rpc::Proxy<RobotProxy, com::barobo::Robot, StupidFutureTemplate> {
+    template <class... Ts>
+    using MakePromiseVariant = boost::variant<std::promise<Ts>...>;
+
+    using PromiseVariant = typename rpc::ComponentOutVariadic<com::barobo::Robot, MakePromiseVariant>::type;
+
 public:
-    rpc::Error fulfillWithError (uint32_t requestId, rpc::Error error) {
-        printf("fulfillWithError\n");
-        return error;
+    rpc::Status fulfillWithStatus (uint32_t requestId, rpc::Status status) {
+        printf("fulfillWithStatus\n");
+        return status;
     }
 
     template <class Out>
-    rpc::Error fulfillWithOutput (uint32_t requestId, Out& out) {
-        printf("fulfillWithOutput\n");
-        return rpc::Error::NO_ERROR;
+    rpc::Status fulfillWithOutput (uint32_t requestId, Out& out) {
+        auto iter = mPromises.find(requestId);
+        if (mPromises.end() == iter) {
+            // FIXME better error
+            return rpc::Status::INCONSISTENT_REPLY;
+        }
+        auto promisePtr = boost::get<std::promise<Out>>(&iter->second);
+        if (!promisePtr) {
+            // FIXME better error
+            return rpc::Status::INCONSISTENT_REPLY;
+        }
+        promisePtr->set_value(out);
+#if 0
+        mPromises.erase(iter);
+#endif
+        return rpc::Status::OK;
     }
 
     template <class C>
-    StupidFutureTemplate<C> finalize (uint32_t requestId, uint32_t componentId, rpc::Error error) {
-        return { error };
+    StupidFutureTemplate<C> finalize (uint32_t requestId, uint32_t componentId, rpc::Status status) {
+        return { status };
     }
 
     template <class C>
     StupidFutureTemplate<C> finalize (uint32_t requestId, uint32_t componentId, BufferType& buffer) {
-        mPromises[requestId] = std::move(std::promise<C>());
-        return { boost::any_cast<std::promise<C>&>(mPromises[requestId]).get_future(), buffer };
+        //requestId = 0;
+        typename decltype(mPromises)::iterator iter;
+        bool success;
+        std::tie(iter, success) = mPromises.emplace(std::piecewise_construct,
+                std::make_tuple(requestId),
+                std::make_tuple(std::promise<C>()));
+        if (!success) {
+            // this will break the existing promise
+            printf("breaking promise\n");
+            mPromises.erase(iter);
+            std::tie(iter, success) = mPromises.emplace(std::piecewise_construct,
+                    std::make_tuple(requestId),
+                    std::make_tuple(std::promise<C>()));
+            assert(success);
+        }
+
+        auto promisePtr = boost::get<std::promise<C>>(&iter->second);
+        assert(promisePtr);
+        return { promisePtr->get_future(), buffer };
     }
 
     using RobotAttribute = rpc::Attribute<com::barobo::Robot>;
@@ -114,7 +152,10 @@ public:
     }
 
 private:
-    std::map<uint32_t, boost::any> mPromises;
+    boost::unordered_map
+        < uint32_t
+        , PromiseVariant
+        > mPromises;
 };
 
 #endif

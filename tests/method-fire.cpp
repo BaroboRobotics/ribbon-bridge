@@ -11,7 +11,9 @@
 #include "gen-robot.pb.hpp"
 #include "robotimpl.hpp"
 
-int main () {
+#include <iostream>
+
+int main () try {
     using RobotMethod = rpc::MethodIn<com::barobo::Robot>;
 
     /* The service would run on the firmware. */
@@ -20,13 +22,24 @@ int main () {
     RobotProxy robotProxy;
 
     auto invocation = robotProxy.on(RobotMethod::move { -234, 8, 1e-3 });
-    assert(!rpc::hasError(invocation.error()));
+    assert(!rpc::hasError(invocation.status()));
+    assert(std::future_status::ready != invocation.future().wait_for(std::chrono::seconds(0)));
     RobotProxy::BufferType response;
-    auto error = robotService.deliver(invocation.buffer(), response);
-    assert(!rpc::hasError(error));
-    error = robotProxy.deliver(response);
-    assert(!rpc::hasError(error));
+    auto status = robotService.deliver(invocation.buffer(), response);
+    assert(!rpc::hasError(status));
+    status = robotProxy.deliver(response);
+    assert(!rpc::hasError(status));
+    assert(std::future_status::ready == invocation.future().wait_for(std::chrono::seconds(0)));
 
-    //assert(std::future_status::ready == invocation.future().wait_for(std::chrono::seconds(0)));
+    const auto& output = invocation.future().get();
+    if (output.has_out) {
+        std::cout << "robotProxy->move() returned " << output.out.funFactor << '\n';
+    }
+    else {
+        assert(output.has_error);
+        std::cout << "robotProxy->move() returned error " << output.error.value << '\n';
+    }
 }
-
+catch (std::exception& exc) {
+    std::cout << exc.what() << '\n';
+}

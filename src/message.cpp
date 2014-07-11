@@ -17,7 +17,7 @@ const pb_field_t* pbFields (com_barobo_rpc_Reply) {
     return com_barobo_rpc_Reply_fields;
 }
 
-Error encodeProtobuf (const void* pbStruct, const pb_field_t* pbFields, uint8_t* bytes, size_t size, size_t& bytesWritten) {
+Status encodeProtobuf (const void* pbStruct, const pb_field_t* pbFields, uint8_t* bytes, size_t size, size_t& bytesWritten) {
     printf("encoding to buffer of size %zu\n", size);
     auto stream = pb_ostream_from_buffer(bytes, size);
     bool success = true;
@@ -30,11 +30,11 @@ Error encodeProtobuf (const void* pbStruct, const pb_field_t* pbFields, uint8_t*
     }
     bytesWritten = stream.bytes_written;
     return success ?
-        Error::NO_ERROR :
-        Error::ENCODING_FAILURE;
+        Status::OK :
+        Status::ENCODING_FAILURE;
 }
 
-Error decodeProtobuf (void* pbStruct, const pb_field_t* pbFields, uint8_t* bytes, size_t size) {
+Status decodeProtobuf (void* pbStruct, const pb_field_t* pbFields, uint8_t* bytes, size_t size) {
     auto stream = pb_istream_from_buffer(bytes, size);
     bool success = true;
     auto nBytesLeft = stream.bytes_left;
@@ -46,11 +46,11 @@ Error decodeProtobuf (void* pbStruct, const pb_field_t* pbFields, uint8_t* bytes
         printf("decoded %zu bytes\n", nBytesLeft - stream.bytes_left);
     }
     return success ?
-        Error::NO_ERROR :
-        Error::DECODING_FAILURE;
+        Status::OK :
+        Status::DECODING_FAILURE;
 }
 
-Error makeGet (uint8_t* bytes, size_t size, uint32_t requestId,
+Status makeGet (uint8_t* bytes, size_t size, uint32_t requestId,
         uint32_t componentId) {
     assert(bytes);
 
@@ -65,7 +65,7 @@ Error makeGet (uint8_t* bytes, size_t size, uint32_t requestId,
     return rpc::encode(request, bytes, size, size);
 }
 
-Error makeSet (uint8_t* bytes, size_t& size, uint32_t requestId,
+Status makeSet (uint8_t* bytes, size_t& size, uint32_t requestId,
         uint32_t componentId, const pb_field_t* fields, void* payload) {
     assert(bytes && fields && payload);
 
@@ -88,7 +88,7 @@ Error makeSet (uint8_t* bytes, size_t& size, uint32_t requestId,
     return err;
 }
 
-Error makeSubscribe (uint8_t* bytes, size_t& size, uint32_t requestId,
+Status makeSubscribe (uint8_t* bytes, size_t& size, uint32_t requestId,
         uint32_t componentId) {
     assert(bytes);
 
@@ -103,7 +103,7 @@ Error makeSubscribe (uint8_t* bytes, size_t& size, uint32_t requestId,
     return rpc::encode(request, bytes, size, size);
 }
 
-Error makeUnsubscribe (uint8_t* bytes, size_t& size, uint32_t requestId,
+Status makeUnsubscribe (uint8_t* bytes, size_t& size, uint32_t requestId,
         uint32_t componentId) {
     assert(bytes);
 
@@ -118,7 +118,7 @@ Error makeUnsubscribe (uint8_t* bytes, size_t& size, uint32_t requestId,
     return rpc::encode(request, bytes, size, size);
 }
 
-Error makeFire (uint8_t* bytes, size_t& size, uint32_t requestId, uint32_t componentId, const pb_field_t* fields, void* payload) {
+Status makeFire (uint8_t* bytes, size_t& size, uint32_t requestId, uint32_t componentId, const pb_field_t* fields, void* payload) {
     assert(bytes && fields && payload);
 
     com_barobo_rpc_Request request;
@@ -141,7 +141,7 @@ Error makeFire (uint8_t* bytes, size_t& size, uint32_t requestId, uint32_t compo
     return err;
 }
 
-Error makeBroadcast (uint8_t* bytes, size_t& size, uint32_t componentId, const pb_field_t* fields, void* payload) {
+Status makeBroadcast (uint8_t* bytes, size_t& size, uint32_t componentId, const pb_field_t* fields, void* payload) {
     assert(bytes && fields && payload);
 
     com_barobo_rpc_Reply reply;

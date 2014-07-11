@@ -104,7 +104,7 @@ public:
         return static_cast<T*>(this)->template finalize<C>(requestId, componentId(C()), buffer);
     }
 
-    Error deliver (BufferType buffer) {
+    Status deliver (BufferType buffer) {
         com_barobo_rpc_Reply reply;
 
         auto err = decode(reply, buffer.bytes, buffer.size);
@@ -118,14 +118,14 @@ public:
         switch (reply.type) {
             ComponentOutUnion<Interface> argument;
 
-            case com_barobo_rpc_Reply_Type_ERROR:
-                if (!reply.has_error) {
-                    return Error::INCONSISTENT_REPLY;
+            case com_barobo_rpc_Reply_Type_STATUS:
+                if (!reply.has_status) {
+                    return Status::INCONSISTENT_REPLY;
                 }
-                return static_cast<T*>(this)->fulfillWithError(reply.inReplyTo, Error(reply.error.value));
+                return static_cast<T*>(this)->fulfillWithStatus(reply.inReplyTo, Status(reply.status.value));
             case com_barobo_rpc_Reply_Type_OUTPUT:
                 if (!reply.has_output) {
-                    return Error::INCONSISTENT_REPLY;
+                    return Status::INCONSISTENT_REPLY;
                 }
                 err = decodeOutputPayload(argument, reply.output.id, reply.output.payload);
                 if (!hasError(err)) {
@@ -134,15 +134,15 @@ public:
                 return err;
             case com_barobo_rpc_Reply_Type_VERSION:
                 if (!reply.has_version) {
-                    return Error::INCONSISTENT_REPLY;
+                    return Status::INCONSISTENT_REPLY;
                 }
                 return checkRpcVersion(reply.version.rpc) &&
                     checkInterfaceVersion<Interface>(reply.version.interface) ?
-                        Error::NO_ERROR :
-                        Error::VERSION_MISMATCH;
+                        Status::OK :
+                        Status::VERSION_MISMATCH;
             case com_barobo_rpc_Reply_Type_BROADCAST:
                 if (reply.has_broadcast) {
-                    return Error::INCONSISTENT_REPLY;
+                    return Status::INCONSISTENT_REPLY;
                 }
                 err = decodeBroadcastPayload(argument, reply.broadcast.id, reply.broadcast.payload);
                 if (!hasError(err)) {
@@ -150,14 +150,14 @@ public:
                 }
                 return err;
             default:
-                return Error::INCONSISTENT_REPLY;
+                return Status::INCONSISTENT_REPLY;
         }
 
-        return Error::NO_ERROR;
+        return Status::OK;
     }
 
     template <class Out>
-    Error fulfillWithOutput (uint32_t requestId, Out& out) {
+    Status fulfillWithOutput (uint32_t requestId, Out& out) {
         return static_cast<T*>(this)->fulfillWithOutput(requestId, out);
     }
 
