@@ -1,10 +1,12 @@
-#ifndef RPC_ERROR_HPP
-#define RPC_ERROR_HPP
+#ifndef RPC_STATUS_HPP
+#define RPC_STATUS_HPP
 
 #include "rpc.pb.h"
 
 namespace rpc {
 
+// if you edit this, make sure you keep statusToString up to date! FIXME use
+// macro magic for this.
 enum class Status {
     OK                      = com_barobo_rpc_Status_OK,
     DECODING_FAILURE        = com_barobo_rpc_Status_DECODING_FAILURE,
@@ -16,8 +18,13 @@ enum class Status {
     BUFFER_OVERFLOW         = com_barobo_rpc_Status_BUFFER_OVERFLOW,
     READ_ONLY               = com_barobo_rpc_Status_READ_ONLY,
     NO_SUBSCRIPTIONS        = com_barobo_rpc_Status_NO_SUBSCRIPTIONS,
-    VERSION_MISMATCH        = com_barobo_rpc_Status_VERSION_MISMATCH
+    VERSION_MISMATCH        = com_barobo_rpc_Status_VERSION_MISMATCH,
+
+    UNSOLICITED_RESULT,
+    UNRECOGNIZED_RESULT
 };
+
+const char* statusToString (Status status);
 
 static_assert(0 == static_cast<int>(Status::OK),
         "Status::OK must have zero value");

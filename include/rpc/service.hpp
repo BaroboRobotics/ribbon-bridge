@@ -7,7 +7,7 @@
 #include "rpc/componenttraits.hpp"
 #include "rpc/buffer.hpp"
 #include "rpc/message.hpp"
-#include "rpc/error.hpp"
+#include "rpc/status.hpp"
 #include "rpc/checkversion.hpp"
 
 namespace rpc {

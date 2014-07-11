@@ -1,0 +1,102 @@
+#ifndef RPC_ASYNCPROXY_HPP
+#define RPC_ASYNCPROXY_HPP
+
+#ifndef HAVE_STDLIB
+#error "this file requires the standard library"
+#endif
+
+#include <boost/unordered_map.hpp>
+#include <boost/variant.hpp>
+
+#include <future>
+#include <tuple>
+#include <utility>
+
+namespace rpc {
+
+template <class T, class Interface>
+class AsyncProxy : public rpc::Proxy<AsyncProxy<T, Interface>, Interface, std::future> {
+    template <class... Ts>
+    using MakePromiseVariant = boost::variant<std::promise<Ts>...>;
+
+    using PromiseVariant = typename rpc::PromiseVariadic<Interface, MakePromiseVariant>::type;
+
+public:
+    using BufferType = typename rpc::Proxy<AsyncProxy<T, Interface>, Interface, std::future>::BufferType;
+
+    Status fulfill (uint32_t requestId, Status status) {
+        printf("requestId %" PRId32 " fulfilled with %s\n", requestId,
+                statusToString(status));
+        return status;
+    }
+
+    template <class C>
+    Status fulfill (uint32_t requestId, C& result) {
+        auto iter = mPromises.find(requestId);
+        if (mPromises.end() == iter) {
+            return Status::UNSOLICITED_RESULT;
+        }
+        auto promisePtr = boost::get<std::promise<C>>(&iter->second);
+        if (!promisePtr) {
+            // If we get here, it's basically a type mismatch, e.g. the result
+            // of a method fire not being the same type as what we know the
+            // method returns. So break the promise.
+            mPromises.erase(iter);
+            // FIXME better error, and set an exception in the promise
+            return Status::UNRECOGNIZED_RESULT;
+        }
+        promisePtr->set_value(result);
+        mPromises.erase(iter);
+        return Status::OK;
+    }
+
+    template <class C>
+    std::future<C> finalize (uint32_t requestId, Status status) {
+        return { };
+    }
+
+    template <class C>
+    std::future<C> finalize (uint32_t requestId, const BufferType& buffer) {
+        typename decltype(mPromises)::iterator iter;
+        bool success;
+
+        std::tie(iter, success) = tryMakePromise<C>(requestId);
+
+        if (!success) {
+            // this will break the existing promise
+            mPromises.erase(iter);
+            std::tie(iter, success) = tryMakePromise<C>(requestId);
+            assert(success);
+        }
+
+        auto promisePtr = boost::get<std::promise<C>>(&iter->second);
+        assert(promisePtr);
+
+        /* We must call get_future() before post(). If we call post first,
+         * there is a chance that the implementor might run with the buffer,
+         * deliver it to the service, deliver the response back to us, fulfill
+         * the promise, erasing it, and thus invalidating our promise pointer,
+         * all before we get its future. */
+        auto future = promisePtr->get_future();
+        static_cast<T*>(this)->post(buffer);
+        return future;
+    }
+
+private:
+    boost::unordered_map
+        < uint32_t
+        , PromiseVariant
+        > mPromises;
+
+    template <class C>
+    std::pair<typename decltype(mPromises)::iterator, bool>
+    tryMakePromise (uint32_t requestId) {
+        return mPromises.emplace(std::piecewise_construct,
+                std::forward_as_tuple(requestId),
+                std::forward_as_tuple(std::promise<C>()));
+    }
+};
+
+} // namespace rpc
+
+#endif

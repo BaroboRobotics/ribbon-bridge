@@ -83,12 +83,14 @@ union ComponentResultUnion<com::barobo::Robot> {
 };
 
 template <template <class...> class F>
-struct ComponentResultVariadic<com::barobo::Robot, F> {
+struct PromiseVariadic<com::barobo::Robot, F> {
+    /* Apply all the promisables (attributes and method results, but not
+     * broadcasts) to F. Note that we need to include void here to cover
+     * attribute set commands and subscribes/unsubscribes. */
     using type = F
         < void
         , typename Attribute<com::barobo::Robot>::motorPower
         , typename MethodResult<com::barobo::Robot>::move
-        , typename Broadcast<com::barobo::Robot>::buttonPress
         >;
 };
 
@@ -288,7 +290,7 @@ struct BroadcastInvoker<com::barobo::Robot> {
 };
 
 template <>
-struct FulfillWithResultInvoker<com::barobo::Robot> {
+struct FulfillInvoker<com::barobo::Robot> {
     template <class T>
     static Status invoke (T& service,
             ComponentResultUnion<com::barobo::Robot>& argument,
@@ -299,10 +301,10 @@ struct FulfillWithResultInvoker<com::barobo::Robot> {
         switch (componentId) {
             // list of attributes
             case Id::motorPower:
-                return service.fulfillWithResult(requestId, argument.motorPower);
+                return service.fulfill(requestId, argument.motorPower);
             // list of methods
             case Id::move:
-                return service.fulfillWithResult(requestId, argument.move);
+                return service.fulfill(requestId, argument.move);
             default:
                 return isBroadcast<com::barobo::Robot>(componentId) ?
                     Status::ILLEGAL_OPERATION :

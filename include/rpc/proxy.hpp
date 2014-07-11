@@ -82,9 +82,9 @@ public:
                     requestId,
                     componentId(C()));
         if (hasError(status)) {
-            return static_cast<T*>(this)->template finalize<C>(requestId, componentId(C()), status);
+            return static_cast<T*>(this)->template finalize<C>(requestId, status);
         }
-        return static_cast<T*>(this)->template finalize<C>(requestId, componentId(C()), buffer);
+        return static_cast<T*>(this)->template finalize<C>(requestId, buffer);
     }
 
     template <class C>
@@ -117,14 +117,14 @@ public:
                 if (!reply.has_status) {
                     return Status::INCONSISTENT_REPLY;
                 }
-                return static_cast<T*>(this)->fulfillWithStatus(reply.inReplyTo, Status(reply.status.value));
+                return static_cast<T*>(this)->fulfill(reply.inReplyTo, Status(reply.status.value));
             case com_barobo_rpc_Reply_Type_RESULT:
                 if (!reply.has_result) {
                     return Status::INCONSISTENT_REPLY;
                 }
                 err = decodeResultPayload(argument, reply.result.id, reply.result.payload);
                 if (!hasError(err)) {
-                    err = invokeFulfillWithResult(*this, argument, reply.result.id, reply.inReplyTo);
+                    err = invokeFulfill(*this, argument, reply.result.id, reply.inReplyTo);
                 }
                 return err;
             case com_barobo_rpc_Reply_Type_VERSION:
@@ -152,8 +152,8 @@ public:
     }
 
     template <class C>
-    Status fulfillWithResult (uint32_t requestId, C& result) {
-        return static_cast<T*>(this)->fulfillWithResult(requestId, result);
+    Status fulfill (uint32_t requestId, C& result) {
+        return static_cast<T*>(this)->fulfill(requestId, result);
     }
 
 private:

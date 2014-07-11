@@ -20,7 +20,7 @@ if(AVR)
     # I think the _mmcu/.mmcu stuff was for simavr ...
     set(CMAKE_EXE_LINKER_FLAGS "-mmcu=atmega128rfa1 -Wl,--undefined=_mmcu,--section-start=.mmcu=0x910000")
 else()
-    set(FEATURE_DEFS "-DHAVE_EXCEPTIONS -DHAVE_RTTI")
+    set(FEATURE_DEFS "-DHAVE_EXCEPTIONS -DHAVE_RTTI -DHAVE_STDLIB")
 endif()
 
 ##############################################################################
@@ -52,12 +52,15 @@ add_custom_command(OUTPUT ${RPC_PROTO_C_FILE} ${RPC_PROTO_H_FILE}
 set(SOURCES
     #src/printmessage.cpp
     src/message.cpp
+    src/status.cpp
     ${RPC_PROTO_C_FILE}
     deps/${NANOPB_BASENAME}/pb_decode.c
     deps/${NANOPB_BASENAME}/pb_encode.c)
 
-set_source_files_properties(src/message.cpp PROPERTIES
+set_source_files_properties(src/message.cpp src/status.cpp PROPERTIES
     COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS ${FEATURE_DEFS}")
+#set_source_files_properties(src/status.cpp PROPERTIES
+#    COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS ${FEATURE_DEFS}")
 
 add_library(rpc STATIC ${SOURCES})
 

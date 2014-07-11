@@ -1,7 +1,7 @@
 #ifndef RPC_COMPONENTTRAITS_HPP
 #define RPC_COMPONENTTRAITS_HPP
 
-#include "rpc/error.hpp"
+#include "rpc/status.hpp"
 
 namespace rpc {
 
@@ -64,7 +64,7 @@ template <class Interface>
 union ComponentResultUnion;
 
 template <class Interface, template <class...> class F>
-struct ComponentResultVariadic;
+struct PromiseVariadic;
 
 template <class Interface>
 class Subscriptions;
@@ -93,7 +93,7 @@ template <class Interface>
 struct BroadcastInvoker;
 
 template <class Interface>
-struct FulfillWithResultInvoker;
+struct FulfillInvoker;
 
 template <class T, class Interface>
 Status invokeGet (T& service,
@@ -126,11 +126,11 @@ Status invokeBroadcast (T& service,
 }
 
 template <class T, class Interface>
-Status invokeFulfillWithResult (T& service,
+Status invokeFulfill(T& service,
         ComponentResultUnion<Interface>& argument,
         uint32_t componentId,
         uint32_t requestId) {
-    return FulfillWithResultInvoker<Interface>::invoke(service, argument, componentId, requestId);
+    return FulfillInvoker<Interface>::invoke(service, argument, componentId, requestId);
 }
 
 template <class Interface>

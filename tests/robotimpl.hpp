@@ -2,63 +2,26 @@
 #define RPC_TESTS_ROBOTIMPL_HPP
 
 #include "rpc/componenttraits.hpp"
+#include "rpc/asyncproxy.hpp"
 
 /* Implementation of the com::barobo::Robot interface. */
 
 /* You first need to include the generated interface code. */
 #include "gen-robot.pb.hpp"
 
-#include <boost/any.hpp>
-#include <boost/unordered_map.hpp>
-#include <future>
-#include <utility>
-#include <tuple>
-#include <boost/variant.hpp>
-
-template <class C>
-struct StupidFutureTemplate {
-public:
-    StupidFutureTemplate (std::future<C>&& future, rpc::Buffer<256> buffer)
-            : mFuture(std::move(future))
-            , mBuffer(buffer) { }
-
-    StupidFutureTemplate (rpc::Status status)
-            : mStatus(status) { }
-
-    std::future<C>& future () {
-        return mFuture;
-    }
-
-    rpc::Buffer<256>& buffer () {
-        return mBuffer;
-    }
-
-    rpc::Status status () {
-        return mStatus;
-    }
-
-private:
-    std::future<C> mFuture;
-    rpc::Buffer<256> mBuffer;
-    rpc::Status mStatus = rpc::Status::OK;
-};
-
-class RobotService;
-class RobotProxy;
-
 class RobotService : public rpc::Service<RobotService, com::barobo::Robot> {
 public:
     /* These typedefs aren't required, but it makes things more readable. If
      * you implement multiple interfaces, you might make multiple typedefs. */
-    using RobotMethodIn = rpc::MethodIn<com::barobo::Robot>;
-    using RobotMethodResult = rpc::MethodResult<com::barobo::Robot>;
-    using RobotAttribute = rpc::Attribute<com::barobo::Robot>;
+    using MethodIn = rpc::MethodIn<com::barobo::Robot>;
+    using MethodResult = rpc::MethodResult<com::barobo::Robot>;
+    using Attribute = rpc::Attribute<com::barobo::Robot>;
 
-    RobotAttribute::motorPower get (RobotAttribute::motorPower) {
+    Attribute::motorPower get (Attribute::motorPower) {
         return motorPower;
     }
 
-    void set (RobotAttribute::motorPower args) {
+    void set (Attribute::motorPower args) {
         motorPower = args;
     }
 
@@ -66,10 +29,10 @@ public:
      * taking the interface method structure (containing input and output
      * parameter structures, and an error field) as the single reference
      * parameter. */
-    RobotMethodResult::move fire (RobotMethodIn::move& args) {
+    MethodResult::move fire (MethodIn::move& args) {
         printf("%f %f %f\n", double(args.desiredAngle1),
                 double(args.desiredAngle2), double(args.desiredAngle3));
-        RobotMethodResult::move result;
+        MethodResult::move result;
         result.has_out = true;
         result.out.funFactor = 1.23;
         return result;
@@ -78,79 +41,30 @@ public:
     /* More methods ... */
 
 private:
-    RobotAttribute::motorPower motorPower;
+    Attribute::motorPower motorPower;
 };
 
-class RobotProxy : public rpc::Proxy<RobotProxy, com::barobo::Robot, StupidFutureTemplate> {
-    template <class... Ts>
-    using MakePromiseVariant = boost::variant<std::promise<Ts>...>;
-    using PromiseVariant = typename rpc::ComponentResultVariadic<com::barobo::Robot, MakePromiseVariant>::type;
-
+class RobotProxy : public rpc::AsyncProxy<RobotProxy, com::barobo::Robot> {
 public:
-    rpc::Status fulfillWithStatus (uint32_t requestId, rpc::Status status) {
-        printf("fulfillWithStatus\n");
-        return status;
+    RobotProxy (std::function<void(const BufferType&)> postFunc) : mPostFunc(postFunc) { }
+
+    void post (const BufferType& buffer) {
+        mPostFunc(buffer);
     }
 
-    template <class C>
-    rpc::Status fulfillWithResult (uint32_t requestId, C& result) {
-        auto iter = mPromises.find(requestId);
-        if (mPromises.end() == iter) {
-            // FIXME better error
-            return rpc::Status::INCONSISTENT_REPLY;
-        }
-        auto promisePtr = boost::get<std::promise<C>>(&iter->second);
-        if (!promisePtr) {
-            // FIXME better error
-            return rpc::Status::INCONSISTENT_REPLY;
-        }
-        promisePtr->set_value(result);
-        mPromises.erase(iter);
-        return rpc::Status::OK;
-    }
+    using Attribute = rpc::Attribute<com::barobo::Robot>;
+    using Broadcast = rpc::Broadcast<com::barobo::Robot>;
 
-    template <class C>
-    StupidFutureTemplate<C> finalize (uint32_t requestId, rpc::Status status) {
-        return { status };
-    }
-
-    template <class C>
-    StupidFutureTemplate<C> finalize (uint32_t requestId, BufferType& buffer) {
-        typename decltype(mPromises)::iterator iter;
-        bool success;
-        std::tie(iter, success) = mPromises.emplace(std::piecewise_construct,
-                std::make_tuple(requestId),
-                std::make_tuple(std::promise<C>()));
-        if (!success) {
-            // this will break the existing promise
-            mPromises.erase(iter);
-            std::tie(iter, success) = mPromises.emplace(std::piecewise_construct,
-                    std::make_tuple(requestId),
-                    std::make_tuple(std::promise<C>()));
-            assert(success);
-        }
-
-        auto promisePtr = boost::get<std::promise<C>>(&iter->second);
-        assert(promisePtr);
-        return { promisePtr->get_future(), buffer };
-    }
-
-    using RobotAttribute = rpc::Attribute<com::barobo::Robot>;
-    using RobotBroadcast = rpc::Broadcast<com::barobo::Robot>;
-
-    void broadcast (RobotAttribute::motorPower& args) {
+    void broadcast (Attribute::motorPower& args) {
         printf("motorPower! %" PRId32 "\n", args.value);
     }
 
-    void broadcast (RobotBroadcast::buttonPress& args) {
+    void broadcast (Broadcast::buttonPress& args) {
         printf("buttonPress! %" PRId32 " %" PRId32 "\n", args.button, args.mask);
     }
 
 private:
-    boost::unordered_map
-        < uint32_t
-        , PromiseVariant
-        > mPromises;
+    std::function<void(const BufferType&)> mPostFunc;
 };
 
 #endif

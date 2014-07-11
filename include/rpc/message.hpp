@@ -1,7 +1,7 @@
 #ifndef RPC_MESSAGE_HPP
 #define RPC_MESSAGE_HPP
 
-#include "rpc/error.hpp"
+#include "rpc/status.hpp"
 
 #include "rpc.pb.h"
 
