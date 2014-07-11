@@ -1,13 +1,26 @@
 cmake_minimum_required(VERSION 2.8)
 project(rpc)
 
-set(CMAKE_C_FLAGS "-Wall -Wextra -Os -fno-exceptions")
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -Os")# -fno-exceptions") # -fno-rtti
-if(NOT UNIX)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Os -mmcu=atmega128rfa1")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Os -mmcu=atmega128rfa1")
+set(AVR OFF)
+if(CMAKE_SYSTEM_NAME STREQUAL "AVR")
+    set(AVR ON)
+endif()
+
+set(CMAKE_C_FLAGS "-Wall -Wextra -Os")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -Os")
+
+if(AVR)
+    set(FEATURE_DEFS)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
+
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mmcu=atmega128rfa1")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmcu=atmega128rfa1")
     # I think the _mmcu/.mmcu stuff was for simavr ...
     set(CMAKE_EXE_LINKER_FLAGS "-mmcu=atmega128rfa1 -Wl,--undefined=_mmcu,--section-start=.mmcu=0x910000")
+else()
+    set(FEATURE_DEFS "-DHAVE_EXCEPTIONS -DHAVE_RTTI")
 endif()
 
 ##############################################################################
@@ -44,7 +57,7 @@ set(SOURCES
     deps/${NANOPB_BASENAME}/pb_encode.c)
 
 set_source_files_properties(src/message.cpp PROPERTIES
-    COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS")
+    COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS ${FEATURE_DEFS}")
 
 add_library(rpc STATIC ${SOURCES})
 

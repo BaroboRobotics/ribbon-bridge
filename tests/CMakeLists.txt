@@ -36,7 +36,8 @@ add_custom_command(OUTPUT ${ROBOT_PROTO_C_FILE} ${ROBOT_PROTO_H_FILE}
     VERBATIM)
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pthread")
-set_source_files_properties(method-fire.cpp gen-robot.pb.cpp PROPERTIES COMPILE_FLAGS -std=c++11)
+set_source_files_properties(method-fire.cpp gen-robot.pb.cpp PROPERTIES
+    COMPILE_FLAGS "-std=c++11 ${FEATURE_DEFS}")
 add_executable(method-fire method-fire.cpp gen-robot.pb.cpp ${ROBOT_PROTO_C_FILE})
 target_include_directories(method-fire
     PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
