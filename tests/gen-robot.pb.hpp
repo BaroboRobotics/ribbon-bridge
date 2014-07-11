@@ -247,7 +247,7 @@ struct FireInvoker<com::barobo::Robot> {
         switch (componentId) {
             // list of methods
             case Id::move: {
-                auto val = service.on(argument.move);
+                auto val = service.fire(argument.move);
                 payload.size = sizeof(payload.bytes);
                 return encodeProtobuf(&val, pbFields(val), payload.bytes, payload.size, payload.size);
             }

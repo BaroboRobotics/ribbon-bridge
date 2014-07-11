@@ -55,7 +55,7 @@ public:
     }
 
     template <class MethodIn>
-    Future<typename ResultOf<MethodIn>::type> on (MethodIn args, ONLY_IF(IsMethod<MethodIn>::value)) {
+    Future<typename ResultOf<MethodIn>::type> fire (MethodIn args, ONLY_IF(IsMethod<MethodIn>::value)) {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
         auto requestId = nextRequestId();
@@ -111,9 +111,6 @@ public:
         if (hasError(err)) {
             return err;
         }
-
-        printf("Received the following reply:\n");
-        //printReply(reply);
 
         switch (reply.type) {
             ComponentOutUnion<Interface> argument;

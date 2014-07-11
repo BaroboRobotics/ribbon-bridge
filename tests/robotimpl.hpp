@@ -66,7 +66,7 @@ public:
      * taking the interface method structure (containing input and output
      * parameter structures, and an error field) as the single reference
      * parameter. */
-    RobotMethodOut::move on (RobotMethodIn::move& args) {
+    RobotMethodOut::move fire (RobotMethodIn::move& args) {
         printf("%f %f %f\n", double(args.desiredAngle1),
                 double(args.desiredAngle2), double(args.desiredAngle3));
         RobotMethodOut::move output;
@@ -106,9 +106,7 @@ public:
             return rpc::Status::INCONSISTENT_REPLY;
         }
         promisePtr->set_value(out);
-#if 0
         mPromises.erase(iter);
-#endif
         return rpc::Status::OK;
     }
 
@@ -119,7 +117,6 @@ public:
 
     template <class C>
     StupidFutureTemplate<C> finalize (uint32_t requestId, uint32_t componentId, BufferType& buffer) {
-        //requestId = 0;
         typename decltype(mPromises)::iterator iter;
         bool success;
         std::tie(iter, success) = mPromises.emplace(std::piecewise_construct,
@@ -127,7 +124,6 @@ public:
                 std::make_tuple(std::promise<C>()));
         if (!success) {
             // this will break the existing promise
-            printf("breaking promise\n");
             mPromises.erase(iter);
             std::tie(iter, success) = mPromises.emplace(std::piecewise_construct,
                     std::make_tuple(requestId),

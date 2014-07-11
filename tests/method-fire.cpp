@@ -21,7 +21,7 @@ int main () try {
     /* The proxy would run on the libbarobo host. */
     RobotProxy robotProxy;
 
-    auto invocation = robotProxy.on(RobotMethod::move { -234, 8, 1e-3 });
+    auto invocation = robotProxy.fire(RobotMethod::move { -234, 8, 1e-3 });
     assert(!rpc::hasError(invocation.status()));
     assert(std::future_status::ready != invocation.future().wait_for(std::chrono::seconds(0)));
     RobotProxy::BufferType response;
@@ -39,6 +39,7 @@ int main () try {
         assert(output.has_error);
         std::cout << "robotProxy->move() returned error " << output.error.value << '\n';
     }
+
 }
 catch (std::exception& exc) {
     std::cout << exc.what() << '\n';

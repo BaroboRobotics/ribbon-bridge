@@ -48,8 +48,8 @@ public:
     }
 
     template <class Method>
-    typename ResultOf<Method>::type on (Method args, ONLY_IF(IsMethod<Method>::value)) {
-        return static_cast<T*>(this)->on(args);
+    typename ResultOf<Method>::type fire (Method args, ONLY_IF(IsMethod<Method>::value)) {
+        return static_cast<T*>(this)->fire(args);
     }
 
     Status deliver (BufferType in, BufferType& out) {
@@ -67,9 +67,6 @@ public:
         else {
             reply.has_inReplyTo = true;
             reply.inReplyTo = request.id;
-
-            printf("Received the following message:\n");
-            //printRequest(request);
 
             switch (request.type) {
                 ComponentInUnion<Interface> argument;
