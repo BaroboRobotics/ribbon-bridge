@@ -111,7 +111,7 @@ public:
         }
 
         switch (reply.type) {
-            ComponentOutUnion<Interface> argument;
+            ComponentResultUnion<Interface> argument;
 
             case com_barobo_rpc_Reply_Type_STATUS:
                 if (!reply.has_status) {
@@ -151,9 +151,9 @@ public:
         return Status::OK;
     }
 
-    template <class Out>
-    Status fulfillWithResult (uint32_t requestId, Out& out) {
-        return static_cast<T*>(this)->fulfillWithResult(requestId, out);
+    template <class C>
+    Status fulfillWithResult (uint32_t requestId, C& result) {
+        return static_cast<T*>(this)->fulfillWithResult(requestId, result);
     }
 
 private:

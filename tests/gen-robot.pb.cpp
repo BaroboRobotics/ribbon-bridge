@@ -89,7 +89,7 @@ Status decodeFirePayload (ComponentInUnion<com::barobo::Robot>& args,
 }
 
 template <>
-Status decodeBroadcastPayload (ComponentOutUnion<com::barobo::Robot>& args,
+Status decodeBroadcastPayload (ComponentResultUnion<com::barobo::Robot>& args,
         uint32_t componentId,
         com_barobo_rpc_Reply_Broadcast_payload_t& payload) {
     using Id = ComponentId<com::barobo::Robot>;
@@ -111,7 +111,7 @@ Status decodeBroadcastPayload (ComponentOutUnion<com::barobo::Robot>& args,
 }
 
 template <>
-Status decodeResultPayload (ComponentOutUnion<com::barobo::Robot>& args,
+Status decodeResultPayload (ComponentResultUnion<com::barobo::Robot>& args,
         uint32_t componentId,
         com_barobo_rpc_Reply_Result_payload_t& payload) {
     using Id = ComponentId<com::barobo::Robot>;

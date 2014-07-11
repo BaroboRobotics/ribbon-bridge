@@ -15,17 +15,17 @@
 #include <tuple>
 #include <boost/variant.hpp>
 
-template <class Out>
+template <class C>
 struct StupidFutureTemplate {
 public:
-    StupidFutureTemplate (std::future<Out>&& future, rpc::Buffer<256> buffer)
+    StupidFutureTemplate (std::future<C>&& future, rpc::Buffer<256> buffer)
             : mFuture(std::move(future))
             , mBuffer(buffer) { }
 
     StupidFutureTemplate (rpc::Status status)
             : mStatus(status) { }
 
-    std::future<Out>& future () {
+    std::future<C>& future () {
         return mFuture;
     }
 
@@ -38,7 +38,7 @@ public:
     }
 
 private:
-    std::future<Out> mFuture;
+    std::future<C> mFuture;
     rpc::Buffer<256> mBuffer;
     rpc::Status mStatus = rpc::Status::OK;
 };
@@ -51,7 +51,7 @@ public:
     /* These typedefs aren't required, but it makes things more readable. If
      * you implement multiple interfaces, you might make multiple typedefs. */
     using RobotMethodIn = rpc::MethodIn<com::barobo::Robot>;
-    using RobotMethodOut = rpc::MethodOut<com::barobo::Robot>;
+    using RobotMethodResult = rpc::MethodResult<com::barobo::Robot>;
     using RobotAttribute = rpc::Attribute<com::barobo::Robot>;
 
     RobotAttribute::motorPower get (RobotAttribute::motorPower) {
@@ -66,10 +66,10 @@ public:
      * taking the interface method structure (containing input and output
      * parameter structures, and an error field) as the single reference
      * parameter. */
-    RobotMethodOut::move fire (RobotMethodIn::move& args) {
+    RobotMethodResult::move fire (RobotMethodIn::move& args) {
         printf("%f %f %f\n", double(args.desiredAngle1),
                 double(args.desiredAngle2), double(args.desiredAngle3));
-        RobotMethodOut::move result;
+        RobotMethodResult::move result;
         result.has_out = true;
         result.out.funFactor = 1.23;
         return result;
@@ -84,7 +84,7 @@ private:
 class RobotProxy : public rpc::Proxy<RobotProxy, com::barobo::Robot, StupidFutureTemplate> {
     template <class... Ts>
     using MakePromiseVariant = boost::variant<std::promise<Ts>...>;
-    using PromiseVariant = typename rpc::ComponentOutVariadic<com::barobo::Robot, MakePromiseVariant>::type;
+    using PromiseVariant = typename rpc::ComponentResultVariadic<com::barobo::Robot, MakePromiseVariant>::type;
 
 public:
     rpc::Status fulfillWithStatus (uint32_t requestId, rpc::Status status) {
@@ -92,19 +92,19 @@ public:
         return status;
     }
 
-    template <class Out>
-    rpc::Status fulfillWithResult (uint32_t requestId, Out& out) {
+    template <class C>
+    rpc::Status fulfillWithResult (uint32_t requestId, C& result) {
         auto iter = mPromises.find(requestId);
         if (mPromises.end() == iter) {
             // FIXME better error
             return rpc::Status::INCONSISTENT_REPLY;
         }
-        auto promisePtr = boost::get<std::promise<Out>>(&iter->second);
+        auto promisePtr = boost::get<std::promise<C>>(&iter->second);
         if (!promisePtr) {
             // FIXME better error
             return rpc::Status::INCONSISTENT_REPLY;
         }
-        promisePtr->set_value(out);
+        promisePtr->set_value(result);
         mPromises.erase(iter);
         return rpc::Status::OK;
     }

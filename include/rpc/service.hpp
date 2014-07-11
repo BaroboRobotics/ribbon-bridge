@@ -52,7 +52,7 @@ public:
         return static_cast<T*>(this)->fire(args);
     }
 
-    Status deliver (BufferType in, BufferType& out) {
+    Status deliver (BufferType in, BufferType& result) {
         com_barobo_rpc_Request request;
         com_barobo_rpc_Reply reply;
         memset(&reply, 0, sizeof(reply));
@@ -139,8 +139,8 @@ public:
             }
         }
 
-        out.size = sizeof(out.bytes);
-        return encode(reply, out.bytes, out.size, out.size);
+        result.size = sizeof(result.bytes);
+        return encode(reply, result.bytes, result.size, result.size);
     }
 
 private:

@@ -14,7 +14,7 @@ template <class Interface>
 struct MethodIn;
 
 template <class Interface>
-struct MethodOut;
+struct MethodResult;
 
 // Access the broadcast component messages of an interface by name.
 template <class Interface>
@@ -61,10 +61,10 @@ template <class Interface>
 union ComponentInUnion;
 
 template <class Interface>
-union ComponentOutUnion;
+union ComponentResultUnion;
 
 template <class Interface, template <class...> class F>
-struct ComponentOutVariadic;
+struct ComponentResultVariadic;
 
 template <class Interface>
 class Subscriptions;
@@ -120,14 +120,14 @@ Status invokeFire (T& service,
 
 template <class T, class Interface>
 Status invokeBroadcast (T& service,
-        ComponentOutUnion<Interface>& argument,
+        ComponentResultUnion<Interface>& argument,
         uint32_t componentId) {
     return BroadcastInvoker<Interface>::invoke(service, argument, componentId);
 }
 
 template <class T, class Interface>
 Status invokeFulfillWithResult (T& service,
-        ComponentOutUnion<Interface>& argument,
+        ComponentResultUnion<Interface>& argument,
         uint32_t componentId,
         uint32_t requestId) {
     return FulfillWithResultInvoker<Interface>::invoke(service, argument, componentId, requestId);
@@ -144,12 +144,12 @@ Status decodeFirePayload (ComponentInUnion<Interface>& args,
         com_barobo_rpc_Request_Fire_payload_t& payload);
 
 template <class Interface>
-Status decodeBroadcastPayload (ComponentOutUnion<Interface>& args,
+Status decodeBroadcastPayload (ComponentResultUnion<Interface>& args,
         uint32_t componentId,
         com_barobo_rpc_Reply_Broadcast_payload_t& payload);
 
 template <class Interface>
-Status decodeResultPayload (ComponentOutUnion<Interface>& args,
+Status decodeResultPayload (ComponentResultUnion<Interface>& args,
         uint32_t componentId,
         com_barobo_rpc_Reply_Result_payload_t& payload);
 

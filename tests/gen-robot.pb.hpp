@@ -40,7 +40,7 @@ struct MethodIn<com::barobo::Robot> {
 };
 
 template <>
-struct MethodOut<com::barobo::Robot> {
+struct MethodResult<com::barobo::Robot> {
     using move = com_barobo_Robot_move_Result;
 };
 
@@ -55,7 +55,7 @@ struct IsMethod<MethodIn<com::barobo::Robot>::move> {
 };
 
 template <>
-struct IsMethod<MethodOut<com::barobo::Robot>::move> {
+struct IsMethod<MethodResult<com::barobo::Robot>::move> {
     constexpr static const bool value = true;
 };
 
@@ -76,18 +76,18 @@ union ComponentInUnion<com::barobo::Robot> {
 };
 
 template <>
-union ComponentOutUnion<com::barobo::Robot> {
+union ComponentResultUnion<com::barobo::Robot> {
     typename Attribute<com::barobo::Robot>::motorPower motorPower;
-    typename MethodOut<com::barobo::Robot>::move move;
+    typename MethodResult<com::barobo::Robot>::move move;
     typename Broadcast<com::barobo::Robot>::buttonPress buttonPress;
 };
 
 template <template <class...> class F>
-struct ComponentOutVariadic<com::barobo::Robot, F> {
+struct ComponentResultVariadic<com::barobo::Robot, F> {
     using type = F
         < void
         , typename Attribute<com::barobo::Robot>::motorPower
-        , typename MethodOut<com::barobo::Robot>::move
+        , typename MethodResult<com::barobo::Robot>::move
         , typename Broadcast<com::barobo::Robot>::buttonPress
         >;
 };
@@ -263,7 +263,7 @@ template <>
 struct BroadcastInvoker<com::barobo::Robot> {
     template <class T>
     static Status invoke (T& service,
-            ComponentOutUnion<com::barobo::Robot>& argument,
+            ComponentResultUnion<com::barobo::Robot>& argument,
             uint32_t componentId) {
         /* TODO: static_assert that T implements com::barobo::Robot */
         using Id = ComponentId<com::barobo::Robot>;
@@ -291,7 +291,7 @@ template <>
 struct FulfillWithResultInvoker<com::barobo::Robot> {
     template <class T>
     static Status invoke (T& service,
-            ComponentOutUnion<com::barobo::Robot>& argument,
+            ComponentResultUnion<com::barobo::Robot>& argument,
             uint32_t componentId,
             uint32_t requestId) {
         /* TODO: static_assert that T implements com::barobo::Robot */
