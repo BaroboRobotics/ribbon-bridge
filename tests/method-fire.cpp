@@ -16,14 +16,17 @@
 #include <iostream>
 
 int main () try {
-    using RobotMethod = rpc::MethodIn<com::barobo::Robot>;
-
     using Queue = boost::lockfree::spsc_queue<RobotProxy::BufferType, boost::lockfree::capacity<16>>;
 
     Queue proxyToService;
     Queue serviceToProxy;
 
-    RobotService robotService;
+    RobotService robotService {
+        [&] (const RobotService::BufferType& buffer) {
+            auto success = serviceToProxy.push(buffer);
+            assert(success);
+        }
+    };
 
     RobotProxy robotProxy {
         [&] (const RobotProxy::BufferType& buffer) {
@@ -34,38 +37,29 @@ int main () try {
 
     std::atomic_bool killThreads = { false };
 
-    auto deliverToService = [&] (const RobotProxy::BufferType& buffer) {
-        RobotProxy::BufferType response;
-        auto status = robotService.deliver(buffer, response);
-        assert(!hasError(status));
-        auto success = serviceToProxy.push(response);
-        assert(success);
-    };
-
-    auto deliverToProxy = [&] (const RobotProxy::BufferType& buffer) {
-        auto status = robotProxy.deliver(buffer);
-        assert(!hasError(status));
-    };
-
-    auto proxyToServiceShoveler = [&] () {
+    std::thread serviceToProxyShoveler { [&] () {
         while (!killThreads) {
-            proxyToService.consume_all(deliverToService);
+            serviceToProxy.consume_all([&] (const RobotProxy::BufferType& buffer) {
+                auto status = robotProxy.deliver(buffer);
+                assert(!hasError(status));
+            });
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-    };
+    }};
 
-    auto serviceToProxyShoveler = [&] () {
+    std::thread proxyToServiceShoveler { [&] () {
         while (!killThreads) {
-            serviceToProxy.consume_all(deliverToProxy);
+            proxyToService.consume_all([&] (const RobotService::BufferType& buffer) {
+                auto status = robotService.deliver(buffer);
+                assert(!hasError(status));
+            });
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-    };
-
-    std::thread p2st { proxyToServiceShoveler };
-    std::thread s2pt { serviceToProxyShoveler };
+    }};
 
     //////////////////////////////////////////////////////////////////////////
 
+    using RobotMethod = rpc::MethodIn<com::barobo::Robot>;
     auto funFactor = robotProxy.fire(RobotMethod::move { -234, 8, 1e-3 });
 
     const auto& result = funFactor.get();
@@ -78,8 +72,8 @@ int main () try {
     }
 
     killThreads = true;
-    p2st.join();
-    s2pt.join();
+    proxyToServiceShoveler.join();
+    serviceToProxyShoveler.join();
 }
 catch (std::exception& exc) {
     std::cout << exc.what() << '\n';

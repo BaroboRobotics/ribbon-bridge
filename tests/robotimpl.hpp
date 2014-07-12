@@ -11,6 +11,12 @@
 
 class RobotService : public rpc::Service<RobotService, com::barobo::Robot> {
 public:
+    RobotService (std::function<void(const BufferType&)> postFunc) : mPostFunc(postFunc) { }
+
+    void post (const BufferType& buffer) {
+        mPostFunc(buffer);
+    }
+
     /* These typedefs aren't required, but it makes things more readable. If
      * you implement multiple interfaces, you might make multiple typedefs. */
     using MethodIn = rpc::MethodIn<com::barobo::Robot>;
@@ -42,6 +48,8 @@ public:
 
 private:
     Attribute::motorPower motorPower;
+
+    std::function<void(const BufferType&)> mPostFunc;
 };
 
 class RobotProxy : public rpc::AsyncProxy<RobotProxy, com::barobo::Robot> {

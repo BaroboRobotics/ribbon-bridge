@@ -40,10 +40,11 @@ public:
                     &args);
             if (hasError(error)) {
                 printf("broadcast encoding failed\n");
-                return static_cast<T*>(this)->finalize(error);
-
+                static_cast<T*>(this)->post(error);
             }
-            return static_cast<T*>(this)->finalize(buffer);
+            else {
+                static_cast<T*>(this)->post(buffer);
+            }
         }
     }
 
@@ -52,17 +53,14 @@ public:
         return static_cast<T*>(this)->fire(args);
     }
 
-    Status deliver (BufferType in, BufferType& result) {
+    Status deliver (BufferType in) {
         com_barobo_rpc_Request request;
         com_barobo_rpc_Reply reply;
         memset(&reply, 0, sizeof(reply));
 
         auto err = decode(request, in.bytes, in.size);
         if (hasError(err)) {
-            reply.type = com_barobo_rpc_Reply_Type_STATUS;
-            reply.has_status = true;
-            reply.status.value = com_barobo_rpc_Status_DECODING_FAILURE;
-            reply.has_inReplyTo = false;
+            return err;
         }
         else {
             reply.has_inReplyTo = true;
@@ -139,8 +137,14 @@ public:
             }
         }
 
-        result.size = sizeof(result.bytes);
-        return encode(reply, result.bytes, result.size, result.size);
+        BufferType response;
+        response.size = sizeof(response.bytes);
+        auto status = encode(reply, response.bytes, response.size, response.size);
+        if (!hasError(status)) {
+            static_cast<T*>(this)->post(response);
+        }
+
+        return status;
     }
 
 private:
