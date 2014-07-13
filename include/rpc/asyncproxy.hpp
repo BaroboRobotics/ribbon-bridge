@@ -5,6 +5,8 @@
 #error "this file requires the standard library"
 #endif
 
+#include "rpc/error.hpp"
+
 #include <boost/unordered_map.hpp>
 #include <boost/variant.hpp>
 
@@ -21,38 +23,76 @@ class AsyncProxy : public rpc::Proxy<AsyncProxy<T, Interface>, Interface, std::f
 
     using PromiseVariant = typename rpc::PromiseVariadic<Interface, MakePromiseVariant>::type;
 
+    struct SetExceptionVisitor : boost::static_visitor<> {
+        explicit SetExceptionVisitor (Status status) : mStatus(status) { }
+
+        template <class P>
+        void operator() (P& promise) const {
+            promise.set_exception(std::make_exception_ptr(Error { statusToString(mStatus) }));
+        }
+
+    private:
+        Status mStatus;
+    };
+
 public:
     using BufferType = typename rpc::Proxy<AsyncProxy<T, Interface>, Interface, std::future>::BufferType;
 
-    Status fulfill (uint32_t requestId, Status status) {
-        printf("requestId %" PRId32 " fulfilled with %s\n", requestId,
-                statusToString(status));
-        return status;
+    template <class C>
+    void broadcast (C args, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
+        static_cast<T*>(this)->broadcast(args);
     }
 
-    template <class C>
-    Status fulfill (uint32_t requestId, C& result) {
+    Status fulfill (uint32_t requestId, Status status) {
+        printf("requestId %" PRId32 " fulfilled with status %s\n", requestId,
+                statusToString(status));
+
         auto iter = mPromises.find(requestId);
         if (mPromises.end() == iter) {
             return Status::UNSOLICITED_RESULT;
         }
+
+        auto promisePtr = boost::get<std::promise<void>>(&iter->second);
+        if (promisePtr && !hasError(status)) {
+            promisePtr->set_value();
+        }
+        else if (!hasError(status)) {
+            // No error reported, but we have a type mismatch.
+            boost::apply_visitor(SetExceptionVisitor { Status::UNRECOGNIZED_RESULT }, iter->second);
+        }
+        else {
+            boost::apply_visitor(SetExceptionVisitor { status }, iter->second);
+        }
+
+        mPromises.erase(iter);
+        return Status::OK;
+    }
+
+    template <class C>
+    Status fulfill (uint32_t requestId, C result) {
+        printf("requestId %" PRId32 " fulfilled with some shit\n", requestId);
+
+        auto iter = mPromises.find(requestId);
+        if (mPromises.end() == iter) {
+            return Status::UNSOLICITED_RESULT;
+        }
+
         auto promisePtr = boost::get<std::promise<C>>(&iter->second);
         if (!promisePtr) {
-            // If we get here, it's basically a type mismatch, e.g. the result
-            // of a method fire not being the same type as what we know the
-            // method returns. So break the promise.
-            mPromises.erase(iter);
-            // FIXME better error, and set an exception in the promise
-            return Status::UNRECOGNIZED_RESULT;
+            // type mismatch
+            boost::apply_visitor(SetExceptionVisitor(Status::UNRECOGNIZED_RESULT), iter->second);
         }
-        promisePtr->set_value(result);
+        else {
+            promisePtr->set_value(result);
+        }
+
         mPromises.erase(iter);
         return Status::OK;
     }
 
     template <class C>
     std::future<C> finalize (uint32_t requestId, Status status) {
-        return { };
+        return { };// FIXME
     }
 
     template <class C>

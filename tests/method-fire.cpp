@@ -59,6 +59,23 @@ int main () try {
 
     //////////////////////////////////////////////////////////////////////////
 
+    using RobotBroadcast = rpc::Broadcast<com::barobo::Robot>;
+
+    printf("broadcasting once\n");
+    robotService.broadcast(RobotBroadcast::buttonPress { 1, 2 });
+
+    printf("subscribing...\n");
+    robotProxy.subscribe(RobotBroadcast::buttonPress()).get();
+
+    printf("broadcasting twice\n");
+    robotService.broadcast(RobotBroadcast::buttonPress { 3, 4 });
+
+    printf("unsubscribing...\n");
+    robotProxy.unsubscribe(RobotBroadcast::buttonPress()).get();
+
+    printf("broadcasting thrice\n");
+    robotService.broadcast(RobotBroadcast::buttonPress { 5, 6 });
+
     using RobotMethod = rpc::MethodIn<com::barobo::Robot>;
     auto funFactor = robotProxy.fire(RobotMethod::move { -234, 8, 1e-3 });
 
@@ -75,6 +92,9 @@ int main () try {
     proxyToServiceShoveler.join();
     serviceToProxyShoveler.join();
 }
-catch (std::exception& exc) {
+catch (const rpc::Error& exc) {
+    std::cout << exc.what();
+}
+catch (const std::exception& exc) {
     std::cout << exc.what() << '\n';
 }

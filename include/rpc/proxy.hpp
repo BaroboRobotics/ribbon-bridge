@@ -44,9 +44,9 @@ public:
                 pbFields(args),
                 &args);
         if (hasError(status)) {
-            return static_cast<T*>(this)->template finalize<Attribute>(requestId, status);
+            return static_cast<T*>(this)->template finalize<void>(requestId, status);
         }
-        return static_cast<T*>(this)->template finalize<Attribute>(requestId, buffer);
+        return static_cast<T*>(this)->template finalize<void>(requestId, buffer);
     }
 
     template <class C>
@@ -76,30 +76,30 @@ public:
     Future<void> subscribe (C, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
-        auto requestId = nextRequestId;
+        auto requestId = nextRequestId();
         auto status = makeSubscribe(
                     buffer.bytes, buffer.size,
                     requestId,
                     componentId(C()));
         if (hasError(status)) {
-            return static_cast<T*>(this)->template finalize<C>(requestId, status);
+            return static_cast<T*>(this)->template finalize<void>(requestId, status);
         }
-        return static_cast<T*>(this)->template finalize<C>(requestId, buffer);
+        return static_cast<T*>(this)->template finalize<void>(requestId, buffer);
     }
 
     template <class C>
     Future<void> unsubscribe (C, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
-        auto requestId = nextRequestId;
+        auto requestId = nextRequestId();
         auto status = makeUnsubscribe(
                     buffer.bytes, buffer.size,
                     requestId,
                     componentId(C()));
         if (hasError(status)) {
-            return static_cast<T*>(this)->template finalize<C>(requestId, status);
+            return static_cast<T*>(this)->template finalize<void>(requestId, status);
         }
-        return static_cast<T*>(this)->template finalize<C>(requestId, buffer);
+        return static_cast<T*>(this)->template finalize<void>(requestId, buffer);
     }
 
     Status deliver (BufferType buffer) {
@@ -117,7 +117,7 @@ public:
                 if (!reply.has_status) {
                     return Status::INCONSISTENT_REPLY;
                 }
-                return static_cast<T*>(this)->fulfill(reply.inReplyTo, Status(reply.status.value));
+                return static_cast<T*>(this)->template fulfill(reply.inReplyTo, static_cast<Status>(reply.status.value));
             case com_barobo_rpc_Reply_Type_RESULT:
                 if (!reply.has_result) {
                     return Status::INCONSISTENT_REPLY;
@@ -136,7 +136,7 @@ public:
                         Status::OK :
                         Status::VERSION_MISMATCH;
             case com_barobo_rpc_Reply_Type_BROADCAST:
-                if (reply.has_broadcast) {
+                if (!reply.has_broadcast) {
                     return Status::INCONSISTENT_REPLY;
                 }
                 err = decodeBroadcastPayload(argument, reply.broadcast.id, reply.broadcast.payload);

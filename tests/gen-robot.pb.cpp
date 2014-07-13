@@ -21,6 +21,11 @@ const pb_field_t* pbFields (com_barobo_Robot_move_Result) {
 }
 
 template <>
+const pb_field_t* pbFields (com_barobo_Robot_buttonPress) {
+    return com_barobo_Robot_buttonPress_fields;
+}
+
+template <>
 bool isAttribute<com::barobo::Robot> (uint32_t id) {
     using Id = ComponentId<com::barobo::Robot>;
     switch (id) {

@@ -29,23 +29,21 @@ public:
     }
 
     template <class C>
-    void broadcast (C args, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
+    Status broadcast (C args, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
         if (mSubscriptions.isActive(componentId(args))) {
             BufferType buffer;
             buffer.size = sizeof(buffer.bytes);
-            auto error = makeBroadcast(
+            auto status = makeBroadcast(
                     buffer.bytes, buffer.size,
                     componentId(args),
                     pbFields(args),
                     &args);
-            if (hasError(error)) {
-                printf("broadcast encoding failed\n");
-                static_cast<T*>(this)->post(error);
+            if (hasError(status)) {
+                return status;
             }
-            else {
-                static_cast<T*>(this)->post(buffer);
-            }
+            static_cast<T*>(this)->post(buffer);
         }
+        return Status::OK;
     }
 
     template <class Method>

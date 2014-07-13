@@ -264,7 +264,7 @@ struct FireInvoker<com::barobo::Robot> {
 template <>
 struct BroadcastInvoker<com::barobo::Robot> {
     template <class T>
-    static Status invoke (T& service,
+    static Status invoke (T& proxy,
             ComponentResultUnion<com::barobo::Robot>& argument,
             uint32_t componentId) {
         /* TODO: static_assert that T implements com::barobo::Robot */
@@ -272,11 +272,11 @@ struct BroadcastInvoker<com::barobo::Robot> {
         switch (componentId) {
             // list of subscribable attributes
             case Id::motorPower:
-                service.broadcast(argument.motorPower);
+                proxy.broadcast(argument.motorPower);
                 return Status::OK;
             // list of broadcasts
             case Id::buttonPress:
-                service.broadcast(argument.buttonPress);
+                proxy.broadcast(argument.buttonPress);
                 return Status::OK;
             default:
                 if (isAttribute<com::barobo::Robot>(componentId)) {
@@ -292,7 +292,7 @@ struct BroadcastInvoker<com::barobo::Robot> {
 template <>
 struct FulfillInvoker<com::barobo::Robot> {
     template <class T>
-    static Status invoke (T& service,
+    static Status invoke (T& proxy,
             ComponentResultUnion<com::barobo::Robot>& argument,
             uint32_t componentId,
             uint32_t requestId) {
@@ -301,10 +301,10 @@ struct FulfillInvoker<com::barobo::Robot> {
         switch (componentId) {
             // list of attributes
             case Id::motorPower:
-                return service.fulfill(requestId, argument.motorPower);
+                return proxy.fulfill(requestId, argument.motorPower);
             // list of methods
             case Id::move:
-                return service.fulfill(requestId, argument.move);
+                return proxy.fulfill(requestId, argument.move);
             default:
                 return isBroadcast<com::barobo::Robot>(componentId) ?
                     Status::ILLEGAL_OPERATION :

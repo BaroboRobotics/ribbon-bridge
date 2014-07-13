@@ -1,19 +1,19 @@
-#ifndef RPC_EXCEPTION_HPP
-#define RPC_EXCEPTION_HPP
+#ifndef RPC_ERROR_HPP
+#define RPC_ERROR_HPP
 
 #ifndef HAVE_EXCEPTIONS
-#error exception.hpp included with exceptions disabled
+#error rpc/error.hpp included with exceptions disabled
 #endif
 
-#include <exception>
+#include <stdexcept>
 #include <string>
 
 namespace rpc {
 
-struct RpcError : std::runtime_error {
+struct Error : std::runtime_error {
     // when we can use g++ 4.8+, uncomment and destroy that stupid ctor
     //using std::runtime_error::runtime_error;
-    explicit RpcError (const std::string& what)
+    explicit Error (const std::string& what)
         : std::runtime_error(what) { }
 };
 

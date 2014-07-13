@@ -119,18 +119,18 @@ Status invokeFire (T& service,
 }
 
 template <class T, class Interface>
-Status invokeBroadcast (T& service,
+Status invokeBroadcast (T& proxy,
         ComponentResultUnion<Interface>& argument,
         uint32_t componentId) {
-    return BroadcastInvoker<Interface>::invoke(service, argument, componentId);
+    return BroadcastInvoker<Interface>::invoke(proxy, argument, componentId);
 }
 
 template <class T, class Interface>
-Status invokeFulfill(T& service,
+Status invokeFulfill(T& proxy,
         ComponentResultUnion<Interface>& argument,
         uint32_t componentId,
         uint32_t requestId) {
-    return FulfillInvoker<Interface>::invoke(service, argument, componentId, requestId);
+    return FulfillInvoker<Interface>::invoke(proxy, argument, componentId, requestId);
 }
 
 template <class Interface>
