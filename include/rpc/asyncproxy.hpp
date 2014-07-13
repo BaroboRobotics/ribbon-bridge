@@ -6,6 +6,7 @@
 #endif
 
 #include "rpc/error.hpp"
+#include "rpc/proxy.hpp"
 
 #include <boost/unordered_map.hpp>
 #include <boost/variant.hpp>
@@ -17,7 +18,7 @@
 namespace rpc {
 
 template <class T, class Interface>
-class AsyncProxy : public rpc::Proxy<AsyncProxy<T, Interface>, Interface, std::future> {
+class AsyncProxy : public Proxy<AsyncProxy<T, Interface>, Interface, std::future> {
     template <class... Ts>
     using MakePromiseVariant = boost::variant<std::promise<Ts>...>;
 

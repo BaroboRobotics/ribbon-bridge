@@ -3,9 +3,8 @@
 
 /* GENERATED CODE */
 
-#include "rpc/variant.hpp"
-#include "rpc/service.hpp"
-#include "rpc/proxy.hpp"
+#include "rpc/checkversion.hpp"
+#include "rpc/componenttraits.hpp"
 #include "rpc/hash.hpp"
 #include "robot.pb.h"
 

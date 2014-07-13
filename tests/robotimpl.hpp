@@ -1,7 +1,7 @@
 #ifndef RPC_TESTS_ROBOTIMPL_HPP
 #define RPC_TESTS_ROBOTIMPL_HPP
 
-#include "rpc/componenttraits.hpp"
+#include "rpc/service.hpp"
 #include "rpc/asyncproxy.hpp"
 
 /* Implementation of the com::barobo::Robot interface. */
