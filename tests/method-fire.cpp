@@ -15,7 +15,7 @@
 
 #include <iostream>
 
-int main () try {
+int main () {
     using Queue = boost::lockfree::spsc_queue<RobotProxy::BufferType, boost::lockfree::capacity<16>>;
 
     Queue proxyToService;
@@ -61,20 +61,23 @@ int main () try {
 
     using RobotBroadcast = rpc::Broadcast<com::barobo::Robot>;
 
-    printf("broadcasting once\n");
-    robotService.broadcast(RobotBroadcast::buttonPress { 1, 2 });
+    try {
+        printf("broadcasting once\n");
+        robotService.broadcast(RobotBroadcast::buttonPress { 1, 2 });
 
-    printf("subscribing...\n");
-    robotProxy.subscribe(RobotBroadcast::buttonPress()).get();
+        printf("subscribing...\n");
+        robotProxy.subscribe(RobotBroadcast::buttonPress()).get();
 
-    printf("broadcasting twice\n");
-    robotService.broadcast(RobotBroadcast::buttonPress { 3, 4 });
+        printf("broadcasting twice\n");
+        robotService.broadcast(RobotBroadcast::buttonPress { 3, 4 });
 
-    printf("unsubscribing...\n");
-    robotProxy.unsubscribe(RobotBroadcast::buttonPress()).get();
+        printf("unsubscribing...\n");
+        robotProxy.unsubscribe(RobotBroadcast::buttonPress()).get();
 
-    printf("broadcasting thrice\n");
-    robotService.broadcast(RobotBroadcast::buttonPress { 5, 6 });
+        printf("broadcasting thrice\n");
+        robotService.broadcast(RobotBroadcast::buttonPress { 5, 6 });
+    }
+    catch (const std::exception& exc) { std::cout << exc.what() << '\n'; }
 
     using RobotMethod = rpc::MethodIn<com::barobo::Robot>;
     auto funFactor = robotProxy.fire(RobotMethod::move { -234, 8, 1e-3 });
@@ -91,10 +94,4 @@ int main () try {
     killThreads = true;
     proxyToServiceShoveler.join();
     serviceToProxyShoveler.join();
-}
-catch (const rpc::Error& exc) {
-    std::cout << exc.what();
-}
-catch (const std::exception& exc) {
-    std::cout << exc.what() << '\n';
 }

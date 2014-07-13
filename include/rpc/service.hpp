@@ -114,7 +114,7 @@ public:
                 case com_barobo_rpc_Request_Type_UNSUBSCRIBE:
                     reply.type = com_barobo_rpc_Reply_Type_STATUS;
                     reply.has_status = true;
-                    reply.status.value = decltype(reply.status.value)(mSubscriptions.deactivate(request.subscribe.id));
+                    reply.status.value = decltype(reply.status.value)(mSubscriptions.deactivate(request.unsubscribe.id));
                     break;
                 case com_barobo_rpc_Request_Type_RESET:
                     mSubscriptions.reset();

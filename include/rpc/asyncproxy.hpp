@@ -28,7 +28,9 @@ class AsyncProxy : public rpc::Proxy<AsyncProxy<T, Interface>, Interface, std::f
 
         template <class P>
         void operator() (P& promise) const {
-            promise.set_exception(std::make_exception_ptr(Error { statusToString(mStatus) }));
+            Error error { statusToString(mStatus) };
+            auto eptr = std::make_exception_ptr(error);
+            promise.set_exception(eptr);
         }
 
     private:
