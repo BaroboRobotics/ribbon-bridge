@@ -20,12 +20,12 @@ Status decodeProtobuf (void* pbStruct, const pb_field_t* pbFields, uint8_t* byte
 
 template <class T>
 Status encode (T& message, uint8_t* bytes, size_t size, size_t& bytesWritten) {
-    return rpc::encodeProtobuf(&message, pbFields(message), bytes, size, bytesWritten);
+    return encodeProtobuf(&message, pbFields(message), bytes, size, bytesWritten);
 }
 
 template <class T>
 Status decode (T& message, uint8_t* bytes, size_t size) {
-    return rpc::decodeProtobuf(&message, pbFields(message), bytes, size);
+    return decodeProtobuf(&message, pbFields(message), bytes, size);
 }
 
 Status makeGet (uint8_t* bytes, size_t& size, uint32_t requestId,

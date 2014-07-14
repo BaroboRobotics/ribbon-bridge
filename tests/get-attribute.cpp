@@ -13,12 +13,12 @@ int main () {
 
     ConnectedRpcObject<WidgetService, WidgetProxy> widget;
 
-    auto future = widget.proxy().fire(Method::unaryWithResultOut{3.14});
+    auto future = widget.proxy().get(Attribute::attribute());
 
     try {
         auto result = future.get();
-        assert(result.has_out);
-        std::cout << "unaryWithResultOut returned: " << result.out.value << '\n';
+        assert(13 == result.value);
+        std::cout << "get(attribute) returned: " << result.value << '\n';
     }
     catch (const rpc::Error& exc) {
         std::cout << "RPC error: " << exc.what() << '\n';

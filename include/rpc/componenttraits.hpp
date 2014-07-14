@@ -24,6 +24,12 @@ struct Broadcast;
 template <class Attribute>
 struct IsAttribute { constexpr static const bool value = false; };
 
+template <class Attribute>
+struct IsSettableAttribute { constexpr static const bool value = false; };
+
+template <class Attribute>
+struct IsSubscribableAttribute { constexpr static const bool value = false; };
+
 // Metafunction to identify whether a type is a method component message.
 template <class Method>
 struct IsMethod { constexpr static const bool value = false; };
@@ -97,9 +103,9 @@ struct FulfillInvoker;
 
 template <class T, class Interface>
 Status invokeGet (T& service,
-        ComponentInUnion<Interface>& argument,
+        ComponentResultUnion<Interface>& argument,
         uint32_t componentId,
-        com_barobo_rpc_Reply_Result_payload_t& payload) {
+        barobo_rpc_Reply_Result_payload_t& payload) {
     return GetInvoker<Interface>::invoke(service, argument, componentId, payload);
 }
 
@@ -114,7 +120,7 @@ template <class T, class Interface>
 Status invokeFire (T& service,
         ComponentInUnion<Interface>& argument,
         uint32_t componentId,
-        com_barobo_rpc_Reply_Result_payload_t& payload) {
+        barobo_rpc_Reply_Result_payload_t& payload) {
     return FireInvoker<Interface>::invoke(service, argument, componentId, payload);
 }
 
@@ -136,22 +142,22 @@ Status invokeFulfill(T& proxy,
 template <class Interface>
 Status decodeSetPayload (ComponentInUnion<Interface>& args,
         uint32_t componentId,
-        com_barobo_rpc_Request_Set_payload_t& payload);
+        barobo_rpc_Request_Set_payload_t& payload);
 
 template <class Interface>
 Status decodeFirePayload (ComponentInUnion<Interface>& args,
         uint32_t componentId,
-        com_barobo_rpc_Request_Fire_payload_t& payload);
+        barobo_rpc_Request_Fire_payload_t& payload);
 
 template <class Interface>
 Status decodeBroadcastPayload (ComponentResultUnion<Interface>& args,
         uint32_t componentId,
-        com_barobo_rpc_Reply_Broadcast_payload_t& payload);
+        barobo_rpc_Reply_Broadcast_payload_t& payload);
 
 template <class Interface>
 Status decodeResultPayload (ComponentResultUnion<Interface>& args,
         uint32_t componentId,
-        com_barobo_rpc_Reply_Result_payload_t& payload);
+        barobo_rpc_Reply_Result_payload_t& payload);
 
 } // namespace rpc
 

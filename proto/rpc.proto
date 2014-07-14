@@ -1,5 +1,5 @@
 import "nanopb.proto";
-package com.barobo.rpc;
+package barobo.rpc;
 
 enum Status {
     OK = 0;
@@ -12,7 +12,7 @@ enum Status {
     /* Compile-time errors, if using same version of interface */
     ILLEGAL_OPERATION = 5;
     NO_SUCH_COMPONENT = 6;
-    READ_ONLY = 8;
+    READONLY = 8;
     NO_SUBSCRIPTIONS = 9;
     /* Runtime errors */
     BUFFER_OVERFLOW = 7;
@@ -99,7 +99,7 @@ message Reply {
     }
 
     message Status {
-        required com.barobo.rpc.Status value = 2;
+        required barobo.rpc.Status value = 2;
     }
 
     required Type type = 1;

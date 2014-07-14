@@ -75,10 +75,10 @@ private:
     Queue mProxyToServiceQueue;
     Queue mServiceToProxyQueue;
 
+    std::atomic_bool mKillThreads = { false };
+
     std::thread mServiceToProxyThread;
     std::thread mProxyToServiceThread;
-
-    std::atomic_bool mKillThreads = { false };
 };
 
 #endif

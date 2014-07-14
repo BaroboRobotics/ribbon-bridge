@@ -22,30 +22,53 @@ find_package(Boost 1.54.0 REQUIRED COMPONENTS )
 
 ##############################################################################
 
-set(ROBOT_PROTO_SOURCES robot.proto)
-#set(ROBOT_PROTO_OPTIONS robot.options)
-set(ROBOT_PROTO_C_FILE robot.pb.c)
-set(ROBOT_PROTO_H_FILE robot.pb.h)
+set(WIDGET_PROTO_SOURCES widget.proto)
+set(WIDGET_PROTO_C_FILE widget.pb.c)
+set(WIDGET_PROTO_H_FILE widget.pb.h)
 
-add_custom_command(OUTPUT ${ROBOT_PROTO_C_FILE} ${ROBOT_PROTO_H_FILE}
-    COMMAND ${PROTOC} --nanopb_out=${CMAKE_CURRENT_BINARY_DIR} ${ROBOT_PROTO_SOURCES}
-    MAIN_DEPENDENCY ${PROTO_SOURCE_DIR}/${ROBOT_PROTO_SOURCES}
-    #    DEPENDS ${PROTO_SOURCE_DIR}/${ROBOT_PROTO_OPTIONS}
+# The --nanopb_out parameter serves double duty in protoc:
+#   [generator-parameter:]output-directory
+# In this case I'm using the optional generator-parameter part of it to pass
+# '-x rpc-options.proto' to the nanopb generator, which suppresses a
+#   #include "rpc-options.pb.h"
+# from being generated in output files which import rpc-options.proto.
+# rpc-options.proto is never itself compiled, so no such header file will ever
+# exist.
+add_custom_command(OUTPUT ${WIDGET_PROTO_C_FILE} ${WIDGET_PROTO_H_FILE}
+    COMMAND ${PROTOC} -I. -I${PROJECT_SOURCE_DIR}/deps/${NANOPB_BASENAME}/generator/proto
+        --nanopb_out=-x\ rpc-options.proto:${CMAKE_CURRENT_BINARY_DIR} ${WIDGET_PROTO_SOURCES}
+    MAIN_DEPENDENCY ${PROTO_SOURCE_DIR}/${WIDGET_PROTO_SOURCES}
     WORKING_DIRECTORY ${PROTO_SOURCE_DIR}
-    COMMENT "Generating Robot protocol buffers ..."
+    COMMENT "Generating test Widget protocol buffers ..."
     VERBATIM)
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pthread")
 
 set_source_files_properties(
     fire-method.cpp
-    gen-robot.pb.cpp
+    get-attribute.cpp
+    set-attribute.cpp
+    gen-widget.pb.cpp
     PROPERTIES
-    COMPILE_FLAGS "-std=c++11 ${FEATURE_DEFS}")
+    COMPILE_FLAGS "-std=c++11 -ggdb ${FEATURE_DEFS}")
 
-add_executable(fire-method fire-method.cpp gen-robot.pb.cpp ${ROBOT_PROTO_C_FILE})
+add_executable(fire-method fire-method.cpp gen-widget.pb.cpp ${WIDGET_PROTO_C_FILE})
 target_include_directories(fire-method
     PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
     PRIVATE ${Boost_INCLUDE_DIRS})
 target_link_libraries(fire-method rpc)
 add_test(NAME fire-method COMMAND fire-method)
+
+add_executable(get-attribute get-attribute.cpp gen-widget.pb.cpp ${WIDGET_PROTO_C_FILE})
+target_include_directories(get-attribute
+    PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
+    PRIVATE ${Boost_INCLUDE_DIRS})
+target_link_libraries(get-attribute rpc)
+add_test(NAME get-attribute COMMAND get-attribute)
+
+add_executable(set-attribute set-attribute.cpp gen-widget.pb.cpp ${WIDGET_PROTO_C_FILE})
+target_include_directories(set-attribute
+    PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
+    PRIVATE ${Boost_INCLUDE_DIRS})
+target_link_libraries(set-attribute rpc)
+add_test(NAME set-attribute COMMAND set-attribute)

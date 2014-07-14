@@ -42,11 +42,13 @@ public:
     using BufferType = typename rpc::Proxy<AsyncProxy<T, Interface>, Interface, std::future>::BufferType;
 
     template <class C>
-    void broadcast (C args, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
-        static_cast<T*>(this)->broadcast(args);
+    void onBroadcast (C args, ONLY_IF(IsSubscribableAttribute<C>::value || IsBroadcast<C>::value)) {
+        static_cast<T*>(this)->onBroadcast(args);
     }
 
     Status fulfill (uint32_t requestId, Status status) {
+        std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
+
         printf("requestId %" PRId32 " fulfilled with status %s\n", requestId,
                 statusToString(status));
 
@@ -73,7 +75,9 @@ public:
 
     template <class C>
     Status fulfill (uint32_t requestId, C result) {
-        printf("requestId %" PRId32 " fulfilled with some shit\n", requestId);
+        std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
+
+        printf("requestId %" PRId32 " fulfilled with result\n", requestId);
 
         auto iter = mPromises.find(requestId);
         if (mPromises.end() == iter) {
@@ -95,11 +99,15 @@ public:
 
     template <class C>
     std::future<C> finalize (uint32_t requestId, Status status) {
+        std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
+
         return { };// FIXME
     }
 
     template <class C>
     std::future<C> finalize (uint32_t requestId, const BufferType& buffer) {
+        std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
+
         typename decltype(mPromises)::iterator iter;
         bool success;
 
@@ -130,6 +138,7 @@ private:
         < uint32_t
         , PromiseVariant
         > mPromises;
+    std::mutex mPromisesMutex;
 
     template <class C>
     std::pair<typename decltype(mPromises)::iterator, bool>

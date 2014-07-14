@@ -1,0 +1,218 @@
+import "rpc-options.proto";
+package barobo.Widget;
+
+//option (version).major = 0;
+//option (version).minor = 0;
+//option (version).patch = 0;
+
+/* The three basic types of interface component are attributes, methods, and
+ * broadcasts. Each component is defined by a unique message. Each component
+ * will thus have a unique type when compiled into C/C++, which enables us to
+ * use the messages as arguments to an overloaded handler function. By using an
+ * overloaded function accepting a reference to one of these generated
+ * structures, we eliminate a significant amount of boilerplate that would
+ * otherwise have to be maintained in the implementation of an object with this
+ * interface. */
+
+//////////////////////////////////////////////////////////////////////////////
+// Attributes
+
+/* Attribute messages contain a single value. They can be serialized and used
+ * as the payload for a ToObject SET message, a Reply OUT message, or a
+ * FromObject ATTRIBUTE_UPDATE message. When used in a SET, the value
+ * represents the desired new value of the attribute. When used in a Reply OUT
+ * in response to a ToObject GET message, the value is the reported value of
+ * the attribute. When used in a FromObject ATTRIBUTE_UPDATE, the value is the
+ * updated value of the attribute. */
+
+message attribute {
+    //option (attribute).readonly = false;
+    //option (attribute).noSubscriptions = false;
+    required uint32 value = 1;
+}
+
+message readonlyAttribute {
+    //option (attribute).readonly = true;
+    //option (attribute).noSubscriptions = false;
+    required uint32 value = 1;
+}
+
+message noSubscriptionsAttribute {
+    //option (attribute).readonly = false;
+    //option (attribute).noSubscriptions = true;
+    required uint32 value = 1;
+}
+
+message readonlyNoSubscriptionsAttribute {
+    //option (attribute).readonly = true;
+    //option (attribute).noSubscriptions = true;
+    required uint32 value = 1;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Methods
+
+/* Although message identifiers would typically begin with a capital letter, it
+ * ultimately makes things more readable in the C++ implementation if we follow
+ * conventional method identifier capitalization. That is why this is a 'move'
+ * message instead of a 'Move' message, and likewise above with 'motorPower'
+ * versus 'MotorPower'. Additionally, this allows the initial capital style to
+ * be reserved for types unique to the com.barobo.Robot interface. */
+message nullaryNoResult {
+    //option (method).fireAndForget = false;
+    /* Methods have three different payload messages: one each for the input
+     * parameters, output parameters, and error. The method component message
+     * ('move' itself) will never be used as a payload, only its nested
+     * messages. */
+
+    /* The In message contains the input parameters, and is used as the payload
+     * for a ToObject FIRE message. This message would only exist if the method
+     * has input parameters. */
+    message In {
+    }
+
+    message Result {
+        /* The Out message contains the output parameters, and is used as the
+         * payload for a Reply OUT message in response to a ToObject FIRE. This
+         * message would only exist if the method has output parameters. */
+        message Out {
+        }
+
+        /* The Error message contains the error code reportable by the method, and
+         * is used as the payload for a Reply ERROR message in response to a
+         * ToObject FIRE. This message would only exist if the method has error
+         * codes. */
+        message Error {
+        }
+
+        optional Out out = 1;
+        optional Error error = 2;
+    }
+}
+
+message nullaryWithResultOut {
+    //option (method).fireAndForget = false;
+    message In {
+    }
+    message Result {
+        message Out {
+            required float value = 1;
+        }
+        message Error {
+        }
+
+        optional Out out = 1;
+        optional Error error = 2;
+    }
+}
+
+message nullaryWithResultError {
+    //option (method).fireAndForget = false;
+    message In {
+    }
+    message Result {
+        message Out {
+        }
+        message Error {
+            enum Value { FAILURE = 1; }
+            required Value value = 1;
+        }
+        optional Out out = 1;
+        optional Error error = 2;
+    }
+}
+
+message nullaryWithResult {
+    //option (method).fireAndForget = false;
+    message In {
+    }
+    message Result {
+        message Out {
+            required float value = 1;
+        }
+        message Error {
+            enum Value { FAILURE = 0; }
+            required Value value = 1;
+        }
+        optional Out out = 1;
+        optional Error error = 2;
+    }
+}
+
+message unaryNoResult {
+    //option (method).fireAndForget = false;
+    message In {
+        required float value = 1;
+    }
+    message Result {
+        message Out {
+        }
+        message Error {
+        }
+        optional Out out = 1;
+        optional Error error = 2;
+    }
+}
+
+message unaryWithResultOut {
+    //option (method).fireAndForget = false;
+    message In {
+        required float value = 1;
+    }
+    message Result {
+        message Out {
+            required float value = 1;
+        }
+        message Error {
+        }
+
+        optional Out out = 1;
+        optional Error error = 2;
+    }
+}
+
+message unaryWithResultError {
+    //option (method).fireAndForget = false;
+    message In {
+        required float value = 1;
+    }
+    message Result {
+        message Out {
+        }
+        message Error {
+            enum Value { FAILURE = 1; }
+            required Value value = 1;
+        }
+        optional Out out = 1;
+        optional Error error = 2;
+    }
+}
+
+message unaryWithResult {
+    //option (method).fireAndForget = false;
+    message In {
+        required float value = 1;
+    }
+    message Result {
+        message Out {
+            required float value = 1;
+        }
+        message Error {
+            enum Value { FAILURE = 0; }
+            required Value value = 1;
+        }
+        optional Out out = 1;
+        optional Error error = 2;
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Broadcasts
+
+/* Broadcast component messages contain the output parameters of the broadcast.
+ * They can be used as the payload for a FromObject BROADCAST, and that is it.
+ */
+message broadcast {
+    //option (broadcast).selective = true;
+    required float value = 1;
+}

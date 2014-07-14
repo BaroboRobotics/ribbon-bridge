@@ -33,7 +33,7 @@ public:
     }
 
     template <class Attribute>
-    Future<void> set (Attribute args, ONLY_IF(IsAttribute<Attribute>::value)) {
+    Future<void> set (Attribute args, ONLY_IF(IsSettableAttribute<Attribute>::value)) {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
         auto requestId = nextRequestId();
@@ -50,8 +50,8 @@ public:
     }
 
     template <class C>
-    void broadcast (C args, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
-        static_cast<T*>(this)->broadcast(args);
+    void broadcast (C args, ONLY_IF(IsSubscribableAttribute<C>::value || IsBroadcast<C>::value)) {
+        static_cast<T*>(this)->onBroadcast(args);
     }
 
     template <class MethodIn>
@@ -103,7 +103,7 @@ public:
     }
 
     Status deliver (BufferType buffer) {
-        com_barobo_rpc_Reply reply;
+        barobo_rpc_Reply reply;
 
         auto err = decode(reply, buffer.bytes, buffer.size);
         if (hasError(err)) {
@@ -113,12 +113,12 @@ public:
         switch (reply.type) {
             ComponentResultUnion<Interface> argument;
 
-            case com_barobo_rpc_Reply_Type_STATUS:
+            case barobo_rpc_Reply_Type_STATUS:
                 if (!reply.has_status) {
                     return Status::INCONSISTENT_REPLY;
                 }
                 return static_cast<T*>(this)->template fulfill(reply.inReplyTo, static_cast<Status>(reply.status.value));
-            case com_barobo_rpc_Reply_Type_RESULT:
+            case barobo_rpc_Reply_Type_RESULT:
                 if (!reply.has_result) {
                     return Status::INCONSISTENT_REPLY;
                 }
@@ -127,7 +127,7 @@ public:
                     err = invokeFulfill(*this, argument, reply.result.id, reply.inReplyTo);
                 }
                 return err;
-            case com_barobo_rpc_Reply_Type_VERSION:
+            case barobo_rpc_Reply_Type_VERSION:
                 if (!reply.has_version) {
                     return Status::INCONSISTENT_REPLY;
                 }
@@ -135,7 +135,7 @@ public:
                     checkInterfaceVersion<Interface>(reply.version.interface) ?
                         Status::OK :
                         Status::VERSION_MISMATCH;
-            case com_barobo_rpc_Reply_Type_BROADCAST:
+            case barobo_rpc_Reply_Type_BROADCAST:
                 if (!reply.has_broadcast) {
                     return Status::INCONSISTENT_REPLY;
                 }
