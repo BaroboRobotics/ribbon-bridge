@@ -9,7 +9,7 @@ The expression
 
 has return type [see note 1]
 
-    std::future<ResultOf<Method::m>>
+    std::future<typename ResultOf<Method::m>::type>
 
 and the following semantics:
 
