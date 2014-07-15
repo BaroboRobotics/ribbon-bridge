@@ -19,7 +19,6 @@ int main () {
             assert(!result.has_out && !result.has_error);
             std::cout << "nullary with no result\n";
         }
-#if 0
         {
             auto result = widget.proxy().fire(Method::nullaryWithResultOut()).get();
             assert(result.has_out && !result.has_error);
@@ -36,26 +35,28 @@ int main () {
             assert(result.has_out && !result.has_error);
             std::cout << "nullary with result out/error: " << result.out.value << '\n';
         }
-#endif
         {
-            auto result = widget.proxy().fire(Method::unaryNoResult{3.14}).get();
-            assert(result.has_out && !result.has_error);
+            auto result = widget.proxy().fire(Method::unaryNoResult{0.5}).get();
+            assert(!result.has_out && !result.has_error);
             std::cout << "unary with no result\n";
         }
         {
-            auto result = widget.proxy().fire(Method::unaryWithResultOut{3.14}).get();
+            auto result = widget.proxy().fire(Method::unaryWithResultOut{0.5}).get();
             assert(result.has_out && !result.has_error);
+            // 0.5 should be perfectly representable by IEEE754
+            assert(0.5 == result.out.value);
             std::cout << "unary with result out: " << result.out.value << '\n';
         }
         {
-            auto result = widget.proxy().fire(Method::unaryWithResultError{3.14}).get();
+            auto result = widget.proxy().fire(Method::unaryWithResultError{0.5}).get();
             assert(!result.has_out && result.has_error);
             assert(barobo_Widget_unaryWithResultError_Result_Error_Value_FAILURE == result.error.value);
             std::cout << "unary with result error\n";
         }
         {
-            auto result = widget.proxy().fire(Method::unaryWithResult{3.14}).get();
+            auto result = widget.proxy().fire(Method::unaryWithResult{0.5}).get();
             assert(result.has_out && !result.has_error);
+            assert(0.5 == result.out.value);
             std::cout << "unary with result out/error: " << result.out.value << '\n';
         }
     }

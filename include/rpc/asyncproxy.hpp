@@ -15,6 +15,9 @@
 #include <tuple>
 #include <utility>
 
+#include <cstdio>
+#include <cinttypes>
+
 namespace rpc {
 
 template <class T, class Interface>

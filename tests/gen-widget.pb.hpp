@@ -580,7 +580,7 @@ struct FireInvoker<barobo::Widget> {
             case Id::unaryWithResultError: {
                 auto val = service.fire(argument.unaryWithResultError);
                 payload.size = sizeof(payload.bytes);
-                return encodeProtobuf(&val, pbFields(val), payload.bytes, payload.size, payload.size);
+                return encode(val, payload.bytes, payload.size, payload.size);
             }
             case Id::unaryWithResult: {
                 auto val = service.fire(argument.unaryWithResult);

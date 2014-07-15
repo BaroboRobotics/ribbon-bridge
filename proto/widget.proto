@@ -131,7 +131,7 @@ message nullaryWithResult {
             required float value = 1;
         }
         message Error {
-            enum Value { FAILURE = 0; }
+            enum Value { FAILURE = 1; }
             required Value value = 1;
         }
         optional Out out = 1;
@@ -198,7 +198,7 @@ message unaryWithResult {
             required float value = 1;
         }
         message Error {
-            enum Value { FAILURE = 0; }
+            enum Value { FAILURE = 1; }
             required Value value = 1;
         }
         optional Out out = 1;

@@ -59,15 +59,15 @@ const pb_field_t* pbFields (barobo_Widget_nullaryNoResult_Result) {
 }
 template <>
 const pb_field_t* pbFields (barobo_Widget_nullaryWithResultOut_Result) {
-    return barobo_Widget_nullaryWithResultOut_In_fields;
+    return barobo_Widget_nullaryWithResultOut_Result_fields;
 }
 template <>
 const pb_field_t* pbFields (barobo_Widget_nullaryWithResultError_Result) {
-    return barobo_Widget_nullaryWithResultError_In_fields;
+    return barobo_Widget_nullaryWithResultError_Result_fields;
 }
 template <>
 const pb_field_t* pbFields (barobo_Widget_nullaryWithResult_Result) {
-    return barobo_Widget_nullaryWithResult_In_fields;
+    return barobo_Widget_nullaryWithResult_Result_fields;
 }
 template <>
 const pb_field_t* pbFields (barobo_Widget_unaryNoResult_Result) {
@@ -75,15 +75,15 @@ const pb_field_t* pbFields (barobo_Widget_unaryNoResult_Result) {
 }
 template <>
 const pb_field_t* pbFields (barobo_Widget_unaryWithResultOut_Result) {
-    return barobo_Widget_unaryWithResultOut_In_fields;
+    return barobo_Widget_unaryWithResultOut_Result_fields;
 }
 template <>
 const pb_field_t* pbFields (barobo_Widget_unaryWithResultError_Result) {
-    return barobo_Widget_unaryWithResultError_In_fields;
+    return barobo_Widget_unaryWithResultError_Result_fields;
 }
 template <>
 const pb_field_t* pbFields (barobo_Widget_unaryWithResult_Result) {
-    return barobo_Widget_unaryWithResult_In_fields;
+    return barobo_Widget_unaryWithResult_Result_fields;
 }
 
 template <>
@@ -251,8 +251,9 @@ Status decodeResultPayload (ComponentResultUnion<barobo::Widget>& args,
             return decode(args.unaryNoResult, payload.bytes, payload.size);
         case Id::unaryWithResultOut:
             return decode(args.unaryWithResultOut, payload.bytes, payload.size);
-        case Id::unaryWithResultError:
+        case Id::unaryWithResultError: {
             return decode(args.unaryWithResultError, payload.bytes, payload.size);
+        }
         case Id::unaryWithResult:
             return decode(args.unaryWithResult, payload.bytes, payload.size);
         default:

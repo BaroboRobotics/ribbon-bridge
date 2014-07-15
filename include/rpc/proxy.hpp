@@ -1,7 +1,6 @@
 #ifndef RPC_PROXY_HPP
 #define RPC_PROXY_HPP
 
-#include "rpc/stdlibheaders.hpp"
 #include "rpc/buffer.hpp"
 #include "rpc/componenttraits.hpp"
 #include "rpc/message.hpp"
