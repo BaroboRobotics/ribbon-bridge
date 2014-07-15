@@ -1,7 +1,7 @@
-p = an instance of an rpc::AsyncProxy implementing an interface
-s = an instance of an rpc::Server implementing an interface
-m = a method in the interface
-argn = an arbitrary argument value
+p is an instance of a derivation of rpc::AsyncProxy
+s is an instance of a derivation of rpc::Server
+m is a method in the interface implemented by p and s
+argn is an arbitrary argument value
 
 The expression
 
@@ -13,7 +13,11 @@ has return type [see note 1]
 
 and the following semantics:
 
-    The proxy p creates a LEFT OFF HERE
+    Encode a protocol buffer meaning "fire method m" and deliver it to the
+    derived class by calling the post function [see note 2]. Return a valid
+    future that can access the asynchronous result of the method.
+
+Run-time contract:
 
 Compile-time contract:
     Method::m is the method-input-struct for a method.
@@ -23,3 +27,9 @@ Compile-time contract:
     return anything, but the std::future may still be used to observe when the
     message is acknowledged, and fire on a method marked fireAndForget returns
     a future that is already ready.
+
+[2] The "derived class" means the user's implementation, i.e. the subclass of
+    rpc::AsyncProxy or rpc::Service that you, the user of this toolkit, writes.
+    You must implement certain methods, such as post, in the derived class.
+    Exactly which methods must be implemented depends on the base class:
+    rpc::Proxy, rpc::AsyncProxy, or rpc::Service.
