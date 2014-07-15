@@ -121,6 +121,7 @@ public:
 
     void onBroadcast (Attribute::attribute args) {
         printf("onBroadcast(attribute): %" PRId32 "\n", args.value);
+        mBroadcastedAttribute = args;
     }
 
     void onBroadcast (Attribute::readonlyAttribute args) {
@@ -131,8 +132,16 @@ public:
         printf("onBroadcast(broadcast): %f\n", args.value);
     }
 
+    //////
+
+    Attribute:: attribute broadcastedAttribute () {
+        return mBroadcastedAttribute;
+    }
+
 private:
     std::function<void(const BufferType&)> mPostFunc;
+
+    Attribute::attribute mBroadcastedAttribute;
 };
 
 #endif
