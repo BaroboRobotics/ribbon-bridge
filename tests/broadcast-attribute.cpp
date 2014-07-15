@@ -23,10 +23,17 @@ int main () {
         testResult = FAILED;
     }
 
+    // Send a broadcast to the proxy
     widget.service().broadcast(Attribute::attribute{15});
 
-    // FIXME this should be more like widget.proxy().sync().get();
-    widget.proxy().unsubscribe(Attribute::attribute()).get();
+    try {
+        // Wait for the broadcast
+        widget.proxy().unsubscribe(Attribute::attribute()).get();
+    }
+    catch (const rpc::Error& exc) {
+        std::cout << "RPC error: " << exc.what() << '\n';
+        testResult = FAILED;
+    }
 
     assert(15 == widget.proxy().broadcastedAttribute().value);
 
