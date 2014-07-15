@@ -474,22 +474,22 @@ struct GetInvoker<barobo::Widget> {
             case Id::attribute: {
                 auto val = service.get(argument.attribute);
                 payload.size = sizeof(payload.bytes);
-                return encodeProtobuf(&val, pbFields(val), payload.bytes, payload.size, payload.size);
+                return encode(val, payload.bytes, payload.size, payload.size);
             }
             case Id::readonlyAttribute: {
                 auto val = service.get(argument.readonlyAttribute);
                 payload.size = sizeof(payload.bytes);
-                return encodeProtobuf(&val, pbFields(val), payload.bytes, payload.size, payload.size);
+                return encode(val, payload.bytes, payload.size, payload.size);
             }
             case Id::noSubscriptionsAttribute: {
                 auto val = service.get(argument.noSubscriptionsAttribute);
                 payload.size = sizeof(payload.bytes);
-                return encodeProtobuf(&val, pbFields(val), payload.bytes, payload.size, payload.size);
+                return encode(val, payload.bytes, payload.size, payload.size);
             }
             case Id::readonlyNoSubscriptionsAttribute: {
                 auto val = service.get(argument.readonlyNoSubscriptionsAttribute);
                 payload.size = sizeof(payload.bytes);
-                return encodeProtobuf(&val, pbFields(val), payload.bytes, payload.size, payload.size);
+                return encode(val, payload.bytes, payload.size, payload.size);
             }
             default:
                 return isComponent<barobo::Widget>(componentId) ?
@@ -550,32 +550,32 @@ struct FireInvoker<barobo::Widget> {
             case Id::nullaryNoResult: {
                 auto val = service.fire(argument.nullaryNoResult);
                 payload.size = sizeof(payload.bytes);
-                return encodeProtobuf(&val, pbFields(val), payload.bytes, payload.size, payload.size);
+                return encode(val, payload.bytes, payload.size, payload.size);
             }
             case Id::nullaryWithResultOut: {
                 auto val = service.fire(argument.nullaryWithResultOut);
                 payload.size = sizeof(payload.bytes);
-                return encodeProtobuf(&val, pbFields(val), payload.bytes, payload.size, payload.size);
+                return encode(val, payload.bytes, payload.size, payload.size);
             }
             case Id::nullaryWithResultError: {
                 auto val = service.fire(argument.nullaryWithResultError);
                 payload.size = sizeof(payload.bytes);
-                return encodeProtobuf(&val, pbFields(val), payload.bytes, payload.size, payload.size);
+                return encode(val, payload.bytes, payload.size, payload.size);
             }
             case Id::nullaryWithResult: {
                 auto val = service.fire(argument.nullaryWithResult);
                 payload.size = sizeof(payload.bytes);
-                return encodeProtobuf(&val, pbFields(val), payload.bytes, payload.size, payload.size);
+                return encode(val, payload.bytes, payload.size, payload.size);
             }
             case Id::unaryNoResult: {
                 auto val = service.fire(argument.unaryNoResult);
                 payload.size = sizeof(payload.bytes);
-                return encodeProtobuf(&val, pbFields(val), payload.bytes, payload.size, payload.size);
+                return encode(val, payload.bytes, payload.size, payload.size);
             }
             case Id::unaryWithResultOut: {
                 auto val = service.fire(argument.unaryWithResultOut);
                 payload.size = sizeof(payload.bytes);
-                return encodeProtobuf(&val, pbFields(val), payload.bytes, payload.size, payload.size);
+                return encode(val, payload.bytes, payload.size, payload.size);
             }
             case Id::unaryWithResultError: {
                 auto val = service.fire(argument.unaryWithResultError);
@@ -585,7 +585,7 @@ struct FireInvoker<barobo::Widget> {
             case Id::unaryWithResult: {
                 auto val = service.fire(argument.unaryWithResult);
                 payload.size = sizeof(payload.bytes);
-                return encodeProtobuf(&val, pbFields(val), payload.bytes, payload.size, payload.size);
+                return encode(val, payload.bytes, payload.size, payload.size);
             }
             default:
                 return isComponent<barobo::Widget>(componentId) ?
