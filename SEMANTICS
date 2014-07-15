@@ -19,7 +19,7 @@ The following expressions are used throughout the rest of this document,
 and have the following meanings:
 
     p is an instance of a derivation of rpc::AsyncProxy
-    s is an instance of a derivation of rpc::Server
+    s is an instance of a derivation of rpc::Service
     a is an attribute in the interface implemented by p and s
     m is a method in the interface implemented by p and s
     b is a broadcast in the interface implemented by p and s
