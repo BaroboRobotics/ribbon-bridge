@@ -20,16 +20,16 @@ public:
 
     template <class Attribute>
     Attribute get (Attribute args, ONLY_IF(IsAttribute<Attribute>::value)) {
-        return static_cast<T*>(this)->get(args);
+        return static_cast<T*>(this)->onGet(args);
     }
 
     template <class Attribute>
-    void set (Attribute args, ONLY_IF(IsAttribute<Attribute>::value)) {
-        static_cast<T*>(this)->set(args);
+    void set (Attribute args, ONLY_IF(IsSettableAttribute<Attribute>::value)) {
+        static_cast<T*>(this)->onSet(args);
     }
 
     template <class C>
-    Status broadcast (C args, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
+    Status broadcast (C args, ONLY_IF(IsSubscribableAttribute<C>::value || IsBroadcast<C>::value)) {
         if (mSubscriptions.isActive(componentId(args))) {
             BufferType buffer;
             buffer.size = sizeof(buffer.bytes);
@@ -48,12 +48,12 @@ public:
 
     template <class Method>
     typename ResultOf<Method>::type fire (Method args, ONLY_IF(IsMethod<Method>::value)) {
-        return static_cast<T*>(this)->fire(args);
+        return static_cast<T*>(this)->onFire(args);
     }
 
     Status deliver (BufferType in) {
-        com_barobo_rpc_Request request;
-        com_barobo_rpc_Reply reply;
+        barobo_rpc_Request request;
+        barobo_rpc_Reply reply;
         memset(&reply, 0, sizeof(reply));
 
         auto err = decode(request, in.bytes, in.size);
@@ -65,60 +65,63 @@ public:
             reply.inReplyTo = request.id;
 
             switch (request.type) {
-                ComponentInUnion<Interface> argument;
+                union {
+                    ComponentInUnion<Interface> in;
+                    ComponentResultUnion<Interface> result;
+                } argument;
 
-                case com_barobo_rpc_Request_Type_GET:
-                    reply.status.value = decltype(reply.status.value)(invokeGet(*this, argument, request.get.id, reply.result.payload));
-                    if (com_barobo_rpc_Status_OK != reply.status.value) {
-                        reply.type = com_barobo_rpc_Reply_Type_STATUS;
+                case barobo_rpc_Request_Type_GET:
+                    reply.status.value = decltype(reply.status.value)(invokeGet(*this, argument.result, request.get.id, reply.result.payload));
+                    if (barobo_rpc_Status_OK != reply.status.value) {
+                        reply.type = barobo_rpc_Reply_Type_STATUS;
                         reply.has_status = true;
                     }
                     else {
-                        reply.type = com_barobo_rpc_Reply_Type_RESULT;
+                        reply.type = barobo_rpc_Reply_Type_RESULT;
                         reply.has_result = true;
                         reply.result.id = request.get.id;
                     }
                     break;
-                case com_barobo_rpc_Request_Type_SET:
-                    reply.type = com_barobo_rpc_Reply_Type_STATUS;
+                case barobo_rpc_Request_Type_SET:
+                    reply.type = barobo_rpc_Reply_Type_STATUS;
                     reply.has_status = true;
-                    reply.status.value = decltype(reply.status.value)(decodeSetPayload(argument, request.set.id, request.set.payload));
-                    if (com_barobo_rpc_Status_OK == reply.status.value) {
-                        reply.status.value = decltype(reply.status.value)(invokeSet(*this, argument, request.set.id));
+                    reply.status.value = decltype(reply.status.value)(decodeSetPayload(argument.in, request.set.id, request.set.payload));
+                    if (barobo_rpc_Status_OK == reply.status.value) {
+                        reply.status.value = decltype(reply.status.value)(invokeSet(*this, argument.in, request.set.id));
                     }
                     break;
-                case com_barobo_rpc_Request_Type_FIRE:
-                    reply.status.value = decltype(reply.status.value)(decodeFirePayload(argument, request.fire.id, request.fire.payload));
-                    if (com_barobo_rpc_Status_OK != reply.status.value) {
-                        reply.type = com_barobo_rpc_Reply_Type_STATUS;
+                case barobo_rpc_Request_Type_FIRE:
+                    reply.status.value = decltype(reply.status.value)(decodeFirePayload(argument.in, request.fire.id, request.fire.payload));
+                    if (barobo_rpc_Status_OK != reply.status.value) {
+                        reply.type = barobo_rpc_Reply_Type_STATUS;
                         reply.has_status = true;
                     }
                     else {
-                        reply.status.value = decltype(reply.status.value)(invokeFire(*this, argument, request.fire.id, reply.result.payload));
-                        if (reply.result.payload.size) {
-                            reply.type = com_barobo_rpc_Reply_Type_RESULT;
+                        reply.status.value = decltype(reply.status.value)(invokeFire(*this, argument.in, request.fire.id, reply.result.payload));
+                        if (barobo_rpc_Status_OK != reply.status.value) {
+                            reply.type = barobo_rpc_Reply_Type_STATUS;
+                            reply.has_status = true;
+                        }
+                        else {
+                            reply.type = barobo_rpc_Reply_Type_RESULT;
                             reply.has_result = true;
                             reply.result.id = request.fire.id;
                         }
-                        else {
-                            reply.type = com_barobo_rpc_Reply_Type_STATUS;
-                            reply.has_status = true;
-                        }
                     }
                     break;
-                case com_barobo_rpc_Request_Type_SUBSCRIBE:
-                    reply.type = com_barobo_rpc_Reply_Type_STATUS;
+                case barobo_rpc_Request_Type_SUBSCRIBE:
+                    reply.type = barobo_rpc_Reply_Type_STATUS;
                     reply.has_status = true;
                     reply.status.value = decltype(reply.status.value)(mSubscriptions.activate(request.subscribe.id));
                     break;
-                case com_barobo_rpc_Request_Type_UNSUBSCRIBE:
-                    reply.type = com_barobo_rpc_Reply_Type_STATUS;
+                case barobo_rpc_Request_Type_UNSUBSCRIBE:
+                    reply.type = barobo_rpc_Reply_Type_STATUS;
                     reply.has_status = true;
                     reply.status.value = decltype(reply.status.value)(mSubscriptions.deactivate(request.unsubscribe.id));
                     break;
-                case com_barobo_rpc_Request_Type_RESET:
+                case barobo_rpc_Request_Type_RESET:
                     mSubscriptions.reset();
-                    reply.type = com_barobo_rpc_Reply_Type_VERSION;
+                    reply.type = barobo_rpc_Reply_Type_VERSION;
                     reply.has_version = true;
                     reply.version.rpc.major = RPC_VERSION_MAJOR;
                     reply.version.rpc.minor = RPC_VERSION_MINOR;
@@ -128,9 +131,9 @@ public:
                     reply.version.interface.patch = Version<Interface>::patch;
                     break;
                 default:
-                    reply.type = com_barobo_rpc_Reply_Type_STATUS;
+                    reply.type = barobo_rpc_Reply_Type_STATUS;
                     reply.has_status = true;
-                    reply.status.value = com_barobo_rpc_Status_ILLEGAL_OPERATION;
+                    reply.status.value = barobo_rpc_Status_ILLEGAL_OPERATION;
                     break;
             }
         }

@@ -6,6 +6,7 @@
 #endif
 
 #include "rpc/error.hpp"
+#include "rpc/proxy.hpp"
 
 #include <boost/unordered_map.hpp>
 #include <boost/variant.hpp>
@@ -14,10 +15,13 @@
 #include <tuple>
 #include <utility>
 
+#include <cstdio>
+#include <cinttypes>
+
 namespace rpc {
 
 template <class T, class Interface>
-class AsyncProxy : public rpc::Proxy<AsyncProxy<T, Interface>, Interface, std::future> {
+class AsyncProxy : public Proxy<AsyncProxy<T, Interface>, Interface, std::future> {
     template <class... Ts>
     using MakePromiseVariant = boost::variant<std::promise<Ts>...>;
 
@@ -28,6 +32,7 @@ class AsyncProxy : public rpc::Proxy<AsyncProxy<T, Interface>, Interface, std::f
 
         template <class P>
         void operator() (P& promise) const {
+            printf("breaking hearts, %s\n", __PRETTY_FUNCTION__);
             Error error { statusToString(mStatus) };
             auto eptr = std::make_exception_ptr(error);
             promise.set_exception(eptr);
@@ -41,11 +46,13 @@ public:
     using BufferType = typename rpc::Proxy<AsyncProxy<T, Interface>, Interface, std::future>::BufferType;
 
     template <class C>
-    void broadcast (C args, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
-        static_cast<T*>(this)->broadcast(args);
+    void onBroadcast (C args, ONLY_IF(IsSubscribableAttribute<C>::value || IsBroadcast<C>::value)) {
+        static_cast<T*>(this)->onBroadcast(args);
     }
 
     Status fulfill (uint32_t requestId, Status status) {
+        std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
+
         printf("requestId %" PRId32 " fulfilled with status %s\n", requestId,
                 statusToString(status));
 
@@ -55,15 +62,23 @@ public:
         }
 
         auto promisePtr = boost::get<std::promise<void>>(&iter->second);
-        if (promisePtr && !hasError(status)) {
-            promisePtr->set_value();
-        }
-        else if (!hasError(status)) {
-            // No error reported, but we have a type mismatch.
-            boost::apply_visitor(SetExceptionVisitor { Status::UNRECOGNIZED_RESULT }, iter->second);
+        if (promisePtr) {
+            if (!hasError(status)) {
+                promisePtr->set_value();
+            }
+            else {
+                boost::apply_visitor(SetExceptionVisitor { status }, iter->second);
+            }
         }
         else {
-            boost::apply_visitor(SetExceptionVisitor { status }, iter->second);
+            if (!hasError(status)) {
+                // No error reported, but we have a type mismatch.
+                printf("type mismatch with requestId %" PRId32 "\n", requestId);
+                boost::apply_visitor(SetExceptionVisitor { Status::UNRECOGNIZED_RESULT }, iter->second);
+            }
+            else {
+                boost::apply_visitor(SetExceptionVisitor { status }, iter->second);
+            }
         }
 
         mPromises.erase(iter);
@@ -72,7 +87,9 @@ public:
 
     template <class C>
     Status fulfill (uint32_t requestId, C result) {
-        printf("requestId %" PRId32 " fulfilled with some shit\n", requestId);
+        std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
+
+        printf("requestId %" PRId32 " fulfilled with result\n", requestId);
 
         auto iter = mPromises.find(requestId);
         if (mPromises.end() == iter) {
@@ -80,12 +97,13 @@ public:
         }
 
         auto promisePtr = boost::get<std::promise<C>>(&iter->second);
-        if (!promisePtr) {
-            // type mismatch
-            boost::apply_visitor(SetExceptionVisitor(Status::UNRECOGNIZED_RESULT), iter->second);
+        if (promisePtr) {
+            promisePtr->set_value(result);
         }
         else {
-            promisePtr->set_value(result);
+            // type mismatch
+            printf("type mismatch with requestId %" PRId32 "\n", requestId);
+            boost::apply_visitor(SetExceptionVisitor(Status::UNRECOGNIZED_RESULT), iter->second);
         }
 
         mPromises.erase(iter);
@@ -94,25 +112,34 @@ public:
 
     template <class C>
     std::future<C> finalize (uint32_t requestId, Status status) {
-        return { };// FIXME
+        // If we ever decide to do anything with mPromises here, remember to
+        // lock it with a std::lock_guard.
+        printf("requestId %" PRId32 " wasted on %s\n", requestId, statusToString(status));
+
+        throw Error { statusToString(status) };
     }
 
     template <class C>
     std::future<C> finalize (uint32_t requestId, const BufferType& buffer) {
-        typename decltype(mPromises)::iterator iter;
-        bool success;
+        std::promise<C>* promisePtr;
+        {
+            std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
 
-        std::tie(iter, success) = tryMakePromise<C>(requestId);
+            typename decltype(mPromises)::iterator iter;
+            bool success;
 
-        if (!success) {
-            // this will break the existing promise
-            mPromises.erase(iter);
             std::tie(iter, success) = tryMakePromise<C>(requestId);
-            assert(success);
-        }
 
-        auto promisePtr = boost::get<std::promise<C>>(&iter->second);
-        assert(promisePtr);
+            if (!success) {
+                // this will break the existing promise
+                mPromises.erase(iter);
+                std::tie(iter, success) = tryMakePromise<C>(requestId);
+                assert(success);
+            }
+
+            promisePtr = boost::get<std::promise<C>>(&iter->second);
+            assert(promisePtr);
+        }
 
         /* We must call get_future() before post(). If we call post first,
          * there is a chance that the implementor might run with the buffer,
@@ -129,6 +156,7 @@ private:
         < uint32_t
         , PromiseVariant
         > mPromises;
+    std::mutex mPromisesMutex;
 
     template <class C>
     std::pair<typename decltype(mPromises)::iterator, bool>

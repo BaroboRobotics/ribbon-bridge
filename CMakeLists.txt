@@ -32,25 +32,21 @@ set(PROTOC "${PROJECT_SOURCE_DIR}/deps/${NANOPB_BASENAME}/generator-bin/protoc")
 set(PROTO_SOURCE_DIR ${PROJECT_SOURCE_DIR}/proto)
 
 set(RPC_PROTO_SOURCES rpc.proto)
-#set(RPC_PROTO_OPTIONS rpc.options)
 set(RPC_PROTO_C_FILE rpc.pb.c)
 set(RPC_PROTO_H_FILE rpc.pb.h)
 
 add_custom_command(OUTPUT ${RPC_PROTO_C_FILE} ${RPC_PROTO_H_FILE}
     COMMAND ${PROTOC} -I. -I${PROJECT_SOURCE_DIR}/deps/${NANOPB_BASENAME}/generator/proto
         --nanopb_out=${CMAKE_CURRENT_BINARY_DIR} ${RPC_PROTO_SOURCES}
-    MAIN_DEPENDENCY ${PROTO_SOURCE_DIR}/${RPC_PROTO_SOURCES}
-    #DEPENDS ${PROTO_SOURCE_DIR}/${RPC_PROTO_OPTIONS}
+    MAIN_DEPENDENCY "${PROTO_SOURCE_DIR}/${RPC_PROTO_SOURCES}"
+    DEPENDS "${PROTO_SOURCE_DIR}/rpc-options.proto"
     WORKING_DIRECTORY ${PROTO_SOURCE_DIR}
     COMMENT "Generating RPC protocol buffers ..."
     VERBATIM)
 
 ##############################################################################
 
-#include_directories(deps/simavr/simavr/sim/avr)
-
 set(SOURCES
-    #src/printmessage.cpp
     src/message.cpp
     src/status.cpp
     ${RPC_PROTO_C_FILE}
@@ -59,8 +55,6 @@ set(SOURCES
 
 set_source_files_properties(src/message.cpp src/status.cpp PROPERTIES
     COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS ${FEATURE_DEFS}")
-#set_source_files_properties(src/status.cpp PROPERTIES
-#    COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS ${FEATURE_DEFS}")
 
 add_library(rpc STATIC ${SOURCES})
 

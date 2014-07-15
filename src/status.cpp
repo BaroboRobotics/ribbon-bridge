@@ -13,7 +13,7 @@ const char* statusToString (Status status) {
         ITEM(ILLEGAL_OPERATION);
         ITEM(NO_SUCH_COMPONENT);
         ITEM(BUFFER_OVERFLOW);
-        ITEM(READ_ONLY);
+        ITEM(READONLY);
         ITEM(NO_SUBSCRIPTIONS);
         ITEM(VERSION_MISMATCH);
 

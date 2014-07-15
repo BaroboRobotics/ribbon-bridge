@@ -8,13 +8,13 @@
 namespace rpc {
 
 template <>
-const pb_field_t* pbFields (com_barobo_rpc_Request) {
-    return com_barobo_rpc_Request_fields;
+const pb_field_t* pbFields (barobo_rpc_Request) {
+    return barobo_rpc_Request_fields;
 }
 
 template <>
-const pb_field_t* pbFields (com_barobo_rpc_Reply) {
-    return com_barobo_rpc_Reply_fields;
+const pb_field_t* pbFields (barobo_rpc_Reply) {
+    return barobo_rpc_Reply_fields;
 }
 
 Status encodeProtobuf (const void* pbStruct, const pb_field_t* pbFields, uint8_t* bytes, size_t size, size_t& bytesWritten) {
@@ -40,14 +40,14 @@ Status decodeProtobuf (void* pbStruct, const pb_field_t* pbFields, uint8_t* byte
         Status::DECODING_FAILURE;
 }
 
-Status makeGet (uint8_t* bytes, size_t size, uint32_t requestId,
+Status makeGet (uint8_t* bytes, size_t& size, uint32_t requestId,
         uint32_t componentId) {
     assert(bytes);
 
-    com_barobo_rpc_Request request;
+    barobo_rpc_Request request;
     memset(&request, 0, sizeof(request));
 
-    request.type = com_barobo_rpc_Request_Type_GET;
+    request.type = barobo_rpc_Request_Type_GET;
     request.id = requestId;
     request.has_get = true;
     request.get.id = componentId;
@@ -59,10 +59,10 @@ Status makeSet (uint8_t* bytes, size_t& size, uint32_t requestId,
         uint32_t componentId, const pb_field_t* fields, void* payload) {
     assert(bytes && fields && payload);
 
-    com_barobo_rpc_Request request;
+    barobo_rpc_Request request;
     memset(&request, 0, sizeof(request));
 
-    request.type = com_barobo_rpc_Request_Type_SET;
+    request.type = barobo_rpc_Request_Type_SET;
     request.id = requestId;
     request.has_set = true;
     request.set.id = componentId;
@@ -82,10 +82,10 @@ Status makeSubscribe (uint8_t* bytes, size_t& size, uint32_t requestId,
         uint32_t componentId) {
     assert(bytes);
 
-    com_barobo_rpc_Request request;
+    barobo_rpc_Request request;
     memset(&request, 0, sizeof(request));
 
-    request.type = com_barobo_rpc_Request_Type_SUBSCRIBE;
+    request.type = barobo_rpc_Request_Type_SUBSCRIBE;
     request.id = requestId;
     request.has_subscribe = true;
     request.subscribe.id = componentId;
@@ -97,10 +97,10 @@ Status makeUnsubscribe (uint8_t* bytes, size_t& size, uint32_t requestId,
         uint32_t componentId) {
     assert(bytes);
 
-    com_barobo_rpc_Request request;
+    barobo_rpc_Request request;
     memset(&request, 0, sizeof(request));
 
-    request.type = com_barobo_rpc_Request_Type_UNSUBSCRIBE;
+    request.type = barobo_rpc_Request_Type_UNSUBSCRIBE;
     request.id = requestId;
     request.has_unsubscribe = true;
     request.unsubscribe.id = componentId;
@@ -111,10 +111,10 @@ Status makeUnsubscribe (uint8_t* bytes, size_t& size, uint32_t requestId,
 Status makeFire (uint8_t* bytes, size_t& size, uint32_t requestId, uint32_t componentId, const pb_field_t* fields, void* payload) {
     assert(bytes && fields && payload);
 
-    com_barobo_rpc_Request request;
+    barobo_rpc_Request request;
     memset(&request, 0, sizeof(request));
 
-    request.type = com_barobo_rpc_Request_Type_FIRE;
+    request.type = barobo_rpc_Request_Type_FIRE;
     request.id = requestId;
     request.has_fire = true;
     request.fire.id = componentId;
@@ -134,10 +134,10 @@ Status makeFire (uint8_t* bytes, size_t& size, uint32_t requestId, uint32_t comp
 Status makeBroadcast (uint8_t* bytes, size_t& size, uint32_t componentId, const pb_field_t* fields, void* payload) {
     assert(bytes && fields && payload);
 
-    com_barobo_rpc_Reply reply;
+    barobo_rpc_Reply reply;
     memset(&reply, 0, sizeof(reply));
 
-    reply.type = com_barobo_rpc_Reply_Type_BROADCAST;
+    reply.type = barobo_rpc_Reply_Type_BROADCAST;
     reply.has_inReplyTo = false;
     reply.has_broadcast = true;
     reply.broadcast.id = componentId;
