@@ -145,22 +145,34 @@ public:
 
     void onBroadcast (Attribute::readonlyAttribute args) {
         printf("onBroadcast(readonlyAttribute): %" PRId32 "\n", args.value);
+        mBroadcastedReadonlyAttribute = args;
     }
 
     void onBroadcast (Broadcast::broadcast args) {
         printf("onBroadcast(broadcast): %f\n", args.value);
+        mBroadcastedBroadcast = args;
     }
 
     //////
 
-    Attribute:: attribute broadcastedAttribute () {
+    Attribute::attribute broadcastedAttribute () const {
         return mBroadcastedAttribute;
+    }
+
+    Attribute::readonlyAttribute broadcastedReadonlyAttribute () const {
+        return mBroadcastedReadonlyAttribute;
+    }
+
+    Broadcast::broadcast broadcastedBroadcast () const {
+        return mBroadcastedBroadcast;
     }
 
 private:
     std::function<void(const BufferType&)> mPostFunc;
 
     Attribute::attribute mBroadcastedAttribute;
+    Attribute::readonlyAttribute mBroadcastedReadonlyAttribute;
+    Broadcast::broadcast mBroadcastedBroadcast;
 };
 
 #endif

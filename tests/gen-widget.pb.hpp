@@ -359,6 +359,11 @@ constexpr uint32_t componentId (MethodResult<barobo::Widget>::unaryWithResult) {
 }
 
 template <>
+constexpr uint32_t componentId (Broadcast<barobo::Widget>::broadcast) {
+    return ComponentId<barobo::Widget>::broadcast;
+}
+
+template <>
 class Subscriptions<barobo::Widget> {
 public:
     using Id = ComponentId<barobo::Widget>;

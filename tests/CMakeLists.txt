@@ -49,6 +49,7 @@ set_source_files_properties(
     set-attribute.cpp
     broadcast-attribute.cpp
     fire-method.cpp
+    broadcast-broadcast.cpp
     gen-widget.pb.cpp
     PROPERTIES
     COMPILE_FLAGS "-std=c++11 -ggdb ${FEATURE_DEFS}")
@@ -80,3 +81,10 @@ target_include_directories(fire-method
     PRIVATE ${Boost_INCLUDE_DIRS})
 target_link_libraries(fire-method rpc)
 add_test(NAME fire-method COMMAND fire-method)
+
+add_executable(broadcast-broadcast broadcast-broadcast.cpp gen-widget.pb.cpp ${WIDGET_PROTO_C_FILE})
+target_include_directories(broadcast-broadcast
+    PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
+    PRIVATE ${Boost_INCLUDE_DIRS})
+target_link_libraries(broadcast-broadcast rpc)
+add_test(NAME broadcast-broadcast COMMAND broadcast-broadcast)
