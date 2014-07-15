@@ -13,13 +13,10 @@ int main () {
 
     ConnectedRpcObject<WidgetService, WidgetProxy> widget;
 
-    auto future1 = widget.proxy().set(Attribute::attribute{14});
-    auto future2 = widget.proxy().get(Attribute::attribute());
-
     try {
-        future1.get(); // void
+        widget.proxy().set(Attribute::attribute{14}).get();
         std::cout << "set(attribute) succeeded\n";
-        auto result = future2.get();
+        auto result = widget.proxy().get(Attribute::attribute()).get();
         assert(14 == result.value);
         std::cout << "get(attribute) returned: " << result.value << '\n';
     }

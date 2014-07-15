@@ -13,12 +13,51 @@ int main () {
 
     ConnectedRpcObject<WidgetService, WidgetProxy> widget;
 
-    auto future = widget.proxy().fire(Method::unaryWithResultOut{3.14});
-
     try {
-        auto result = future.get();
-        assert(result.has_out);
-        std::cout << "unaryWithResultOut returned: " << result.out.value << '\n';
+        {
+            auto result = widget.proxy().fire(Method::nullaryNoResult()).get();
+            assert(!result.has_out && !result.has_error);
+            std::cout << "nullary with no result\n";
+        }
+#if 0
+        {
+            auto result = widget.proxy().fire(Method::nullaryWithResultOut()).get();
+            assert(result.has_out && !result.has_error);
+            std::cout << "nullary with result out: " << result.out.value << '\n';
+        }
+        {
+            auto result = widget.proxy().fire(Method::nullaryWithResultError()).get();
+            assert(!result.has_out && result.has_error);
+            assert(barobo_Widget_nullaryWithResultError_Result_Error_Value_FAILURE == result.error.value);
+            std::cout << "nullary with result error\n";
+        }
+        {
+            auto result = widget.proxy().fire(Method::nullaryWithResult()).get();
+            assert(result.has_out && !result.has_error);
+            std::cout << "nullary with result out/error: " << result.out.value << '\n';
+        }
+#endif
+        {
+            auto result = widget.proxy().fire(Method::unaryNoResult{3.14}).get();
+            assert(result.has_out && !result.has_error);
+            std::cout << "unary with no result\n";
+        }
+        {
+            auto result = widget.proxy().fire(Method::unaryWithResultOut{3.14}).get();
+            assert(result.has_out && !result.has_error);
+            std::cout << "unary with result out: " << result.out.value << '\n';
+        }
+        {
+            auto result = widget.proxy().fire(Method::unaryWithResultError{3.14}).get();
+            assert(!result.has_out && result.has_error);
+            assert(barobo_Widget_unaryWithResultError_Result_Error_Value_FAILURE == result.error.value);
+            std::cout << "unary with result error\n";
+        }
+        {
+            auto result = widget.proxy().fire(Method::unaryWithResult{3.14}).get();
+            assert(result.has_out && !result.has_error);
+            std::cout << "unary with result out/error: " << result.out.value << '\n';
+        }
     }
     catch (const rpc::Error& exc) {
         std::cout << "RPC error: " << exc.what() << '\n';

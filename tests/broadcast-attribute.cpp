@@ -13,29 +13,27 @@ int main () {
 
     ConnectedRpcObject<WidgetService, WidgetProxy> widget;
 
-    auto future = widget.proxy().subscribe(Attribute::attribute());
-
     try {
-        future.get();
-    }
-    catch (const rpc::Error& exc) {
-        std::cout << "RPC error: " << exc.what() << '\n';
-        testResult = FAILED;
-    }
-
-    // Send a broadcast to the proxy
-    widget.service().broadcast(Attribute::attribute{15});
-
-    try {
-        // Wait for the broadcast
+        // It's possible to broadcast without actually setting the value.
+        widget.proxy().subscribe(Attribute::attribute()).get();
+        auto status = widget.service().broadcast(Attribute::attribute{15});
+        if (hasError(status)) { throw rpc::Error { statusToString(status) }; }
         widget.proxy().unsubscribe(Attribute::attribute()).get();
+        assert(15 == widget.proxy().broadcastedAttribute().value);
+
+        // And of course possible to do it the normal way.
+        widget.proxy().subscribe(Attribute::attribute()).get();
+        widget.proxy().set(Attribute::attribute{16}).get();
+        widget.proxy().unsubscribe(Attribute::attribute()).get();
+        assert(16 == widget.proxy().broadcastedAttribute().value);
+
+        // For good measure
+        assert(16 == widget.proxy().get(Attribute::attribute()).get().value);
     }
     catch (const rpc::Error& exc) {
         std::cout << "RPC error: " << exc.what() << '\n';
         testResult = FAILED;
     }
-
-    assert(15 == widget.proxy().broadcastedAttribute().value);
 
     return testResult;
 }

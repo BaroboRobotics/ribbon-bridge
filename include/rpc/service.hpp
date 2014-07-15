@@ -98,14 +98,14 @@ public:
                     }
                     else {
                         reply.status.value = decltype(reply.status.value)(invokeFire(*this, argument.in, request.fire.id, reply.result.payload));
-                        if (reply.result.payload.size) {
+                        if (barobo_rpc_Status_OK != reply.status.value) {
+                            reply.type = barobo_rpc_Reply_Type_STATUS;
+                            reply.has_status = true;
+                        }
+                        else {
                             reply.type = barobo_rpc_Reply_Type_RESULT;
                             reply.has_result = true;
                             reply.result.id = request.fire.id;
-                        }
-                        else {
-                            reply.type = barobo_rpc_Reply_Type_STATUS;
-                            reply.has_status = true;
                         }
                     }
                     break;
