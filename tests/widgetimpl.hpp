@@ -28,17 +28,20 @@ public:
     }
     void onSet (Attribute::attribute args) {
         attribute = args;
+        broadcast(args);
     }
 
     Attribute::readonlyAttribute onGet (Attribute::readonlyAttribute) {
         return readonlyAttribute;
     }
+    // XXX but note setReadonlyAttribute below
 
     Attribute::noSubscriptionsAttribute onGet (Attribute::noSubscriptionsAttribute) {
         return noSubscriptionsAttribute;
     }
     void onSet (Attribute::noSubscriptionsAttribute args) {
         noSubscriptionsAttribute = args;
+        // broadcast not called
     }
 
     Attribute::readonlyNoSubscriptionsAttribute onGet (Attribute::readonlyNoSubscriptionsAttribute) {
@@ -100,6 +103,14 @@ public:
     }
 
 private:
+    /* Certain readonly attributes will need updating by the service itself,
+     * like accelerometer readings. Since readonlyAttribute is subscribable,
+     * any privileged set function must remember to broadcast the update. */
+    void setReadonlyAttribute (Attribute::readonlyAttribute val) {
+        readonlyAttribute = val;
+        broadcast(val);
+    }
+
     Attribute::attribute attribute = { 13 };
     Attribute::readonlyAttribute readonlyAttribute = { 13 };
     Attribute::noSubscriptionsAttribute noSubscriptionsAttribute = { 13 };
