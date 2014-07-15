@@ -1,0 +1,25 @@
+p = an instance of an rpc::AsyncProxy implementing an interface
+s = an instance of an rpc::Server implementing an interface
+m = a method in the interface
+argn = an arbitrary argument value
+
+The expression
+
+    p.fire(Method::m { arg0, arg1, ... })
+
+has return type [see note 1]
+
+    std::future<ResultOf<Method::m>>
+
+and the following semantics:
+
+    The proxy p creates a LEFT OFF HERE
+
+Compile-time contract:
+    Method::m is the method-input-struct for a method.
+
+[1] ResultOf<method-input-struct> resolves to the method-output-struct of the
+    same method. This may be void: set, subscribe, and unsubscribe do not
+    return anything, but the std::future may still be used to observe when the
+    message is acknowledged, and fire on a method marked fireAndForget returns
+    a future that is already ready.
