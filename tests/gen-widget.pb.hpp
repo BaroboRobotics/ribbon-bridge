@@ -7,25 +7,42 @@
 
 #include "widget.pb.h"
 
-#if 0
-#define RPCDEF(interfaceNames, allAttributes, settableAttributes, subscribableAttributes, methods, broadcasts) \
+#define RPCDEF(interfaceNames, version, allAttributes, settableAttributes, subscribableAttributes, methods, broadcasts) \
     RPCDEF_FWD_DECL_INTERFACE(interfaceNames) \
     namespace rpc { \
+    RPCDEF_Version(rpcdef_cat_scope(interfaceNames), version) \
     RPCDEF_FWD_DECL_isComponentFunctions(rpcdef_cat_scope(interfaceNames)) \
+    RPCDEF_Attribute(interfaceNames, allAttributes) \
+    RPCDEF_IsAttribute(rpcdef_cat_scope(interfaceNames), allAttributes) \
+    RPCDEF_IsSettableAttribute(rpcdef_cat_scope(interfaceNames), settableAttributes) \
+    RPCDEF_IsSubscribableAttribute(rpcdef_cat_scope(interfaceNames), subscribableAttributes) \
+    RPCDEF_MethodIn(interfaceNames, methods) \
+    RPCDEF_MethodResult(interfaceNames, methods) \
+    RPCDEF_ResultOf(rpcdef_cat_scope(interfaceNames), methods) \
+    RPCDEF_IsMethod(rpcdef_cat_scope(interfaceNames), methods) \
+    RPCDEF_Broadcast(interfaceNames, broadcasts) \
+    RPCDEF_IsBroadcast(rpcdef_cat_scope(interfaceNames), broadcasts) \
+    RPCDEF_ComponentInUnion(rpcdef_cat_scope(interfaceNames), settableAttributes, methods) \
     }
 
-RPCDEF((barobo, Widget),
+RPCDEF(
+        // the interface we're defining and it's version triplet
+        (barobo, Widget), (0, 0, 0),
+        // all attributes
         (attribute)
         (readonlyAttribute)
         (noSubscriptionsAttribute)
         (readonlyNoSubscriptionsAttribute)
         ,
+        // all settable attributes
         (attribute)
         (noSubscriptionsAttribute)
         ,
+        // all subscribable attributes
         (attribute)
         (readonlyAttribute)
         ,
+        // all methods
         (nullaryNoResult)
         (nullaryWithResultOut)
         (nullaryWithResultError)
@@ -35,104 +52,12 @@ RPCDEF((barobo, Widget),
         (unaryWithResultOut)
         (unaryWithResultError)
         ,
+        // all broadcasts
         (broadcast)
         )
-#endif
-
-RPCDEF_FWD_DECL_INTERFACE((barobo, Widget))
 
 namespace rpc {
-
-RPCDEF_FWD_DECL_isComponentFunctions(barobo::Widget)
-
-//////////////////////////////////////////////////////////////////////////////
-// ATTRIBUTE TRAITS
-
-RPCDEF_Attribute((barobo, Widget),
-        (attribute)
-        (readonlyAttribute)
-        (noSubscriptionsAttribute)
-        (readonlyNoSubscriptionsAttribute)
-        )
-
-RPCDEF_IsAttribute(barobo::Widget,
-        (attribute)
-        (readonlyAttribute)
-        (noSubscriptionsAttribute)
-        (readonlyNoSubscriptionsAttribute)
-        )
-
-RPCDEF_IsSettableAttribute(barobo::Widget,
-        (attribute)
-        (noSubscriptionsAttribute)
-        )
-
-RPCDEF_IsSubscribableAttribute(barobo::Widget,
-        (attribute)
-        (readonlyAttribute)
-        )
-
-//////////////////////////////////////////////////////////////////////////////
-// METHOD TRAITS
-
-RPCDEF_MethodIn((barobo, Widget),
-        (nullaryNoResult)
-        (nullaryWithResultOut)
-        (nullaryWithResultError)
-        (nullaryWithResult)
-        (unaryNoResult)
-        (unaryWithResult)
-        (unaryWithResultOut)
-        (unaryWithResultError)
-        )
-
-RPCDEF_MethodResult((barobo, Widget),
-        (nullaryNoResult)
-        (nullaryWithResultOut)
-        (nullaryWithResultError)
-        (nullaryWithResult)
-        (unaryNoResult)
-        (unaryWithResult)
-        (unaryWithResultOut)
-        (unaryWithResultError)
-        )
-
-RPCDEF_ResultOf(barobo::Widget,
-        (nullaryNoResult)
-        (nullaryWithResultOut)
-        (nullaryWithResultError)
-        (nullaryWithResult)
-        (unaryNoResult)
-        (unaryWithResult)
-        (unaryWithResultOut)
-        (unaryWithResultError)
-        )
-
-RPCDEF_IsMethod(barobo::Widget,
-        (nullaryNoResult)
-        (nullaryWithResultOut)
-        (nullaryWithResultError)
-        (nullaryWithResult)
-        (unaryNoResult)
-        (unaryWithResult)
-        (unaryWithResultOut)
-        (unaryWithResultError)
-        )
-
-//////////////////////////////////////////////////////////////////////////////
-// BROADCAST TRAITS
-
-RPCDEF_Broadcast((barobo, Widget),
-        (broadcast))
-
-RPCDEF_IsBroadcast(barobo::Widget,
-        (broadcast))
-
-//////////////////////////////////////////////////////////////////////////////
-// INTERFACE TRAITS
-
-RPCDEF_Version((barobo, Widget), 0, 0, 0)
-
+#if 0
 // Settable attributes and methods
 RPCDEF_ComponentInUnion(barobo::Widget,
         (attribute)
@@ -147,6 +72,7 @@ RPCDEF_ComponentInUnion(barobo::Widget,
         (unaryWithResultOut)
         (unaryWithResultError)
         )
+#endif
 
 // All components
 RPCDEF_ComponentResultUnion(barobo::Widget,

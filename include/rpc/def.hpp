@@ -12,6 +12,7 @@
 #include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/seq/reverse.hpp>
 #include <boost/preprocessor/seq/transform.hpp>
+#include <boost/preprocessor/tuple/elem.hpp>
 #include <boost/preprocessor/tuple/to_seq.hpp>
 
 //////////////////////////////////////////////////////////////////////////////
@@ -179,13 +180,12 @@
 
 #define rpcdef_cat_scope(atoms) rpcdef_cat_scope_seq(BOOST_PP_TUPLE_TO_SEQ(atoms))
 
-// XXX This macro must be invoked at global namespace scope!
-#define RPCDEF_Version(interfaceNames, maj, min, pat) \
+#define RPCDEF_Version(interface, version) \
     template <> \
-    struct Version<rpcdef_cat_scope(interfaceNames)> { \
-        constexpr static const uint32_t major = maj; \
-        constexpr static const uint32_t minor = min; \
-        constexpr static const uint32_t patch = pat; \
+    struct Version<interface> { \
+        constexpr static const uint32_t major = BOOST_PP_TUPLE_ELEM(0, version); \
+        constexpr static const uint32_t minor = BOOST_PP_TUPLE_ELEM(1, version); \
+        constexpr static const uint32_t patch = BOOST_PP_TUPLE_ELEM(2, version); \
     };
 
 #define RPCDEF_FWD_DECL_isComponentFunctions(interface) \
@@ -205,6 +205,8 @@
         struct BOOST_PP_SEQ_HEAD(rnames);, BOOST_PP_SEQ_TAIL(rnames))
 
 #define rpcdef_fwd_decl_struct_seq(names) rpcdef_fwd_decl_struct_seq_rev(BOOST_PP_SEQ_REVERSE(names))
+
+// XXX This macro must be invoked at global namespace scope!
 #define RPCDEF_FWD_DECL_INTERFACE(names) rpcdef_fwd_decl_struct_seq(BOOST_PP_TUPLE_TO_SEQ(names))
 
 //////////////////////////////////////////////////////////////////////////////
