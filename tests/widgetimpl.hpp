@@ -4,10 +4,10 @@
 #include "rpc/service.hpp"
 #include "rpc/asyncproxy.hpp"
 
-/* Implementation of the barobo::Widget interface. */
-
 /* You first need to include the generated interface code. */
 #include "gen-widget.pb.hpp"
+
+/* Implementation of the barobo::Widget interface. */
 
 class WidgetService : public rpc::Service<WidgetService, barobo::Widget> {
 public:

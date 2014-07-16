@@ -341,22 +341,6 @@ template <>
 constexpr uint32_t componentId (MethodIn<barobo::Widget>::unaryWithResult) {
     return ComponentId<barobo::Widget>::unaryWithResult;
 }
-template <>
-constexpr uint32_t componentId (MethodResult<barobo::Widget>::unaryNoResult) {
-    return ComponentId<barobo::Widget>::unaryNoResult;
-}
-template <>
-constexpr uint32_t componentId (MethodResult<barobo::Widget>::unaryWithResultOut) {
-    return ComponentId<barobo::Widget>::unaryWithResultOut;
-}
-template <>
-constexpr uint32_t componentId (MethodResult<barobo::Widget>::unaryWithResultError) {
-    return ComponentId<barobo::Widget>::unaryWithResultError;
-}
-template <>
-constexpr uint32_t componentId (MethodResult<barobo::Widget>::unaryWithResult) {
-    return ComponentId<barobo::Widget>::unaryWithResult;
-}
 
 template <>
 constexpr uint32_t componentId (Broadcast<barobo::Widget>::broadcast) {

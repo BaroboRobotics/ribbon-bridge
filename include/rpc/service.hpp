@@ -30,12 +30,12 @@ public:
 
     template <class C>
     Status broadcast (C args, ONLY_IF(IsSubscribableAttribute<C>::value || IsBroadcast<C>::value)) {
-        if (mSubscriptions.isActive(componentId(args))) {
+        if (mSubscriptions.isActive(componentId(C()))) {
             BufferType buffer;
             buffer.size = sizeof(buffer.bytes);
             auto status = makeBroadcast(
                     buffer.bytes, buffer.size,
-                    componentId(args),
+                    componentId(C()),
                     pbFields(args),
                     &args);
             if (hasError(status)) {

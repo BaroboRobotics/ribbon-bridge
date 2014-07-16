@@ -17,14 +17,14 @@ public:
     using BufferType = Buffer<256>;
 
     template <class Attribute>
-    Future<Attribute> get (Attribute args, ONLY_IF(IsAttribute<Attribute>::value)) {
+    Future<Attribute> get (Attribute, ONLY_IF(IsAttribute<Attribute>::value)) {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
         auto requestId = nextRequestId();
         auto status = makeGet(
                 buffer.bytes, buffer.size,
                 requestId,
-                componentId(args));
+                componentId(Attribute()));
         if (hasError(status)) {
             return static_cast<T*>(this)->template finalize<Attribute>(requestId, status);
         }
@@ -39,7 +39,7 @@ public:
         auto status = makeSet(
                 buffer.bytes, buffer.size,
                 requestId,
-                componentId(args),
+                componentId(Attribute()),
                 pbFields(args),
                 &args);
         if (hasError(status)) {
@@ -62,7 +62,7 @@ public:
         auto status = makeFire(
                 buffer.bytes, buffer.size,
                 requestId,
-                componentId(args),
+                componentId(MethodIn()),
                 pbFields(args),
                 &args);
         if (hasError(status)) {
