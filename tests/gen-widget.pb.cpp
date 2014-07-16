@@ -3,31 +3,6 @@
 #include "rpc/message.hpp"
 #include "rpc/def.hpp"
 
-// .hpp
-// XXX Attribute: all attributes
-// XXX IsAttribute: all attributes
-// XXX IsSettableAttribute: all settable attributes
-// XXX IsSubscribableAttribute: all subscribable attributes
-// XXX MethodIn: all methods
-// XXX MethodResult: all methods
-// XXX ResultOf: all methods
-// XXX IsMethod: all methods
-// XXX Broadcast: all broadcasts
-// XXX IsBroadcast: all broadcasts
-// XXX Version: major, minor, patch
-// XXX ComponentInUnion: all non-readonly attributes, all methods
-// XXX ComponentResultUnion: all attributes, all methods, all broadcasts
-// XXX PromiseVariadic: all attributes, all methods
-// XXX ComponentId: all components
-// XXX componentId: all components
-// XXX Subscriptions: all subscribable attributes, all broadcasts
-// XXX GetInvoker: all attributes
-// XXX SetInvoker: all settable attributes
-// XXX FireInvoker: all methods
-// XXX BroadcastInvoker: all subscribable attributes, all broadcasts
-// XXX FulfillInvoker: all attributes, all methods
-
-
 namespace rpc {
 
 // all attributes
@@ -119,6 +94,12 @@ RPCDEF_decodeResultPayload(barobo::Widget,
         (unaryWithResult)
         (unaryWithResultOut)
         (unaryWithResultError)
+        )
+
+RPCDEF_getSubscriptionRecord(barobo::Widget,
+        (attribute)
+        (readonlyAttribute)
+        (broadcast)
         )
 
 } // namespace rpc

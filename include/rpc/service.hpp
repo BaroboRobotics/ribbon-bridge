@@ -3,6 +3,7 @@
 
 #include "rpc.pb.h"
 
+#include "rpc/stdlibheaders.hpp"
 #include "rpc/enableif.hpp"
 #include "rpc/componenttraits.hpp"
 #include "rpc/buffer.hpp"
@@ -30,7 +31,8 @@ public:
 
     template <class C>
     Status broadcast (C args, ONLY_IF(IsSubscribableAttribute<C>::value || IsBroadcast<C>::value)) {
-        if (mSubscriptions.isActive(componentId(C()))) {
+        if (subscriptionIsActive(mSubscriptions, componentId(C()))) {
+            //mSubscriptions.isActive(componentId(C()))) {
             BufferType buffer;
             buffer.size = sizeof(buffer.bytes);
             auto status = makeBroadcast(
@@ -112,15 +114,18 @@ public:
                 case barobo_rpc_Request_Type_SUBSCRIBE:
                     reply.type = barobo_rpc_Reply_Type_STATUS;
                     reply.has_status = true;
-                    reply.status.value = decltype(reply.status.value)(mSubscriptions.activate(request.subscribe.id));
+                    reply.status.value = decltype(reply.status.value)(activateSubscription(mSubscriptions, request.subscribe.id));
+                    //mSubscriptions.activate(request.subscribe.id));
                     break;
                 case barobo_rpc_Request_Type_UNSUBSCRIBE:
                     reply.type = barobo_rpc_Reply_Type_STATUS;
                     reply.has_status = true;
-                    reply.status.value = decltype(reply.status.value)(mSubscriptions.deactivate(request.unsubscribe.id));
+                    reply.status.value = decltype(reply.status.value)(deactivateSubscription(mSubscriptions, request.unsubscribe.id));
+                    //mSubscriptions.deactivate(request.unsubscribe.id));
                     break;
                 case barobo_rpc_Request_Type_RESET:
-                    mSubscriptions.reset();
+                    // Reset the subscriptions to false.
+                    mSubscriptions = decltype(mSubscriptions)();
                     reply.type = barobo_rpc_Reply_Type_VERSION;
                     reply.has_version = true;
                     reply.version.rpc.major = RPC_VERSION_MAJOR;

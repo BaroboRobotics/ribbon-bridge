@@ -19,7 +19,7 @@ Status encodeProtobuf (const void* pbStruct, const pb_field_t* pbFields, uint8_t
 Status decodeProtobuf (void* pbStruct, const pb_field_t* pbFields, uint8_t* bytes, size_t size);
 
 template <class T>
-Status encode (T& message, uint8_t* bytes, size_t size, size_t& bytesWritten) {
+Status encode (const T& message, uint8_t* bytes, size_t size, size_t& bytesWritten) {
     return encodeProtobuf(&message, pbFields(message), bytes, size, bytesWritten);
 }
 

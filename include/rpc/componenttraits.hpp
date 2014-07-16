@@ -73,7 +73,51 @@ template <class Interface, template <class...> class F>
 struct PromiseVariadic;
 
 template <class Interface>
-class Subscriptions;
+struct Subscriptions;
+
+template <class Interface>
+bool& getSubscriptionRecord (Subscriptions<Interface>& subs, uint32_t id, bool& dummy, Status& status);
+
+template <class Interface>
+bool subscriptionIsActive (Subscriptions<Interface>& subs, uint32_t id) {
+    Status status;
+    bool dummy;
+    bool& record = getSubscriptionRecord(subs, id, dummy, status);
+    if (hasError(status)) {
+        assert(&dummy == &record);
+        return false;
+    }
+    return record;
+}
+
+template <class Interface>
+Status activateSubscription (Subscriptions<Interface>& subs, uint32_t id) {
+    Status status;
+    bool dummy;
+    bool& record = getSubscriptionRecord(subs, id, dummy, status);
+    if (!hasError(status)) {
+        record = true;
+    }
+    else {
+        assert(&dummy == &record);
+    }
+    return status;
+}
+
+template <class Interface>
+Status deactivateSubscription (Subscriptions<Interface>& subs, uint32_t id) {
+    Status status;
+    bool dummy;
+    bool& record = getSubscriptionRecord(subs, id, dummy, status);
+    if (!hasError(status)) {
+        record = false;
+    }
+    else {
+        assert(&dummy == &record);
+    }
+    return status;
+}
+
 
 // Access the component IDs of an interface by name.
 template <class Interface>
