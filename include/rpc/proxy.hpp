@@ -10,32 +10,37 @@
 
 namespace rpc {
 
-template <class T, class Interface, template <class> class Future>
+template <class T, class Interface, template <class> class RequestManager>
 class Proxy {
     /* TODO: static_assert that T implements Is.... */
 public:
     using BufferType = Buffer<256>;
 
+    template <class U>
+    using Future = typename RequestManager<Interface>::template Future<U>;
+
     template <class Attribute>
     Future<Attribute> get (Attribute, ONLY_IF(IsAttribute<Attribute>::value)) {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
-        auto requestId = nextRequestId();
+        auto requestId = mRequestManager.nextRequestId();
         auto status = makeGet(
                 buffer.bytes, buffer.size,
                 requestId,
                 componentId(Attribute()));
         if (hasError(status)) {
-            return static_cast<T*>(this)->template finalize<Attribute>(requestId, status);
+            return mRequestManager.template finalize<Attribute>(requestId, status);
         }
-        return static_cast<T*>(this)->template finalize<Attribute>(requestId, buffer);
+        auto future = mRequestManager.template finalize<Attribute>(requestId);
+        static_cast<T*>(this)->post(buffer);
+        return future;
     }
 
     template <class Attribute>
     Future<void> set (Attribute args, ONLY_IF(IsSettableAttribute<Attribute>::value)) {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
-        auto requestId = nextRequestId();
+        auto requestId = mRequestManager.nextRequestId();
         auto status = makeSet(
                 buffer.bytes, buffer.size,
                 requestId,
@@ -43,9 +48,11 @@ public:
                 pbFields(args),
                 &args);
         if (hasError(status)) {
-            return static_cast<T*>(this)->template finalize<void>(requestId, status);
+            return mRequestManager.template finalize<void>(requestId, status);
         }
-        return static_cast<T*>(this)->template finalize<void>(requestId, buffer);
+        auto future = mRequestManager.template finalize<void>(requestId);
+        static_cast<T*>(this)->post(buffer);
+        return future;
     }
 
     template <class C>
@@ -58,7 +65,7 @@ public:
         using Result = typename ResultOf<MethodIn>::type;
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
-        auto requestId = nextRequestId();
+        auto requestId = mRequestManager.template nextRequestId();
         auto status = makeFire(
                 buffer.bytes, buffer.size,
                 requestId,
@@ -66,39 +73,49 @@ public:
                 pbFields(args),
                 &args);
         if (hasError(status)) {
-            return static_cast<T*>(this)->template finalize<Result>(requestId, status);
+            return mRequestManager.template finalize<Result>(requestId, status);
         }
-        return static_cast<T*>(this)->template finalize<Result>(requestId, buffer);
+
+        /* We must call finalize() before post(). If the opposite order were
+         * used, we could potentially end up with an encoded message on the wire
+         * with no promise or future generated for it yet. */
+        auto future = mRequestManager.template finalize<Result>(requestId);
+        static_cast<T*>(this)->post(buffer);
+        return future;
     }
 
     template <class C>
     Future<void> subscribe (C, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
-        auto requestId = nextRequestId();
+        auto requestId = mRequestManager.nextRequestId();
         auto status = makeSubscribe(
                     buffer.bytes, buffer.size,
                     requestId,
                     componentId(C()));
         if (hasError(status)) {
-            return static_cast<T*>(this)->template finalize<void>(requestId, status);
+            return mRequestManager.template finalize<void>(requestId, status);
         }
-        return static_cast<T*>(this)->template finalize<void>(requestId, buffer);
+        auto future = mRequestManager.template finalize<void>(requestId);
+        static_cast<T*>(this)->post(buffer);
+        return future;
     }
 
     template <class C>
     Future<void> unsubscribe (C, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
-        auto requestId = nextRequestId();
+        auto requestId = mRequestManager.template nextRequestId();
         auto status = makeUnsubscribe(
                     buffer.bytes, buffer.size,
                     requestId,
                     componentId(C()));
         if (hasError(status)) {
-            return static_cast<T*>(this)->template finalize<void>(requestId, status);
+            return mRequestManager.template finalize<void>(requestId, status);
         }
-        return static_cast<T*>(this)->template finalize<void>(requestId, buffer);
+        auto future = mRequestManager.template finalize<void>(requestId);
+        static_cast<T*>(this)->post(buffer);
+        return future;
     }
 
     Status deliver (BufferType buffer) {
@@ -116,14 +133,14 @@ public:
                 if (!reply.has_status) {
                     return Status::INCONSISTENT_REPLY;
                 }
-                return static_cast<T*>(this)->template fulfill(reply.inReplyTo, static_cast<Status>(reply.status.value));
+                return mRequestManager.fulfill(reply.inReplyTo, static_cast<Status>(reply.status.value));
             case barobo_rpc_Reply_Type_RESULT:
                 if (!reply.has_result) {
                     return Status::INCONSISTENT_REPLY;
                 }
                 err = decodeResultPayload(argument, reply.result.id, reply.result.payload);
                 if (!hasError(err)) {
-                    err = invokeFulfill(*this, argument, reply.result.id, reply.inReplyTo);
+                    err = invokeFulfill(mRequestManager, argument, reply.result.id, reply.inReplyTo);
                 }
                 return err;
             case barobo_rpc_Reply_Type_VERSION:
@@ -150,18 +167,8 @@ public:
         return Status::OK;
     }
 
-    template <class C>
-    Status fulfill (uint32_t requestId, C& result) {
-        return static_cast<T*>(this)->fulfill(requestId, result);
-    }
-
 private:
-    /* not thread safe */
-    uint32_t nextRequestId () {
-        return mNextRequestId++;
-    }
-
-    uint32_t mNextRequestId = 0;
+    RequestManager<Interface> mRequestManager;
 };
 
 } // namespace rpc
