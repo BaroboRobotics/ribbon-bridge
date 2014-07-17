@@ -20,8 +20,8 @@
 
 namespace rpc {
 
-template <class T, class Interface>
-class AsyncProxy : public Proxy<AsyncProxy<T, Interface>, Interface, std::future> {
+template <class Interface>
+class AsyncRequestManager {
     template <class... Ts>
     using MakePromiseVariant = boost::variant<std::promise<Ts>...>;
 
@@ -43,12 +43,8 @@ class AsyncProxy : public Proxy<AsyncProxy<T, Interface>, Interface, std::future
     };
 
 public:
-    using BufferType = typename rpc::Proxy<AsyncProxy<T, Interface>, Interface, std::future>::BufferType;
-
-    template <class C>
-    void onBroadcast (C args, ONLY_IF(IsSubscribableAttribute<C>::value || IsBroadcast<C>::value)) {
-        static_cast<T*>(this)->onBroadcast(args);
-    }
+    template <class T>
+    using Future = std::future<T>;
 
     Status fulfill (uint32_t requestId, Status status) {
         std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
@@ -111,7 +107,7 @@ public:
     }
 
     template <class C>
-    std::future<C> finalize (uint32_t requestId, Status status) {
+    Future<C> finalize (uint32_t requestId, Status status) {
         // If we ever decide to do anything with mPromises here, remember to
         // lock it with a std::lock_guard.
         printf("requestId %" PRId32 " wasted on %s\n", requestId, statusToString(status));
@@ -120,7 +116,7 @@ public:
     }
 
     template <class C>
-    std::future<C> finalize (uint32_t requestId, const BufferType& buffer) {
+    Future<C> finalize (uint32_t requestId) {
         std::promise<C>* promisePtr;
         {
             std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
@@ -141,14 +137,11 @@ public:
             assert(promisePtr);
         }
 
-        /* We must call get_future() before post(). If we call post first,
-         * there is a chance that the implementor might run with the buffer,
-         * deliver it to the service, deliver the response back to us, fulfill
-         * the promise, erasing it, and thus invalidating our promise pointer,
-         * all before we get its future. */
-        auto future = promisePtr->get_future();
-        static_cast<T*>(this)->post(buffer);
-        return future;
+        return promisePtr->get_future();
+    }
+
+    uint32_t nextRequestId () {
+        return mNextRequestId++;
     }
 
 private:
@@ -165,7 +158,12 @@ private:
                 std::forward_as_tuple(requestId),
                 std::forward_as_tuple(std::promise<C>()));
     }
+
+    std::atomic<uint32_t> mNextRequestId = { 0 };
 };
+
+template <class T, class Interface>
+using AsyncProxy = Proxy<T, Interface, AsyncRequestManager>;
 
 } // namespace rpc
 
