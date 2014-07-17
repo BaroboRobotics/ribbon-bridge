@@ -1,6 +1,7 @@
 #ifndef RPC_COMPONENTTRAITS_HPP
 #define RPC_COMPONENTTRAITS_HPP
 
+#include "rpc/stdlibheaders.hpp"
 #include "rpc/status.hpp"
 
 namespace rpc {

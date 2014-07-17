@@ -4,6 +4,7 @@
 #include "rpc/checkversion.hpp"
 #include "rpc/componenttraits.hpp"
 #include "rpc/hash.hpp"
+#include "rpc/message.hpp"
 
 #include <boost/preprocessor/cat.hpp>
 #include <boost/preprocessor/stringize.hpp>
@@ -560,5 +561,51 @@
             } \
         } \
     };
+
+//////////////////////////////////////////////////////////////////////////////
+// Complete header and cpp file defines
+
+#define RPCDEF_CPP(interfaceNames, allAttributes, settableAttributes, subscribableAttributes, methods, broadcasts) \
+    namespace rpc { \
+    RPCDEF_pbFields_attributes(rpcdef_underscored_token(interfaceNames), allAttributes) \
+    RPCDEF_pbFields_methods(rpcdef_underscored_token(interfaceNames), methods) \
+    RPCDEF_pbFields_broadcasts(rpcdef_underscored_token(interfaceNames), broadcasts) \
+    RPCDEF_isAttribute(rpcdef_cat_scope(interfaceNames), allAttributes) \
+    RPCDEF_isMethod(rpcdef_cat_scope(interfaceNames), methods) \
+    RPCDEF_isBroadcast(rpcdef_cat_scope(interfaceNames), broadcasts) \
+    RPCDEF_decodeSetPayload(rpcdef_cat_scope(interfaceNames), settableAttributes) \
+    RPCDEF_decodeFirePayload(rpcdef_cat_scope(interfaceNames), methods) \
+    RPCDEF_decodeBroadcastPayload(rpcdef_cat_scope(interfaceNames), subscribableAttributes broadcasts) \
+    RPCDEF_decodeResultPayload(rpcdef_cat_scope(interfaceNames), allAttributes methods) \
+    RPCDEF_getSubscriptionRecord(rpcdef_cat_scope(interfaceNames), subscribableAttributes broadcasts) \
+    }
+
+#define RPCDEF_HPP(interfaceNames, version, allAttributes, settableAttributes, subscribableAttributes, methods, broadcasts) \
+    RPCDEF_FWD_DECL_INTERFACE(interfaceNames) \
+    namespace rpc { \
+    RPCDEF_Version(rpcdef_cat_scope(interfaceNames), version) \
+    RPCDEF_FWD_DECL_isComponentFunctions(rpcdef_cat_scope(interfaceNames)) \
+    RPCDEF_Attribute(interfaceNames, allAttributes) \
+    RPCDEF_IsAttribute(rpcdef_cat_scope(interfaceNames), allAttributes) \
+    RPCDEF_IsSettableAttribute(rpcdef_cat_scope(interfaceNames), settableAttributes) \
+    RPCDEF_IsSubscribableAttribute(rpcdef_cat_scope(interfaceNames), subscribableAttributes) \
+    RPCDEF_MethodIn(interfaceNames, methods) \
+    RPCDEF_MethodResult(interfaceNames, methods) \
+    RPCDEF_ResultOf(rpcdef_cat_scope(interfaceNames), methods) \
+    RPCDEF_IsMethod(rpcdef_cat_scope(interfaceNames), methods) \
+    RPCDEF_Broadcast(interfaceNames, broadcasts) \
+    RPCDEF_IsBroadcast(rpcdef_cat_scope(interfaceNames), broadcasts) \
+    RPCDEF_ComponentInUnion(rpcdef_cat_scope(interfaceNames), settableAttributes, methods) \
+    RPCDEF_ComponentResultUnion(rpcdef_cat_scope(interfaceNames), allAttributes, methods, broadcasts) \
+    RPCDEF_PromiseVariadic(rpcdef_cat_scope(interfaceNames), allAttributes, methods) \
+    RPCDEF_ComponentId(rpcdef_cat_scope(interfaceNames), allAttributes methods broadcasts) \
+    RPCDEF_componentId(rpcdef_cat_scope(interfaceNames), allAttributes, methods, broadcasts) \
+    RPCDEF_Subscriptions(rpcdef_cat_scope(interfaceNames), subscribableAttributes broadcasts) \
+    RPCDEF_GetInvoker(rpcdef_cat_scope(interfaceNames), allAttributes) \
+    RPCDEF_SetInvoker(rpcdef_cat_scope(interfaceNames), settableAttributes) \
+    RPCDEF_FireInvoker(rpcdef_cat_scope(interfaceNames), methods) \
+    RPCDEF_BroadcastInvoker(rpcdef_cat_scope(interfaceNames), subscribableAttributes broadcasts) \
+    RPCDEF_FulfillInvoker(rpcdef_cat_scope(interfaceNames), allAttributes methods) \
+    }
 
 #endif
