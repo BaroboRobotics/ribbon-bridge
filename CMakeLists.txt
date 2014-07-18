@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 project(rpc)
 
 set(AVR OFF)
-if(CMAKE_SYSTEM_NAME STREQUAL "AVR")
+if(CMAKE_SYSTEM_NAME MATCHES "AVR")
     set(AVR ON)
 endif()
 
@@ -67,5 +67,7 @@ target_include_directories(rpc
 
 ##############################################################################
 
-enable_testing()
-add_subdirectory(tests)
+if(NOT AVR)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
