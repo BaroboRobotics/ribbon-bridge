@@ -3,6 +3,7 @@
 
 #include "rpc/stdlibheaders.hpp"
 #include "rpc/status.hpp"
+#include "rpc/hasmember.hpp"
 
 namespace rpc {
 
@@ -203,6 +204,17 @@ template <class Interface>
 Status decodeResultPayload (ComponentResultUnion<Interface>& args,
         uint32_t componentId,
         barobo_rpc_Reply_Result_payload_t& payload);
+
+RPC_DEFINE_TRAIT_HAS_MEMBER_FUNCTION_OVERLOAD(onGet)
+RPC_DEFINE_TRAIT_HAS_MEMBER_FUNCTION_OVERLOAD(onSet)
+RPC_DEFINE_TRAIT_HAS_MEMBER_FUNCTION_OVERLOAD(onFire)
+RPC_DEFINE_TRAIT_HAS_MEMBER_FUNCTION_OVERLOAD(onBroadcast)
+
+template <class T, class Interface>
+struct AssertServiceImplementsInterface;
+
+template <class T, class Interface>
+struct AssertProxyImplementsInterface;
 
 } // namespace rpc
 
