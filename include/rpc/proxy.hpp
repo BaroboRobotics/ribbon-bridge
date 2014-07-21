@@ -12,9 +12,10 @@ namespace rpc {
 
 template <class T, class Interface, template <class> class RequestManager>
 class Proxy {
-    /* TODO: static_assert that T implements Is.... */
 public:
     using BufferType = Buffer<256>;
+
+    Proxy () { (void)AssertProxyImplementsInterface<T, Interface>(); }
 
     template <class U>
     using Future = typename RequestManager<Interface>::template Future<U>;
