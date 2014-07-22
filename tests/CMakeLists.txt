@@ -22,27 +22,7 @@ find_package(Boost 1.54.0 REQUIRED COMPONENTS )
 
 ##############################################################################
 
-set(WIDGET_PROTO_SOURCES widget.proto)
-set(WIDGET_PROTO_C_FILE widget.pb.c)
-set(WIDGET_PROTO_H_FILE widget.pb.h)
-
-# The --nanopb_out parameter serves double duty in protoc:
-#   --nanopb_out=[generator-parameter:]output-directory
-# In this case I'm using the optional generator-parameter part of it to pass
-# '-x rpc-options.proto' to the nanopb generator, which suppresses a
-#   #include "rpc-options.pb.h"
-# from being generated in output files which import rpc-options.proto.
-# rpc-options.proto is never itself compiled, so no such header file will ever
-# exist. Is this flag documented somewhere in nanopb? Of course not.
-add_custom_command(OUTPUT ${WIDGET_PROTO_C_FILE} ${WIDGET_PROTO_H_FILE}
-    COMMAND ${PROTOC} -I. -I${PROJECT_SOURCE_DIR}/deps/${NANOPB_BASENAME}/generator/proto
-        --nanopb_out=-x\ rpc-options.proto:${CMAKE_CURRENT_BINARY_DIR} ${WIDGET_PROTO_SOURCES}
-    MAIN_DEPENDENCY ${PROTO_SOURCE_DIR}/${WIDGET_PROTO_SOURCES}
-    WORKING_DIRECTORY ${PROTO_SOURCE_DIR}
-    COMMENT "Generating test Widget protocol buffers ..."
-    VERBATIM)
-
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pthread")
+rpc_compile_proto(WIDGET_PROTO_C_FILE WIDGET_PROTO_H_FILE proto/widget.proto)
 
 set_source_files_properties(
     get-attribute.cpp
@@ -88,3 +68,11 @@ target_include_directories(broadcast-broadcast
     PRIVATE ${Boost_INCLUDE_DIRS})
 target_link_libraries(broadcast-broadcast rpc)
 add_test(NAME broadcast-broadcast COMMAND broadcast-broadcast)
+
+set_target_properties(
+    get-attribute
+    set-attribute
+    broadcast-attribute
+    fire-method
+    broadcast-broadcast
+    PROPERTIES LINK_FLAGS "-pthread")

@@ -27,22 +27,40 @@ endif()
 # Set up nanopb
 
 set(NANOPB_BASENAME nanopb-0.2.8-linux-x86)
-set(PROTOC "${PROJECT_SOURCE_DIR}/deps/${NANOPB_BASENAME}/generator-bin/protoc")
 
-set(PROTO_SOURCE_DIR ${PROJECT_SOURCE_DIR}/proto)
+set(PROTOC_INCLUDE_DIR
+    "${PROJECT_SOURCE_DIR}/deps/${NANOPB_BASENAME}/generator/proto"
+    CACHE PATH "protocol buffer compiler's include directory")
+set(PROTOC_EXECUTABLE
+    "${PROJECT_SOURCE_DIR}/deps/${NANOPB_BASENAME}/generator-bin/protoc"
+    CACHE FILEPATH "protocol buffer compiler")
 
-set(RPC_PROTO_SOURCES rpc.proto)
-set(RPC_PROTO_C_FILE rpc.pb.c)
-set(RPC_PROTO_H_FILE rpc.pb.h)
+#rpc_compile_proto(ROBOT_PB_C ROBOT_PB_H proto/robot.proto)
+function(rpc_compile_proto cOutputVar hOutputVar inputProto)
+    # Get the input .proto file's name, stripped of the last extension. Note:
+    # using get_filename_component(... NAME_WE) instead of the funky regex
+    # business would incorrectly strip all extensions. protoc only strips the
+    # last, and we want to mimic its behavior.
+    get_filename_component(_name ${inputProto} NAME)
+    string(REGEX REPLACE "^(.+)(\\.[^.]+)$" "\\1" _basename ${_name})
+    set(cOutput ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.pb.c)
+    set(hOutput ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.pb.h)
 
-add_custom_command(OUTPUT ${RPC_PROTO_C_FILE} ${RPC_PROTO_H_FILE}
-    COMMAND ${PROTOC} -I. -I${PROJECT_SOURCE_DIR}/deps/${NANOPB_BASENAME}/generator/proto
-        --nanopb_out=${CMAKE_CURRENT_BINARY_DIR} ${RPC_PROTO_SOURCES}
-    MAIN_DEPENDENCY "${PROTO_SOURCE_DIR}/${RPC_PROTO_SOURCES}"
-    DEPENDS "${PROTO_SOURCE_DIR}/rpc-options.proto"
-    WORKING_DIRECTORY ${PROTO_SOURCE_DIR}
-    COMMENT "Generating RPC protocol buffers ..."
-    VERBATIM)
+    set(${cOutputVar} ${cOutput} PARENT_SCOPE)
+    set(${hOutputVar} ${hOutput} PARENT_SCOPE)
+
+    get_filename_component(_dir ${inputProto} DIRECTORY)
+    add_custom_command(OUTPUT ${cOutput} ${hOutput}
+        COMMAND ${PROTOC_EXECUTABLE} -I${_dir} -I${PROTOC_INCLUDE_DIR}
+            --nanopb_out=${CMAKE_CURRENT_BINARY_DIR} ${inputProto}
+        MAIN_DEPENDENCY ${inputProto}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMENT "Generating ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.pb.{c,h} from ${inputProto}"
+        VERBATIM)
+endfunction()
+
+# Eat own dog food.
+rpc_compile_proto(RPC_PROTO_C_FILE RPC_PROTO_H_FILE proto/rpc.proto)
 
 ##############################################################################
 
