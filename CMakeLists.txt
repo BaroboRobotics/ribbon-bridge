@@ -31,31 +31,41 @@ set(NANOPB_BASENAME nanopb-0.2.8-linux-x86)
 set(PROTOC_INCLUDE_DIR
     "${PROJECT_SOURCE_DIR}/deps/${NANOPB_BASENAME}/generator/proto"
     CACHE PATH "protocol buffer compiler's include directory")
+
 set(PROTOC_EXECUTABLE
     "${PROJECT_SOURCE_DIR}/deps/${NANOPB_BASENAME}/generator-bin/protoc"
     CACHE FILEPATH "protocol buffer compiler")
 
-#rpc_compile_proto(ROBOT_PB_C ROBOT_PB_H proto/robot.proto)
-function(rpc_compile_proto cOutputVar hOutputVar inputProto)
+# rpc_compile_proto(<c-filepath-result-var>
+#                   <h-filepath-result-var>
+#                   <proto-filepath>)
+#
+# Compile a .proto file to a .c and a .h using nanopb's protocol buffer
+# compiler. Set <c-filepath-result-var> and <h-filepath-result-var> to the
+# absolute paths of the generated .c and .h files, respectively.
+# <proto-filepath> is the input file; its path will be interpreted relative to
+# the current source directory, if it is not absolute. <c-filepath-result-var>
+# and <h-filepath-result-var> 
+function(rpc_compile_proto cFilepathResultVar hFilepathResultVar protoFilepath)
     # Get the input .proto file's name, stripped of the last extension. Note:
     # using get_filename_component(... NAME_WE) instead of the funky regex
     # business would incorrectly strip all extensions. protoc only strips the
     # last, and we want to mimic its behavior.
-    get_filename_component(_name ${inputProto} NAME)
+    get_filename_component(_name ${protoFilepath} NAME)
     string(REGEX REPLACE "^(.+)(\\.[^.]+)$" "\\1" _basename ${_name})
     set(cOutput ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.pb.c)
     set(hOutput ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.pb.h)
 
-    set(${cOutputVar} ${cOutput} PARENT_SCOPE)
-    set(${hOutputVar} ${hOutput} PARENT_SCOPE)
+    set(${cFilepathResultVar} ${cOutput} PARENT_SCOPE)
+    set(${hFilepathResultVar} ${hOutput} PARENT_SCOPE)
 
-    get_filename_component(_dir ${inputProto} DIRECTORY)
+    get_filename_component(_dir ${protoFilepath} DIRECTORY)
     add_custom_command(OUTPUT ${cOutput} ${hOutput}
         COMMAND ${PROTOC_EXECUTABLE} -I${_dir} -I${PROTOC_INCLUDE_DIR}
-            --nanopb_out=${CMAKE_CURRENT_BINARY_DIR} ${inputProto}
-        MAIN_DEPENDENCY ${inputProto}
+            --nanopb_out=${CMAKE_CURRENT_BINARY_DIR} ${protoFilepath}
+        MAIN_DEPENDENCY ${protoFilepath}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        COMMENT "Generating ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.pb.{c,h} from ${inputProto}"
+        COMMENT "Generating ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.pb.{c,h} from ${protoFilepath}"
         VERBATIM)
 endfunction()
 
