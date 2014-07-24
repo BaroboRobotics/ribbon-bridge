@@ -27,13 +27,20 @@ endif()
 # Set up nanopb
 
 set(NANOPB_BASENAME nanopb-0.2.8-linux-x86)
+if(NOT DEFINED NANOPB_ROOT)
+    if(DEFINED ENV{NANOPB_ROOT})
+        set(NANOPB_ROOT "$ENV{NANOPB_ROOT}")
+    else()
+        message(FATAL_ERROR "NANOPB_ROOT must be set")
+    endif()
+endif()
 
 set(PROTOC_INCLUDE_DIR
-    "${PROJECT_SOURCE_DIR}/deps/${NANOPB_BASENAME}/generator/proto"
+    "${NANOPB_ROOT}/generator/proto"
     CACHE PATH "protocol buffer compiler's include directory")
 
 set(PROTOC_EXECUTABLE
-    "${PROJECT_SOURCE_DIR}/deps/${NANOPB_BASENAME}/generator-bin/protoc"
+    "${NANOPB_ROOT}/generator-bin/protoc"
     CACHE FILEPATH "protocol buffer compiler")
 
 # rpc_compile_proto(<c-filepath-result-var>
@@ -78,8 +85,8 @@ set(SOURCES
     src/message.cpp
     src/status.cpp
     ${RPC_PROTO_C_FILE}
-    deps/${NANOPB_BASENAME}/pb_decode.c
-    deps/${NANOPB_BASENAME}/pb_encode.c)
+    ${NANOPB_ROOT}/pb_decode.c
+    ${NANOPB_ROOT}/pb_encode.c)
 
 set_source_files_properties(src/message.cpp src/status.cpp PROPERTIES
     COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS ${FEATURE_DEFS}")
@@ -87,7 +94,7 @@ set_source_files_properties(src/message.cpp src/status.cpp PROPERTIES
 add_library(rpc STATIC ${SOURCES})
 
 target_include_directories(rpc
-    PUBLIC deps/${NANOPB_BASENAME}
+    PUBLIC ${NANOPB_ROOT}
     PUBLIC include
     PRIVATE src
     PUBLIC ${PROJECT_BINARY_DIR}
