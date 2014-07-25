@@ -26,7 +26,6 @@ endif()
 ##############################################################################
 # Set up nanopb
 
-set(NANOPB_BASENAME nanopb-0.2.8-linux-x86)
 if(NOT DEFINED NANOPB_ROOT)
     if(DEFINED ENV{NANOPB_ROOT})
         set(NANOPB_ROOT "$ENV{NANOPB_ROOT}")
@@ -34,6 +33,8 @@ if(NOT DEFINED NANOPB_ROOT)
         message(FATAL_ERROR "NANOPB_ROOT must be set")
     endif()
 endif()
+
+set(NANOPB_INCLUDE_DIR ${NANOPB_ROOT} CACHE PATH "Location of pb.h")
 
 set(PROTOC_INCLUDE_DIR
     "${NANOPB_ROOT}/generator/proto"
@@ -66,10 +67,12 @@ function(rpc_compile_proto cFilepathResultVar hFilepathResultVar protoFilepath)
     set(${cFilepathResultVar} ${cOutput} PARENT_SCOPE)
     set(${hFilepathResultVar} ${hOutput} PARENT_SCOPE)
 
-    get_filename_component(_dir ${protoFilepath} DIRECTORY)
+    get_filename_component(_absProto ${protoFilepath} ABSOLUTE)
+    get_filename_component(_dir ${_absProto} DIRECTORY)
+
     add_custom_command(OUTPUT ${cOutput} ${hOutput}
         COMMAND ${PROTOC_EXECUTABLE} -I${_dir} -I${PROTOC_INCLUDE_DIR}
-            --nanopb_out=${CMAKE_CURRENT_BINARY_DIR} ${protoFilepath}
+            --nanopb_out=${CMAKE_CURRENT_BINARY_DIR} ${_absProto}
         MAIN_DEPENDENCY ${protoFilepath}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         COMMENT "Generating ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.pb.{c,h} from ${protoFilepath}"
