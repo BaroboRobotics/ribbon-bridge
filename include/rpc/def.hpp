@@ -594,7 +594,7 @@
 #define rpcdef_service_get_assertion(s, interface, attribute) \
     static_assert(HasMemberFunctionOverloadonGet \
             < T \
-            , rpc::Attribute<barobo::Widget>::attribute(rpc::Attribute<barobo::Widget>::attribute)>::value, \
+            , rpc::Attribute<interface>::attribute(rpc::Attribute<interface>::attribute)>::value, \
             BOOST_PP_STRINGIZE(interface) \
             " service does not implement onGet(" \
             BOOST_PP_STRINGIZE(attribute) ")");
@@ -602,7 +602,7 @@
 #define rpcdef_service_set_assertion(s, interface, attribute) \
     static_assert(HasMemberFunctionOverloadonSet \
             < T \
-            , void(rpc::Attribute<barobo::Widget>::attribute)>::value, \
+            , void(rpc::Attribute<interface>::attribute)>::value, \
             BOOST_PP_STRINGIZE(interface) \
             " service does not implement onSet(" \
             BOOST_PP_STRINGIZE(attribute) ")");
@@ -610,7 +610,7 @@
 #define rpcdef_service_fire_assertion(s, interface, method) \
     static_assert(HasMemberFunctionOverloadonFire \
             < T \
-            , rpc::MethodResult<barobo::Widget>::method(rpc::MethodIn<barobo::Widget>::method)>::value, \
+            , rpc::MethodResult<interface>::method(rpc::MethodIn<interface>::method)>::value, \
             BOOST_PP_STRINGIZE(interface) \
             " service does not implement onFire(" \
             BOOST_PP_STRINGIZE(method) ")");
