@@ -15,9 +15,10 @@ namespace rpc {
 
 template <class T, class Interface>
 class Service {
-    /* TODO: static_assert that T implements Is.... */
 public:
     using BufferType = Buffer<256>;
+
+    Service () { (void)AssertServiceImplementsInterface<T, Interface>(); }
 
     template <class Attribute>
     Attribute get (Attribute args, ONLY_IF(IsAttribute<Attribute>::value)) {

@@ -1,0 +1,17 @@
+Go over all possible messages; do something with VERSION and RESET
+Distinguish between multiple types of encoding failures
+figure out what to do about fulfill(status) (Status/Result union is the right thing to fix this)
+Go over exception safety, label throwing functions
+BufferType is a disaster
+Look at refactoring make* and encode/decode
+Go over all possible error points
+Make a list of will-fail unit tests
+
+Automatically build nanopb
+Boost?
+
+Write code generator
+Put error enums into proper enums. Shouldn't have to say barobo_Widget_nullaryWithResultError_Result_Error_Value_FAILURE
+Make it so that if a method has no in (or no out, or no error) section, then that type is nil in the C++ code.
+Create a real Out/Error variant
+Move component traits into one com::barobo::Robot struct?

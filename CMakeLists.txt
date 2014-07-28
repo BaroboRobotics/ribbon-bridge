@@ -24,25 +24,86 @@ else()
 endif()
 
 ##############################################################################
+# Boost
+
+# FindBoost.cmake uses BOOST_ROOT as a hint for where to look.
+if(NOT DEFINED BOOST_ROOT)
+    if(DEFINED ENV{BOOST_ROOT})
+        set(BOOST_ROOT "$ENV{BOOST_ROOT}")
+    else()
+        message(WARNING "BOOST_ROOT is undefined.\nIf Boost libraries fail to "
+            "be found, try setting -DBOOST_ROOT=/path/to/boost on the CMake "
+            "command line.\n")
+    endif()
+endif()
+
+# Linking statically to Boost is easier for prototyping. For multi-module
+# projects we'll want to use shared libraries and defined -DBOOST_ALL_DYN_LINK
+# or the like.
+set(Boost_USE_STATIC_LIBS ON)
+
+# Boost.Log was introduced in Boost version 1.54.0.
+find_package(Boost 1.54.0 REQUIRED COMPONENTS )
+
+
+##############################################################################
 # Set up nanopb
 
-set(NANOPB_BASENAME nanopb-0.2.8-linux-x86)
-set(PROTOC "${PROJECT_SOURCE_DIR}/deps/${NANOPB_BASENAME}/generator-bin/protoc")
+if(NOT DEFINED NANOPB_ROOT)
+    if(DEFINED ENV{NANOPB_ROOT})
+        set(NANOPB_ROOT "$ENV{NANOPB_ROOT}")
+    else()
+        message(FATAL_ERROR "NANOPB_ROOT must be set")
+    endif()
+endif()
 
-set(PROTO_SOURCE_DIR ${PROJECT_SOURCE_DIR}/proto)
+set(NANOPB_INCLUDE_DIR ${NANOPB_ROOT} CACHE PATH "Location of pb.h")
 
-set(RPC_PROTO_SOURCES rpc.proto)
-set(RPC_PROTO_C_FILE rpc.pb.c)
-set(RPC_PROTO_H_FILE rpc.pb.h)
+set(PROTOC_INCLUDE_DIR
+    "${NANOPB_ROOT}/generator/proto"
+    CACHE PATH "protocol buffer compiler's include directory")
 
-add_custom_command(OUTPUT ${RPC_PROTO_C_FILE} ${RPC_PROTO_H_FILE}
-    COMMAND ${PROTOC} -I. -I${PROJECT_SOURCE_DIR}/deps/${NANOPB_BASENAME}/generator/proto
-        --nanopb_out=${CMAKE_CURRENT_BINARY_DIR} ${RPC_PROTO_SOURCES}
-    MAIN_DEPENDENCY "${PROTO_SOURCE_DIR}/${RPC_PROTO_SOURCES}"
-    DEPENDS "${PROTO_SOURCE_DIR}/rpc-options.proto"
-    WORKING_DIRECTORY ${PROTO_SOURCE_DIR}
-    COMMENT "Generating RPC protocol buffers ..."
-    VERBATIM)
+set(PROTOC_EXECUTABLE
+    "${NANOPB_ROOT}/generator-bin/protoc"
+    CACHE FILEPATH "protocol buffer compiler")
+
+# rpc_compile_proto(<c-filepath-result-var>
+#                   <h-filepath-result-var>
+#                   <proto-filepath>)
+#
+# Compile a .proto file to a .c and a .h using nanopb's protocol buffer
+# compiler. Set <c-filepath-result-var> and <h-filepath-result-var> to the
+# absolute paths of the generated .c and .h files, respectively.
+# <proto-filepath> is the input file; its path will be interpreted relative to
+# the current source directory, if it is not absolute. <c-filepath-result-var>
+# and <h-filepath-result-var> 
+function(rpc_compile_proto cFilepathResultVar hFilepathResultVar protoFilepath)
+    # Get the input .proto file's name, stripped of the last extension. Note:
+    # using get_filename_component(... NAME_WE) instead of the funky regex
+    # business would incorrectly strip all extensions. protoc only strips the
+    # last, and we want to mimic its behavior.
+    get_filename_component(_name ${protoFilepath} NAME)
+    string(REGEX REPLACE "^(.+)(\\.[^.]+)$" "\\1" _basename ${_name})
+    set(cOutput ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.pb.c)
+    set(hOutput ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.pb.h)
+
+    set(${cFilepathResultVar} ${cOutput} PARENT_SCOPE)
+    set(${hFilepathResultVar} ${hOutput} PARENT_SCOPE)
+
+    get_filename_component(_absProto ${protoFilepath} ABSOLUTE)
+    get_filename_component(_dir ${_absProto} DIRECTORY)
+
+    add_custom_command(OUTPUT ${cOutput} ${hOutput}
+        COMMAND ${PROTOC_EXECUTABLE} -I${_dir} -I${PROTOC_INCLUDE_DIR}
+            --nanopb_out=${CMAKE_CURRENT_BINARY_DIR} ${_absProto}
+        MAIN_DEPENDENCY ${protoFilepath}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMENT "Generating ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.pb.{c,h} from ${protoFilepath}"
+        VERBATIM)
+endfunction()
+
+# Eat own dog food.
+rpc_compile_proto(RPC_PROTO_C_FILE RPC_PROTO_H_FILE proto/rpc.proto)
 
 ##############################################################################
 
@@ -50,8 +111,8 @@ set(SOURCES
     src/message.cpp
     src/status.cpp
     ${RPC_PROTO_C_FILE}
-    deps/${NANOPB_BASENAME}/pb_decode.c
-    deps/${NANOPB_BASENAME}/pb_encode.c)
+    ${NANOPB_ROOT}/pb_decode.c
+    ${NANOPB_ROOT}/pb_encode.c)
 
 set_source_files_properties(src/message.cpp src/status.cpp PROPERTIES
     COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS ${FEATURE_DEFS}")
@@ -59,15 +120,16 @@ set_source_files_properties(src/message.cpp src/status.cpp PROPERTIES
 add_library(rpc STATIC ${SOURCES})
 
 target_include_directories(rpc
-    PUBLIC deps/${NANOPB_BASENAME}
+    PUBLIC ${NANOPB_ROOT}
     PUBLIC include
     PRIVATE src
     PUBLIC ${PROJECT_BINARY_DIR}
+    PUBLIC ${Boost_INCLUDE_DIRS}
     )
 
 ##############################################################################
 
 if(NOT AVR)
-enable_testing()
-add_subdirectory(tests)
+    enable_testing()
+    add_subdirectory(tests)
 endif()

@@ -563,6 +563,67 @@
     };
 
 //////////////////////////////////////////////////////////////////////////////
+// Compile-time assertions that a proxy implements an interface
+
+#define rpcdef_proxy_attribute_assertion(s, interface, attribute) \
+    static_assert(HasMemberFunctionOverloadonBroadcast \
+            < T \
+            , void(rpc::Attribute<interface>::attribute)>::value, \
+            BOOST_PP_STRINGIZE(interface) \
+            " proxy must implement onBroadcast(" \
+            BOOST_PP_STRINGIZE(attribute) ")");
+
+#define rpcdef_proxy_broadcast_assertion(s, interface, broadcast) \
+    static_assert(HasMemberFunctionOverloadonBroadcast \
+            < T \
+            , void(rpc::Broadcast<interface>::broadcast)>::value, \
+            BOOST_PP_STRINGIZE(interface) \
+            " proxy must implement onBroadcast(" \
+            BOOST_PP_STRINGIZE(broadcast) ")");
+
+#define RPCDEF_AssertProxyImplementsInterface(interface, subscribableAttributes, broadcasts) \
+    template <class T> \
+    struct AssertProxyImplementsInterface<T, interface> { \
+        BOOST_PP_SEQ_FOR_EACH(rpcdef_proxy_attribute_assertion, interface, subscribableAttributes) \
+        BOOST_PP_SEQ_FOR_EACH(rpcdef_proxy_broadcast_assertion, interface, broadcasts) \
+    };
+
+//////////////////////////////////////////////////////////////////////////////
+// Compile-time assertions that a service implements an interface
+
+#define rpcdef_service_get_assertion(s, interface, attribute) \
+    static_assert(HasMemberFunctionOverloadonGet \
+            < T \
+            , rpc::Attribute<barobo::Widget>::attribute(rpc::Attribute<barobo::Widget>::attribute)>::value, \
+            BOOST_PP_STRINGIZE(interface) \
+            " service does not implement onGet(" \
+            BOOST_PP_STRINGIZE(attribute) ")");
+
+#define rpcdef_service_set_assertion(s, interface, attribute) \
+    static_assert(HasMemberFunctionOverloadonSet \
+            < T \
+            , void(rpc::Attribute<barobo::Widget>::attribute)>::value, \
+            BOOST_PP_STRINGIZE(interface) \
+            " service does not implement onSet(" \
+            BOOST_PP_STRINGIZE(attribute) ")");
+
+#define rpcdef_service_fire_assertion(s, interface, method) \
+    static_assert(HasMemberFunctionOverloadonFire \
+            < T \
+            , rpc::MethodResult<barobo::Widget>::method(rpc::MethodIn<barobo::Widget>::method)>::value, \
+            BOOST_PP_STRINGIZE(interface) \
+            " service does not implement onFire(" \
+            BOOST_PP_STRINGIZE(method) ")");
+
+#define RPCDEF_AssertServiceImplementsInterface(interface, allAttributes, settableAttributes, methods) \
+    template <class T> \
+    struct AssertServiceImplementsInterface<T, interface> { \
+        BOOST_PP_SEQ_FOR_EACH(rpcdef_service_get_assertion, interface, allAttributes) \
+        BOOST_PP_SEQ_FOR_EACH(rpcdef_service_set_assertion, interface, settableAttributes) \
+        BOOST_PP_SEQ_FOR_EACH(rpcdef_service_fire_assertion, interface, methods) \
+    };
+
+//////////////////////////////////////////////////////////////////////////////
 // Complete header and cpp file defines
 
 #define RPCDEF_CPP(interfaceNames, allAttributes, settableAttributes, subscribableAttributes, methods, broadcasts) \
@@ -606,6 +667,8 @@
     RPCDEF_FireInvoker(rpcdef_cat_scope(interfaceNames), methods) \
     RPCDEF_BroadcastInvoker(rpcdef_cat_scope(interfaceNames), subscribableAttributes broadcasts) \
     RPCDEF_FulfillInvoker(rpcdef_cat_scope(interfaceNames), allAttributes methods) \
+    RPCDEF_AssertServiceImplementsInterface(rpcdef_cat_scope(interfaceNames), allAttributes, settableAttributes, methods) \
+    RPCDEF_AssertProxyImplementsInterface(rpcdef_cat_scope(interfaceNames), subscribableAttributes, broadcasts) \
     }
 
 #endif

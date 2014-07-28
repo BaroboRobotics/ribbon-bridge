@@ -1,4 +1,4 @@
-import "rpc-options.proto";
+//import "rpc-options.proto";
 package barobo.Widget;
 
 //option (version).major = 0;
