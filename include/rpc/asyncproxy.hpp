@@ -1,6 +1,8 @@
 #ifndef RPC_ASYNCPROXY_HPP
 #define RPC_ASYNCPROXY_HPP
 
+#include "rpc/config.hpp"
+
 #ifndef HAVE_STDLIB
 #error "this file requires the standard library"
 #endif

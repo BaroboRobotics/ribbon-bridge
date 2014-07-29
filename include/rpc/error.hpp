@@ -1,6 +1,8 @@
 #ifndef RPC_ERROR_HPP
 #define RPC_ERROR_HPP
 
+#include "rpc/config.hpp"
+
 #ifndef HAVE_EXCEPTIONS
 #error rpc/error.hpp included with exceptions disabled
 #endif

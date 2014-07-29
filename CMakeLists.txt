@@ -1,27 +1,34 @@
 cmake_minimum_required(VERSION 2.8)
-project(rpc)
+project(rpc C CXX)
 
 set(AVR OFF)
 if(CMAKE_SYSTEM_NAME MATCHES "AVR")
     set(AVR ON)
 endif()
 
-set(CMAKE_C_FLAGS "-Wall -Wextra -Os")
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -Os")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+
+option(RPC_BUILD_TESTS "Build ribbon-bridge tests" OFF)
 
 if(AVR)
-    set(FEATURE_DEFS)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
-
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mmcu=atmega128rfa1")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmcu=atmega128rfa1")
-    # I think the _mmcu/.mmcu stuff was for simavr ...
-    set(CMAKE_EXE_LINKER_FLAGS "-mmcu=atmega128rfa1 -Wl,--undefined=_mmcu,--section-start=.mmcu=0x910000")
-else()
-    set(FEATURE_DEFS "-DHAVE_EXCEPTIONS -DHAVE_RTTI -DHAVE_STDLIB")
 endif()
+
+##############################################################################
+# Configure our project given the available features
+
+include(CheckCXXSourceCompiles)
+include(CheckLibraryExists)
+
+check_cxx_source_compiles("int main () { throw int(); }" HAVE_EXCEPTIONS)
+check_cxx_source_compiles("#include <typeinfo>
+int main () { (void)typeid(void); }" HAVE_RTTI)
+check_library_exists(stdc++ exit "" HAVE_STDLIB)
+
+configure_file(config.hpp.in include/rpc/config.hpp)
 
 ##############################################################################
 # Boost
@@ -115,7 +122,7 @@ set(SOURCES
     ${NANOPB_ROOT}/pb_encode.c)
 
 set_source_files_properties(src/message.cpp src/status.cpp PROPERTIES
-    COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS ${FEATURE_DEFS}")
+    COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS")
 
 add_library(rpc STATIC ${SOURCES})
 
@@ -124,12 +131,13 @@ target_include_directories(rpc
     PUBLIC include
     PRIVATE src
     PUBLIC ${PROJECT_BINARY_DIR}
+    PUBLIC ${PROJECT_BINARY_DIR}/include
     PUBLIC ${Boost_INCLUDE_DIRS}
     )
 
 ##############################################################################
 
-if(NOT AVR)
+if(RPC_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
