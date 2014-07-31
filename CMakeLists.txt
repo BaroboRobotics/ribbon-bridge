@@ -109,7 +109,37 @@ function(rpc_compile_proto cFilepathResultVar hFilepathResultVar protoFilepath)
         VERBATIM)
 endfunction()
 
-# Eat own dog food.
+# rpc_add_interface(<target-name> <proto-filepath>)
+#
+# Define a target to represent an RPC interface library. You can use
+# <target-name> in the rest of your code as a static library target, and
+# include its headers by using the
+#
+#   $<TARGET_PROPERTY:<target-name>,INCLUDE_DIRECTORIES>
+#
+# generator expression in a suitable command's arguments.
+#
+# (Note: this function only supports building from a .proto file in the same
+# directory as CMAKE_CURRENT_LIST_FILE at the time of invocation.)
+function(rpc_add_interface _targetName _protoFile)
+    rpc_compile_proto(cFile hFile ${_protoFile})
+    get_filename_component(interfaceName ${_protoFile} NAME_WE)
+    set(cppFile gen-${interfaceName}.pb.cpp)
+    set(sources ${cFile} ${cppFile})
+    set_source_files_properties(${cppFile} PROPERTIES COMPILE_FLAGS -std=c++11)
+    add_library(${_targetName} STATIC ${sources})
+    add_dependencies(${_targetName} rpc)
+    get_filename_component(protoDir ${hFile} DIRECTORY)
+    target_include_directories(${_targetName}
+        PRIVATE ${NANOPB_INCLUDE_DIR}
+        PUBLIC $<TARGET_PROPERTY:rpc,INCLUDE_DIRECTORIES>
+        PUBLIC ${protoDir}
+        PUBLIC .)
+endfunction()
+
+# Eat own dog food. We don't use rpc_add_interface, because rpc.proto operates
+# at one layer below the interfaces--interfaces depend on the rpc target we're
+# about to define.
 rpc_compile_proto(RPC_PROTO_C_FILE RPC_PROTO_H_FILE proto/rpc.proto)
 
 ##############################################################################
