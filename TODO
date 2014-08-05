@@ -1,17 +1,18 @@
 Go over all possible messages; do something with VERSION and RESET
 Distinguish between multiple types of encoding failures
 figure out what to do about fulfill(status) (Status/Result union is the right thing to fix this)
+
 Go over exception safety, label throwing functions
 BufferType is a disaster, allow it to be specified as a tpl parm
 Look at refactoring make* and encode/decode
 Go over all possible error points
 Make a list of will-fail unit tests
-Use boost::future instead of std::future for continuation functions
-Allow passing a yield context (or arbitrary data?) through the deliver
-Get reply component ID from a static visitor
 
-Automatically build nanopb
-Boost?
+Use boost::future instead of std::future for continuation functions
+Allow passing a yield context (or arbitrary data?) through the deliver. Could
+implement AsyncService that way.
+
+Get reply component ID from a static visitor
 
 Write code generator
 Put error enums into proper enums. Shouldn't have to say barobo_Widget_nullaryWithResultError_Result_Error_Value_FAILURE
