@@ -19,3 +19,5 @@ Put error enums into proper enums. Shouldn't have to say barobo_Widget_nullaryWi
 Make it so that if a method has no in (or no out, or no error) section, then that type is nil in the C++ code.
 Create a real Out/Error variant
 Move component traits into one com::barobo::Robot struct?
+
+Rename post() and deliver() to stuff like bufferToService, bufferFromService
