@@ -44,7 +44,7 @@ public:
             if (hasError(status)) {
                 return status;
             }
-            static_cast<T*>(this)->post(buffer);
+            static_cast<T*>(this)->bufferToProxy(buffer);
         }
         return Status::OK;
     }
@@ -54,7 +54,7 @@ public:
         return static_cast<T*>(this)->onFire(args);
     }
 
-    Status deliver (BufferType in) {
+    Status receiveProxyBuffer (BufferType in) {
         barobo_rpc_Request request;
         barobo_rpc_Reply reply;
         memset(&reply, 0, sizeof(reply));
@@ -148,7 +148,7 @@ public:
         response.size = sizeof(response.bytes);
         auto status = encode(reply, response.bytes, response.size, response.size);
         if (!hasError(status)) {
-            static_cast<T*>(this)->post(response);
+            static_cast<T*>(this)->bufferToProxy(response);
         }
 
         return status;

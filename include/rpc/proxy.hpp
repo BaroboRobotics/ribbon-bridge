@@ -33,7 +33,7 @@ public:
             return mRequestManager.template finalize<Attribute>(requestId, status);
         }
         auto future = mRequestManager.template finalize<Attribute>(requestId);
-        static_cast<T*>(this)->post(buffer);
+        static_cast<T*>(this)->bufferToService(buffer);
         return future;
     }
 
@@ -52,7 +52,7 @@ public:
             return mRequestManager.template finalize<void>(requestId, status);
         }
         auto future = mRequestManager.template finalize<void>(requestId);
-        static_cast<T*>(this)->post(buffer);
+        static_cast<T*>(this)->bufferToService(buffer);
         return future;
     }
 
@@ -77,11 +77,11 @@ public:
             return mRequestManager.template finalize<Result>(requestId, status);
         }
 
-        /* We must call finalize() before post(). If the opposite order were
+        /* We must call finalize() before bufferToService(). If the opposite order were
          * used, we could potentially end up with an encoded message on the wire
          * with no promise or future generated for it yet. */
         auto future = mRequestManager.template finalize<Result>(requestId);
-        static_cast<T*>(this)->post(buffer);
+        static_cast<T*>(this)->bufferToService(buffer);
         return future;
     }
 
@@ -98,7 +98,7 @@ public:
             return mRequestManager.template finalize<void>(requestId, status);
         }
         auto future = mRequestManager.template finalize<void>(requestId);
-        static_cast<T*>(this)->post(buffer);
+        static_cast<T*>(this)->bufferToService(buffer);
         return future;
     }
 
@@ -115,11 +115,11 @@ public:
             return mRequestManager.template finalize<void>(requestId, status);
         }
         auto future = mRequestManager.template finalize<void>(requestId);
-        static_cast<T*>(this)->post(buffer);
+        static_cast<T*>(this)->bufferToService(buffer);
         return future;
     }
 
-    Status deliver (BufferType buffer) {
+    Status receiveServiceBuffer (BufferType buffer) {
         barobo_rpc_Reply reply;
 
         auto err = decode(reply, buffer.bytes, buffer.size);
