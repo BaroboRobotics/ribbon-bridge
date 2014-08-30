@@ -423,7 +423,7 @@
 // Subscriptions
 
 #define rpcdef_define_subscription(s, z, subscribable) \
-    bool subscribable = false;
+    bool subscribable = true;
 
 #define RPCDEF_Subscriptions(interface, subscribables) \
     template <> \
