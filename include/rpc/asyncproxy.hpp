@@ -51,8 +51,10 @@ public:
     Status fulfill (uint32_t requestId, Status status) {
         std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
 
+#if 0
         printf("requestId %" PRId32 " fulfilled with status %s\n", requestId,
                 statusToString(status));
+#endif
 
         auto iter = mPromises.find(requestId);
         if (mPromises.end() == iter) {
@@ -87,7 +89,9 @@ public:
     Status fulfill (uint32_t requestId, C result) {
         std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
 
+#if 0
         printf("requestId %" PRId32 " fulfilled with result\n", requestId);
+#endif
 
         auto iter = mPromises.find(requestId);
         if (mPromises.end() == iter) {
