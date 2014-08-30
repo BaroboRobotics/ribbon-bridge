@@ -20,4 +20,9 @@ Make it so that if a method has no in (or no out, or no error) section, then tha
 Create a real Out/Error variant
 Move component traits into one com::barobo::Robot struct?
 
-Rename post() and deliver() to stuff like bufferToService, bufferFromService
+Network connection terms can be translated into object-oriented RPC terms.
+Since objects have state, it is useful to guarantee a particular state on
+connectiong: i.e., broadcasts enabled or disabled, button callbacks set a
+particular way. Thus, connecting is akin to constructing a service object, and
+disconnecting akin to destroying the service object. Reconnecting would resume
+communications with the object without running the constructor.
