@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.12)
 project(rpc C CXX)
 
 set(AVR OFF)
@@ -50,7 +50,8 @@ endif()
 set(Boost_USE_STATIC_LIBS ON)
 
 # Boost.Log was introduced in Boost version 1.54.0.
-find_package(Boost 1.54.0 REQUIRED COMPONENTS )
+# system is required for asio
+find_package(Boost 1.54.0 REQUIRED COMPONENTS system)
 
 
 ##############################################################################
@@ -163,7 +164,12 @@ target_include_directories(rpc
     PUBLIC ${PROJECT_BINARY_DIR}
     PUBLIC ${PROJECT_BINARY_DIR}/include
     PUBLIC ${Boost_INCLUDE_DIRS}
+    $<TARGET_PROPERTY:cxx-util,INTERFACE_INCLUDE_DIRECTORIES>
     )
+
+# Our asio code is header-only, so no need for us to link with Boost ourselves.
+# Consumers of our headers will have to, though.
+target_link_libraries(rpc INTERFACE ${Boost_LIBRARIES})
 
 ##############################################################################
 

@@ -10,6 +10,8 @@
 #include "rpc/error.hpp"
 #include "rpc/proxy.hpp"
 
+#include "util/deadlinescheduler.hpp"
+
 #include <boost/unordered_map.hpp>
 #include <boost/variant.hpp>
 
@@ -29,19 +31,14 @@ class AsyncRequestManager {
 
     using PromiseVariant = typename rpc::PromiseVariadic<Interface, MakePromiseVariant>::type;
 
-    struct SetExceptionVisitor : boost::static_visitor<> {
-        explicit SetExceptionVisitor (Status status) : mStatus(status) { }
+    struct Throw : boost::static_visitor<> {
+        explicit Throw (std::exception_ptr e) : mException(e) { }
 
         template <class P>
-        void operator() (P& promise) const {
-            printf("breaking hearts, %s\n", __PRETTY_FUNCTION__);
-            Error error { statusToString(mStatus) };
-            auto eptr = std::make_exception_ptr(error);
-            promise.set_exception(eptr);
-        }
+        void operator() (P& promise) const { promise.set_exception(mException); }
 
     private:
-        Status mStatus;
+        std::exception_ptr mException;
     };
 
 public:
@@ -50,11 +47,6 @@ public:
 
     Status fulfill (uint32_t requestId, Status status) {
         std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
-
-#if 0
-        printf("requestId %" PRId32 " fulfilled with status %s\n", requestId,
-                statusToString(status));
-#endif
 
         auto iter = mPromises.find(requestId);
         if (mPromises.end() == iter) {
@@ -67,17 +59,20 @@ public:
                 promisePtr->set_value();
             }
             else {
-                boost::apply_visitor(SetExceptionVisitor { status }, iter->second);
+                auto eptr = std::make_exception_ptr(Error(statusToString(status)));
+                boost::apply_visitor(Throw(eptr), iter->second);
             }
         }
         else {
             if (!hasError(status)) {
                 // No error reported, but we have a type mismatch.
                 printf("type mismatch with requestId %" PRId32 "\n", requestId);
-                boost::apply_visitor(SetExceptionVisitor { Status::UNRECOGNIZED_RESULT }, iter->second);
+                auto eptr = std::make_exception_ptr(Error(statusToString(Status::UNRECOGNIZED_RESULT)));
+                boost::apply_visitor(Throw(eptr), iter->second);
             }
             else {
-                boost::apply_visitor(SetExceptionVisitor { status }, iter->second);
+                auto eptr = std::make_exception_ptr(Error(statusToString(status)));
+                boost::apply_visitor(Throw(eptr), iter->second);
             }
         }
 
@@ -88,10 +83,6 @@ public:
     template <class C>
     Status fulfill (uint32_t requestId, C result) {
         std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
-
-#if 0
-        printf("requestId %" PRId32 " fulfilled with result\n", requestId);
-#endif
 
         auto iter = mPromises.find(requestId);
         if (mPromises.end() == iter) {
@@ -105,7 +96,8 @@ public:
         else {
             // type mismatch
             printf("type mismatch with requestId %" PRId32 "\n", requestId);
-            boost::apply_visitor(SetExceptionVisitor(Status::UNRECOGNIZED_RESULT), iter->second);
+            auto eptr = std::make_exception_ptr(Error(statusToString(Status::UNRECOGNIZED_RESULT)));
+            boost::apply_visitor(Throw(eptr), iter->second);
         }
 
         mPromises.erase(iter);
@@ -143,6 +135,23 @@ public:
             assert(promisePtr);
         }
 
+        mReaper.executeAfter(std::chrono::milliseconds(100),
+            [=] () {
+                std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
+                auto iter = mPromises.find(requestId);
+                if (mPromises.end() != iter) {
+                    auto promisePtr = boost::get<std::promise<C>>(&iter->second);
+                    boost::apply_visitor(
+                        Throw(std::make_exception_ptr(std::runtime_error(
+                                    std::string("No response to request ") +
+                                    std::to_string(requestId) +
+                                    std::string(" after 100ms")))),
+                        iter->second);
+                    mPromises.erase(iter);
+                }
+            }
+        );
+
         return promisePtr->get_future();
     }
 
@@ -166,6 +175,12 @@ private:
     }
 
     std::atomic<uint32_t> mNextRequestId = { 0 };
+
+    // FIXME this means that every proxy will have its own reaper thread,
+    // probably not what we want. Maybe there should be a globally accessible
+    // rpc::reaper(), perhaps hidden in a .cpp, accessible only where we need
+    // it.
+    util::DeadlineScheduler mReaper;
 };
 
 template <class T, class Interface>
