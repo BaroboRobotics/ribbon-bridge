@@ -11,11 +11,11 @@ public:
             , mProxy(mTransport.requestPoster())
             , mTransport() {
         mTransport.onRequest([this] (const rpc::Buffer<256>& payload) {
-            auto success = mService.deliver(payload);
+            auto success = mService.receiveProxyBuffer(payload);
             assert(!hasError(success));
         });
         mTransport.onReply([this] (const rpc::Buffer<256>& payload) {
-            auto success = mProxy.deliver(payload);
+            auto success = mProxy.receiveServiceBuffer(payload);
             assert(!hasError(success));
         });
     }

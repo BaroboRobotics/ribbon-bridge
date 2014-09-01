@@ -13,7 +13,7 @@ class WidgetService : public rpc::Service<WidgetService, barobo::Widget> {
 public:
     WidgetService (std::function<void(const BufferType&)> postFunc) : mPostFunc(postFunc) { }
 
-    void post (const BufferType& buffer) {
+    void bufferToProxy (const BufferType& buffer) {
         mPostFunc(buffer);
     }
 
@@ -131,7 +131,7 @@ class WidgetProxy : public rpc::AsyncProxy<WidgetProxy, barobo::Widget> {
 public:
     WidgetProxy (std::function<void(const BufferType&)> postFunc) : mPostFunc(postFunc) { }
 
-    void post (const BufferType& buffer) {
+    void bufferToService (const BufferType& buffer) {
         mPostFunc(buffer);
     }
 
