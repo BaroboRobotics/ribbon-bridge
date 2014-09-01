@@ -40,6 +40,7 @@ Status makeUnsubscribe (uint8_t* bytes, size_t& size, uint32_t requestId,
         uint32_t componentId);
 Status makeBroadcast (uint8_t* bytes, size_t& size,
         uint32_t componentId, const pb_field_t* fields, void* payload);
+Status makeConnect (uint8_t* bytes, size_t& size, uint32_t requestId);
 
 } // namespace rpc
 

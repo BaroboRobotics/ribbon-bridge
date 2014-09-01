@@ -8,17 +8,19 @@ namespace rpc {
 // if you edit this, make sure you keep statusToString up to date! FIXME use
 // macro magic for this.
 enum class Status {
-    OK                      = barobo_rpc_Status_OK,
-    DECODING_FAILURE        = barobo_rpc_Status_DECODING_FAILURE,
-    ENCODING_FAILURE        = barobo_rpc_Status_ENCODING_FAILURE,
-    INCONSISTENT_REQUEST    = barobo_rpc_Status_INCONSISTENT_REQUEST,
-    INCONSISTENT_REPLY      = barobo_rpc_Status_INCONSISTENT_REPLY,
-    ILLEGAL_OPERATION       = barobo_rpc_Status_ILLEGAL_OPERATION,
-    NO_SUCH_COMPONENT       = barobo_rpc_Status_NO_SUCH_COMPONENT,
-    BUFFER_OVERFLOW         = barobo_rpc_Status_BUFFER_OVERFLOW,
-    READONLY                = barobo_rpc_Status_READONLY,
-    NO_SUBSCRIPTIONS        = barobo_rpc_Status_NO_SUBSCRIPTIONS,
-    VERSION_MISMATCH        = barobo_rpc_Status_VERSION_MISMATCH,
+    OK                         = barobo_rpc_Status_OK,
+    DECODING_FAILURE           = barobo_rpc_Status_DECODING_FAILURE,
+    ENCODING_FAILURE           = barobo_rpc_Status_ENCODING_FAILURE,
+    INCONSISTENT_REQUEST       = barobo_rpc_Status_INCONSISTENT_REQUEST,
+    INCONSISTENT_REPLY         = barobo_rpc_Status_INCONSISTENT_REPLY,
+    ILLEGAL_OPERATION          = barobo_rpc_Status_ILLEGAL_OPERATION,
+    NO_SUCH_COMPONENT          = barobo_rpc_Status_NO_SUCH_COMPONENT,
+    BUFFER_OVERFLOW            = barobo_rpc_Status_BUFFER_OVERFLOW,
+    READONLY                   = barobo_rpc_Status_READONLY,
+    NO_SUBSCRIPTIONS           = barobo_rpc_Status_NO_SUBSCRIPTIONS,
+    RPC_VERSION_MISMATCH       = barobo_rpc_Status_RPC_VERSION_MISMATCH,
+    INTERFACE_VERSION_MISMATCH = barobo_rpc_Status_INTERFACE_VERSION_MISMATCH,
+    CONNECTION_REFUSED         = barobo_rpc_Status_CONNECTION_REFUSED,
 
     UNSOLICITED_RESULT,
     UNRECOGNIZED_RESULT
