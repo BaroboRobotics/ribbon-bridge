@@ -62,6 +62,7 @@ public:
         reply.has_inReplyTo = true;
         reply.inReplyTo = request.id;
 
+        reply.type = barobo_rpc_Reply_Type_CONNECTIONREPLY;
         reply.has_connectionReply = true;
         reply.connectionReply.type = barobo_rpc_Reply_ConnectionReply_Type_REFUSAL;
         reply.connectionReply.rpcVersion.major = RPC_VERSION_MAJOR;
