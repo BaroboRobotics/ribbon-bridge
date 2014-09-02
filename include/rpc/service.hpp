@@ -9,7 +9,7 @@
 #include "rpc/buffer.hpp"
 #include "rpc/message.hpp"
 #include "rpc/status.hpp"
-#include "rpc/checkversion.hpp"
+#include "rpc/version.hpp"
 
 namespace rpc {
 
@@ -58,19 +58,19 @@ public:
         barobo_rpc_Reply reply;
         memset(&reply, 0, sizeof(reply));
 
-        // refactor the next 10 lines or so into a makeConnectionReply(refuse|welcome)
+        // refactor the next 10 lines or so into a makeServiceInfo(refuse|welcome)
         reply.has_inReplyTo = true;
         reply.inReplyTo = request.id;
 
-        reply.type = barobo_rpc_Reply_Type_CONNECTIONREPLY;
-        reply.has_connectionReply = true;
-        reply.connectionReply.type = barobo_rpc_Reply_ConnectionReply_Type_REFUSAL;
-        reply.connectionReply.rpcVersion.major = RPC_VERSION_MAJOR;
-        reply.connectionReply.rpcVersion.minor = RPC_VERSION_MINOR;
-        reply.connectionReply.rpcVersion.patch = RPC_VERSION_PATCH;
-        reply.connectionReply.interfaceVersion.major = Version<Interface>::major;
-        reply.connectionReply.interfaceVersion.minor = Version<Interface>::minor;
-        reply.connectionReply.interfaceVersion.patch = Version<Interface>::patch;
+        reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
+        reply.has_serviceInfo = true;
+        reply.serviceInfo.type = barobo_rpc_Reply_ServiceInfo_Type_REFUSAL;
+        reply.serviceInfo.rpcVersion.major = Version<>::major;
+        reply.serviceInfo.rpcVersion.minor = Version<>::minor;
+        reply.serviceInfo.rpcVersion.patch = Version<>::patch;
+        reply.serviceInfo.interfaceVersion.major = Version<Interface>::major;
+        reply.serviceInfo.interfaceVersion.minor = Version<Interface>::minor;
+        reply.serviceInfo.interfaceVersion.patch = Version<Interface>::patch;
 
         BufferType response;
         response.size = sizeof(response.bytes);
@@ -80,7 +80,6 @@ public:
         }
 
         return status;
-
     }
 
     Status receiveProxyBuffer (BufferType in) {
@@ -157,15 +156,15 @@ public:
                 //mSubscriptions.deactivate(request.unsubscribe.id));
                 break;
             case barobo_rpc_Request_Type_CONNECT:
-                reply.type = barobo_rpc_Reply_Type_CONNECTIONREPLY;
-                reply.has_connectionReply = true;
-                reply.connectionReply.type = barobo_rpc_Reply_ConnectionReply_Type_WELCOME;
-                reply.connectionReply.rpcVersion.major = RPC_VERSION_MAJOR;
-                reply.connectionReply.rpcVersion.minor = RPC_VERSION_MINOR;
-                reply.connectionReply.rpcVersion.patch = RPC_VERSION_PATCH;
-                reply.connectionReply.interfaceVersion.major = Version<Interface>::major;
-                reply.connectionReply.interfaceVersion.minor = Version<Interface>::minor;
-                reply.connectionReply.interfaceVersion.patch = Version<Interface>::patch;
+                reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
+                reply.has_serviceInfo = true;
+                reply.serviceInfo.type = barobo_rpc_Reply_ServiceInfo_Type_WELCOME;
+                reply.serviceInfo.rpcVersion.major = Version<>::major;
+                reply.serviceInfo.rpcVersion.minor = Version<>::minor;
+                reply.serviceInfo.rpcVersion.patch = Version<>::patch;
+                reply.serviceInfo.interfaceVersion.major = Version<Interface>::major;
+                reply.serviceInfo.interfaceVersion.minor = Version<Interface>::minor;
+                reply.serviceInfo.interfaceVersion.patch = Version<Interface>::patch;
                 break;
             default:
                 reply.type = barobo_rpc_Reply_Type_STATUS;

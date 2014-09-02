@@ -5,7 +5,7 @@
 #include "rpc/componenttraits.hpp"
 #include "rpc/message.hpp"
 #include "rpc/enableif.hpp"
-#include "rpc/checkversion.hpp"
+#include "rpc/version.hpp"
 #include "rpc.pb.h"
 
 namespace rpc {
@@ -119,7 +119,7 @@ public:
         return future;
     }
 
-    Future<void> connect () {
+    Future<ServiceInfo> connect () {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
         auto requestId = mRequestManager.template nextRequestId();
@@ -127,9 +127,9 @@ public:
                     buffer.bytes, buffer.size,
                     requestId);
         if (hasError(status)) {
-            return mRequestManager.template finalize<void>(requestId, status);
+            return mRequestManager.template finalize<ServiceInfo>(requestId, status);
         }
-        auto future = mRequestManager.template finalize<void>(requestId);
+        auto future = mRequestManager.template finalize<ServiceInfo>(requestId);
         static_cast<T*>(this)->bufferToService(buffer);
         return future;
     }
@@ -176,23 +176,11 @@ public:
                     status = invokeFulfill(mRequestManager, argument, reply.result.id, reply.inReplyTo);
                 }
                 return status;
-            case barobo_rpc_Reply_Type_CONNECTIONREPLY:
-                if (!reply.has_connectionReply) {
+            case barobo_rpc_Reply_Type_SERVICEINFO:
+                if (!reply.has_serviceInfo) {
                     return Status::INCONSISTENT_REPLY;
                 }
-
-                status = Status::OK;
-                if (barobo_rpc_Reply_ConnectionReply_Type_REFUSAL == reply.connectionReply.type) {
-                    status = Status::CONNECTION_REFUSED;
-                }
-                else if (!checkRpcVersion(reply.connectionReply.rpcVersion)) {
-                    status = Status::RPC_VERSION_MISMATCH;
-                }
-                else if (!checkInterfaceVersion<Interface>(reply.connectionReply.interfaceVersion)) {
-                    status = Status::INTERFACE_VERSION_MISMATCH;
-                }
-
-                return mRequestManager.fulfill(reply.inReplyTo, status);
+                return mRequestManager.fulfill(reply.inReplyTo, ServiceInfo(reply.serviceInfo));
             case barobo_rpc_Reply_Type_BROADCAST:
                 if (!reply.has_broadcast) {
                     return Status::INCONSISTENT_REPLY;

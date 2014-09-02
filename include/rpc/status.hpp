@@ -18,9 +18,6 @@ enum class Status {
     BUFFER_OVERFLOW            = barobo_rpc_Status_BUFFER_OVERFLOW,
     READONLY                   = barobo_rpc_Status_READONLY,
     NO_SUBSCRIPTIONS           = barobo_rpc_Status_NO_SUBSCRIPTIONS,
-    RPC_VERSION_MISMATCH       = barobo_rpc_Status_RPC_VERSION_MISMATCH,
-    INTERFACE_VERSION_MISMATCH = barobo_rpc_Status_INTERFACE_VERSION_MISMATCH,
-    CONNECTION_REFUSED         = barobo_rpc_Status_CONNECTION_REFUSED,
 
     UNSOLICITED_RESULT,
     UNRECOGNIZED_RESULT

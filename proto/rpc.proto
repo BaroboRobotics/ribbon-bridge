@@ -16,9 +16,6 @@ enum Status {
     NO_SUBSCRIPTIONS = 9;
     /* Runtime errors */
     BUFFER_OVERFLOW = 7;
-    RPC_VERSION_MISMATCH = 10;
-    INTERFACE_VERSION_MISMATCH = 11;
-    CONNECTION_REFUSED = 12;
 }
 
 message VersionTriplet {
@@ -74,7 +71,7 @@ message Reply {
         VERSION = 2;
         RESULT = 3;
         STATUS = 4;
-        CONNECTIONREPLY = 5;
+        SERVICEINFO = 5;
     }
 
     message Broadcast {
@@ -82,7 +79,7 @@ message Reply {
         required bytes payload = 2 [(nanopb).max_size = 128];
     }
 
-    message ConnectionReply {
+    message ServiceInfo {
         enum Type { WELCOME = 1; REFUSAL = 2; }
         required Type type = 1;
         required VersionTriplet rpcVersion = 2;
@@ -104,7 +101,7 @@ message Reply {
     required Type type = 1;
     optional uint32 inReplyTo = 2;
     optional Broadcast broadcast = 3;
-    optional ConnectionReply connectionReply = 4;
+    optional ServiceInfo serviceInfo = 4;
     optional Result result = 5;
     optional Status status = 6;
 }
