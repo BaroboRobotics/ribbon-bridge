@@ -17,6 +17,7 @@ const char* statusToString (Status status) {
         ITEM(NO_SUBSCRIPTIONS);
         ITEM(RPC_VERSION_MISMATCH);
         ITEM(INTERFACE_VERSION_MISMATCH);
+        ITEM(CONNECTION_REFUSED);
 
         ITEM(UNSOLICITED_RESULT);
         ITEM(UNRECOGNIZED_RESULT);
