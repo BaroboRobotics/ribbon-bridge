@@ -16,7 +16,6 @@ enum Status {
     NO_SUBSCRIPTIONS = 9;
     /* Runtime errors */
     BUFFER_OVERFLOW = 7;
-    VERSION_MISMATCH = 10;
 }
 
 message VersionTriplet {
@@ -32,7 +31,7 @@ message Request {
         SUBSCRIBE = 3;
         UNSUBSCRIBE = 4;
         FIRE = 5;
-        RESET = 6;
+        CONNECT = 6;
     }
 
     message Get {
@@ -57,11 +56,6 @@ message Request {
         required bytes payload = 2 [(nanopb).max_size = 128];
     }
 
-    message Reset {
-        required VersionTriplet rpc = 1;
-        required VersionTriplet interface = 2;
-    }
-
     required Type type = 1;
     required uint32 id = 2;
     optional Get get = 3;
@@ -69,7 +63,6 @@ message Request {
     optional Subscribe subscribe = 5;
     optional Unsubscribe unsubscribe = 6;
     optional Fire fire = 7;
-    optional Reset reset = 8;
 }
 
 message Reply {
@@ -78,6 +71,7 @@ message Reply {
         VERSION = 2;
         RESULT = 3;
         STATUS = 4;
+        SERVICEINFO = 5;
     }
 
     message Broadcast {
@@ -85,9 +79,11 @@ message Reply {
         required bytes payload = 2 [(nanopb).max_size = 128];
     }
 
-    message Version {
-        required VersionTriplet rpc = 1;
-        required VersionTriplet interface = 2;
+    message ServiceInfo {
+        enum Type { WELCOME = 1; REFUSAL = 2; }
+        required Type type = 1;
+        required VersionTriplet rpcVersion = 2;
+        required VersionTriplet interfaceVersion = 3;
     }
 
     message Result {
@@ -105,7 +101,7 @@ message Reply {
     required Type type = 1;
     optional uint32 inReplyTo = 2;
     optional Broadcast broadcast = 3;
-    optional Version version = 4;
+    optional ServiceInfo serviceInfo = 4;
     optional Result result = 5;
     optional Status status = 6;
 }

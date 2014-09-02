@@ -5,7 +5,7 @@
 #include "rpc/componenttraits.hpp"
 #include "rpc/message.hpp"
 #include "rpc/enableif.hpp"
-#include "rpc/checkversion.hpp"
+#include "rpc/version.hpp"
 #include "rpc.pb.h"
 
 namespace rpc {
@@ -119,12 +119,44 @@ public:
         return future;
     }
 
+    Future<ServiceInfo> connect () {
+        BufferType buffer;
+        buffer.size = sizeof(buffer.bytes);
+        auto requestId = mRequestManager.template nextRequestId();
+        auto status = makeConnect(
+                    buffer.bytes, buffer.size,
+                    requestId);
+        if (hasError(status)) {
+            return mRequestManager.template finalize<ServiceInfo>(requestId, status);
+        }
+        auto future = mRequestManager.template finalize<ServiceInfo>(requestId);
+        static_cast<T*>(this)->bufferToService(buffer);
+        return future;
+    }
+
+#if 0
+    // TODO
+    Future<void> disconnect () {
+        BufferType buffer;
+        buffer.size = sizeof(buffer.bytes);
+        auto requestId = mRequestManager.template nextRequestId();
+        auto status = makeDisconnect(
+                    buffer.bytes, buffer.size);
+        if (hasError(status)) {
+            return mRequestManager.template finalize<void>(requestId, status);
+        }
+        auto future = mRequestManager.template finalize<void>(requestId);
+        static_cast<T*>(this)->bufferToService(buffer);
+        return future;
+    }
+#endif
+
     Status receiveServiceBuffer (BufferType buffer) {
         barobo_rpc_Reply reply;
 
-        auto err = decode(reply, buffer.bytes, buffer.size);
-        if (hasError(err)) {
-            return err;
+        auto status = decode(reply, buffer.bytes, buffer.size);
+        if (hasError(status)) {
+            return status;
         }
 
         switch (reply.type) {
@@ -139,28 +171,25 @@ public:
                 if (!reply.has_result) {
                     return Status::INCONSISTENT_REPLY;
                 }
-                err = decodeResultPayload(argument, reply.result.id, reply.result.payload);
-                if (!hasError(err)) {
-                    err = invokeFulfill(mRequestManager, argument, reply.result.id, reply.inReplyTo);
+                status = decodeResultPayload(argument, reply.result.id, reply.result.payload);
+                if (!hasError(status)) {
+                    status = invokeFulfill(mRequestManager, argument, reply.result.id, reply.inReplyTo);
                 }
-                return err;
-            case barobo_rpc_Reply_Type_VERSION:
-                if (!reply.has_version) {
+                return status;
+            case barobo_rpc_Reply_Type_SERVICEINFO:
+                if (!reply.has_serviceInfo) {
                     return Status::INCONSISTENT_REPLY;
                 }
-                return checkRpcVersion(reply.version.rpc) &&
-                    checkInterfaceVersion<Interface>(reply.version.interface) ?
-                        Status::OK :
-                        Status::VERSION_MISMATCH;
+                return mRequestManager.fulfill(reply.inReplyTo, ServiceInfo(reply.serviceInfo));
             case barobo_rpc_Reply_Type_BROADCAST:
                 if (!reply.has_broadcast) {
                     return Status::INCONSISTENT_REPLY;
                 }
-                err = decodeBroadcastPayload(argument, reply.broadcast.id, reply.broadcast.payload);
-                if (!hasError(err)) {
-                    err = invokeBroadcast(*this, argument, reply.broadcast.id);
+                status = decodeBroadcastPayload(argument, reply.broadcast.id, reply.broadcast.payload);
+                if (!hasError(status)) {
+                    status = invokeBroadcast(*this, argument, reply.broadcast.id);
                 }
-                return err;
+                return status;
             default:
                 return Status::INCONSISTENT_REPLY;
         }

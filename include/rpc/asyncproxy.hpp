@@ -45,6 +45,7 @@ public:
     template <class T>
     using Future = std::future<T>;
 
+    // Fulfill a promise with an error from the remote host.
     Status fulfill (uint32_t requestId, Status status) {
         std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
 
@@ -80,6 +81,7 @@ public:
         return Status::OK;
     }
 
+    // Fulfill a method or connection request promise.
     template <class C>
     Status fulfill (uint32_t requestId, C result) {
         std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
@@ -135,7 +137,7 @@ public:
             assert(promisePtr);
         }
 
-        mReaper.executeAfter(std::chrono::milliseconds(100),
+        mReaper.executeAfter(std::chrono::milliseconds(1000),
             [=] () {
                 std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
                 auto iter = mPromises.find(requestId);
@@ -145,7 +147,7 @@ public:
                         Throw(std::make_exception_ptr(std::runtime_error(
                                     std::string("No response to request ") +
                                     std::to_string(requestId) +
-                                    std::string(" after 100ms")))),
+                                    std::string(" after 1000ms")))),
                         iter->second);
                     mPromises.erase(iter);
                 }

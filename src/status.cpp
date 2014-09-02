@@ -15,7 +15,6 @@ const char* statusToString (Status status) {
         ITEM(BUFFER_OVERFLOW);
         ITEM(READONLY);
         ITEM(NO_SUBSCRIPTIONS);
-        ITEM(VERSION_MISMATCH);
 
         ITEM(UNSOLICITED_RESULT);
         ITEM(UNRECOGNIZED_RESULT);

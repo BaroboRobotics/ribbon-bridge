@@ -1,7 +1,7 @@
 #ifndef RPC_DEF_HPP
 #define RPC_DEF_HPP
 
-#include "rpc/checkversion.hpp"
+#include "rpc/version.hpp"
 #include "rpc/componenttraits.hpp"
 #include "rpc/hash.hpp"
 #include "rpc/message.hpp"
@@ -187,6 +187,7 @@
         constexpr static const uint32_t major = BOOST_PP_TUPLE_ELEM(0, version); \
         constexpr static const uint32_t minor = BOOST_PP_TUPLE_ELEM(1, version); \
         constexpr static const uint32_t patch = BOOST_PP_TUPLE_ELEM(2, version); \
+        constexpr static VersionTriplet triplet () { return { major, minor, patch }; } \
     };
 
 #define RPCDEF_FWD_DECL_isComponentFunctions(interface) \
@@ -364,7 +365,7 @@
 //   using MakePromiseVariant = Variant<Promise<T>...>;
 //   using PromiseVariant = typename PromiseVariadic<Interface, MakePromiseVariant>::type;
 // and PromiseVariant will be a variant of promises for all attributes, method
-// results, and the void type.
+// results, the void type, and ServiceInfo (for connection replies).
 
 #define RPCDEF_PromiseVariadic(interface, attributes, methods) \
     template <template <class...> class F> \
@@ -373,6 +374,7 @@
             < \
             BOOST_PP_SEQ_ENUM( \
                     (void) \
+                    (ServiceInfo) \
                     BOOST_PP_SEQ_TRANSFORM( \
                         rpcdef_make_typename_attribute_struct, \
                         interface, attributes) \
