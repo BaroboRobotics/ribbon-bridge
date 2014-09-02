@@ -136,6 +136,7 @@ function(rpc_add_interface _targetName _protoFile)
         PUBLIC $<TARGET_PROPERTY:rpc,INCLUDE_DIRECTORIES>
         PUBLIC ${protoDir}
         PUBLIC .)
+    set_target_properties(${_targetName} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endfunction()
 
 # Eat own dog food. We don't use rpc_add_interface, because rpc.proto operates
@@ -170,6 +171,7 @@ target_include_directories(rpc
 # Our asio code is header-only, so no need for us to link with Boost ourselves.
 # Consumers of our headers will have to, though.
 target_link_libraries(rpc INTERFACE ${Boost_LIBRARIES})
+set_target_properties(rpc PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 ##############################################################################
 

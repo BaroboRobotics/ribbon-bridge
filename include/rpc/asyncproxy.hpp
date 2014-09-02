@@ -1,6 +1,12 @@
 #ifndef RPC_ASYNCPROXY_HPP
 #define RPC_ASYNCPROXY_HPP
 
+// Boost.Variant defaults to a maximum of 20 items. Increase this limit.
+// TODO: switch to a truly-variadic variant
+#define BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS
+#define BOOST_MPL_LIMIT_LIST_SIZE 30
+#define BOOST_MPL_LIMIT_VECTOR_SIZE 30 
+
 #include "rpc/config.hpp"
 
 #ifndef HAVE_STDLIB
@@ -143,6 +149,7 @@ public:
                 auto iter = mPromises.find(requestId);
                 if (mPromises.end() != iter) {
                     auto promisePtr = boost::get<std::promise<C>>(&iter->second);
+                    assert(promisePtr);
                     boost::apply_visitor(
                         Throw(std::make_exception_ptr(std::runtime_error(
                                     std::string("No response to request ") +
