@@ -29,6 +29,13 @@ private:
 inline std::ostream& operator<< (std::ostream& os, const VersionTriplet& triplet) {
 	return os << triplet.major() << '.' << triplet.minor() << '.' << triplet.patch();
 }
+
+inline std::string to_string (const VersionTriplet& triplet) {
+	using std::to_string;
+	return to_string(triplet.major()) + '.' +
+		   to_string(triplet.minor()) + '.' +
+		   to_string(triplet.patch());
+}
 #endif
 
 inline bool operator== (const VersionTriplet& lhs, const VersionTriplet& rhs) {
