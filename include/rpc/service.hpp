@@ -69,6 +69,27 @@ public:
         return status;
     }
 
+    Status refuseRequest (barobo_rpc_Request request) {
+        barobo_rpc_Reply reply;
+        memset(&reply, 0, sizeof(reply));
+
+        reply.has_inReplyTo = true;
+        reply.inReplyTo = request.id;
+
+        reply.type = barobo_rpc_Reply_Type_STATUS;
+        reply.has_status = true;
+        reply.status.value = barobo_rpc_Status_NOT_CONNECTED;
+
+        BufferType response;
+        response.size = sizeof(response.bytes);
+        auto status = encode(reply, response.bytes, response.size, response.size);
+        if (!hasError(status)) {
+            static_cast<T*>(this)->bufferToProxy(response);
+        }
+
+        return status;
+    }
+
     Status receiveProxyBuffer (BufferType in) {
         barobo_rpc_Request request;
         auto err = decode(request, in.bytes, in.size);

@@ -12,6 +12,7 @@ const char* statusToString (Status status) {
         ITEM(INCONSISTENT_REPLY);
         ITEM(ILLEGAL_OPERATION);
         ITEM(NO_SUCH_COMPONENT);
+        ITEM(NOT_CONNECTED);
 
         ITEM(UNSOLICITED_RESULT);
         ITEM(UNRECOGNIZED_RESULT);

@@ -60,6 +60,8 @@ public:
             return Status::UNSOLICITED_RESULT;
         }
 
+        // hlh: FIXME with attributes and subscriptions gone, some of this is
+        // dead code
         auto promisePtr = boost::get<std::promise<void>>(&iter->second);
         if (promisePtr) {
             if (!hasError(status)) {

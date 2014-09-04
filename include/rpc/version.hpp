@@ -56,7 +56,7 @@ template <>
 struct Version<void> {
 	constexpr static const uint32_t major = 0;
 	constexpr static const uint32_t minor = 0;
-	constexpr static const uint32_t patch = 0;
+	constexpr static const uint32_t patch = 2;
 	constexpr static VersionTriplet triplet () { return { major, minor, patch }; }
 };
 
