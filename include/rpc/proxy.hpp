@@ -20,44 +20,8 @@ public:
     template <class U>
     using Future = typename RequestManager<Interface>::template Future<U>;
 
-    template <class Attribute>
-    Future<Attribute> get (Attribute, ONLY_IF(IsAttribute<Attribute>::value)) {
-        BufferType buffer;
-        buffer.size = sizeof(buffer.bytes);
-        auto requestId = mRequestManager.nextRequestId();
-        auto status = makeGet(
-                buffer.bytes, buffer.size,
-                requestId,
-                componentId(Attribute()));
-        if (hasError(status)) {
-            return mRequestManager.template finalize<Attribute>(requestId, status);
-        }
-        auto future = mRequestManager.template finalize<Attribute>(requestId);
-        static_cast<T*>(this)->bufferToService(buffer);
-        return future;
-    }
-
-    template <class Attribute>
-    Future<void> set (Attribute args, ONLY_IF(IsSettableAttribute<Attribute>::value)) {
-        BufferType buffer;
-        buffer.size = sizeof(buffer.bytes);
-        auto requestId = mRequestManager.nextRequestId();
-        auto status = makeSet(
-                buffer.bytes, buffer.size,
-                requestId,
-                componentId(Attribute()),
-                pbFields(args),
-                &args);
-        if (hasError(status)) {
-            return mRequestManager.template finalize<void>(requestId, status);
-        }
-        auto future = mRequestManager.template finalize<void>(requestId);
-        static_cast<T*>(this)->bufferToService(buffer);
-        return future;
-    }
-
     template <class C>
-    void broadcast (C args, ONLY_IF(IsSubscribableAttribute<C>::value || IsBroadcast<C>::value)) {
+    void broadcast (C args, ONLY_IF(IsBroadcast<C>::value)) {
         static_cast<T*>(this)->onBroadcast(args);
     }
 
@@ -81,40 +45,6 @@ public:
          * used, we could potentially end up with an encoded message on the wire
          * with no promise or future generated for it yet. */
         auto future = mRequestManager.template finalize<Result>(requestId);
-        static_cast<T*>(this)->bufferToService(buffer);
-        return future;
-    }
-
-    template <class C>
-    Future<void> subscribe (C, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
-        BufferType buffer;
-        buffer.size = sizeof(buffer.bytes);
-        auto requestId = mRequestManager.nextRequestId();
-        auto status = makeSubscribe(
-                    buffer.bytes, buffer.size,
-                    requestId,
-                    componentId(C()));
-        if (hasError(status)) {
-            return mRequestManager.template finalize<void>(requestId, status);
-        }
-        auto future = mRequestManager.template finalize<void>(requestId);
-        static_cast<T*>(this)->bufferToService(buffer);
-        return future;
-    }
-
-    template <class C>
-    Future<void> unsubscribe (C, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
-        BufferType buffer;
-        buffer.size = sizeof(buffer.bytes);
-        auto requestId = mRequestManager.template nextRequestId();
-        auto status = makeUnsubscribe(
-                    buffer.bytes, buffer.size,
-                    requestId,
-                    componentId(C()));
-        if (hasError(status)) {
-            return mRequestManager.template finalize<void>(requestId, status);
-        }
-        auto future = mRequestManager.template finalize<void>(requestId);
         static_cast<T*>(this)->bufferToService(buffer);
         return future;
     }

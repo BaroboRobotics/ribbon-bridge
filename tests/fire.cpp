@@ -7,9 +7,7 @@ int main () {
     enum { SUCCEEDED, FAILED };
     int testResult = SUCCEEDED;
 
-    using Attribute = rpc::Attribute<barobo::Widget>;
     using Method = rpc::MethodIn<barobo::Widget>;
-    using Broadcast = rpc::Broadcast<barobo::Widget>;
 
     ConnectedRpcObject<WidgetService, WidgetProxy> widget;
 

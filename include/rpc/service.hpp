@@ -20,32 +20,19 @@ public:
 
     Service () { (void)AssertServiceImplementsInterface<T, Interface>(); }
 
-    template <class Attribute>
-    Attribute get (Attribute args, ONLY_IF(IsAttribute<Attribute>::value)) {
-        return static_cast<T*>(this)->onGet(args);
-    }
-
-    template <class Attribute>
-    void set (Attribute args, ONLY_IF(IsSettableAttribute<Attribute>::value)) {
-        static_cast<T*>(this)->onSet(args);
-    }
-
     template <class C>
-    Status broadcast (C args, ONLY_IF(IsSubscribableAttribute<C>::value || IsBroadcast<C>::value)) {
-        if (subscriptionIsActive(mSubscriptions, componentId(C()))) {
-            //mSubscriptions.isActive(componentId(C()))) {
-            BufferType buffer;
-            buffer.size = sizeof(buffer.bytes);
-            auto status = makeBroadcast(
-                    buffer.bytes, buffer.size,
-                    componentId(C()),
-                    pbFields(args),
-                    &args);
-            if (hasError(status)) {
-                return status;
-            }
-            static_cast<T*>(this)->bufferToProxy(buffer);
+    Status broadcast (C args, ONLY_IF(IsBroadcast<C>::value)) {
+        BufferType buffer;
+        buffer.size = sizeof(buffer.bytes);
+        auto status = makeBroadcast(
+                buffer.bytes, buffer.size,
+                componentId(C()),
+                pbFields(args),
+                &args);
+        if (hasError(status)) {
+            return status;
         }
+        static_cast<T*>(this)->bufferToProxy(buffer);
         return Status::OK;
     }
 
@@ -104,26 +91,6 @@ public:
                 ComponentResultUnion<Interface> result;
             } argument;
 
-            case barobo_rpc_Request_Type_GET:
-                reply.status.value = decltype(reply.status.value)(invokeGet(*this, argument.result, request.get.id, reply.result.payload));
-                if (barobo_rpc_Status_OK != reply.status.value) {
-                    reply.type = barobo_rpc_Reply_Type_STATUS;
-                    reply.has_status = true;
-                }
-                else {
-                    reply.type = barobo_rpc_Reply_Type_RESULT;
-                    reply.has_result = true;
-                    reply.result.id = request.get.id;
-                }
-                break;
-            case barobo_rpc_Request_Type_SET:
-                reply.type = barobo_rpc_Reply_Type_STATUS;
-                reply.has_status = true;
-                reply.status.value = decltype(reply.status.value)(decodeSetPayload(argument.in, request.set.id, request.set.payload));
-                if (barobo_rpc_Status_OK == reply.status.value) {
-                    reply.status.value = decltype(reply.status.value)(invokeSet(*this, argument.in, request.set.id));
-                }
-                break;
             case barobo_rpc_Request_Type_FIRE:
                 reply.status.value = decltype(reply.status.value)(decodeFirePayload(argument.in, request.fire.id, request.fire.payload));
                 if (barobo_rpc_Status_OK != reply.status.value) {
@@ -142,18 +109,6 @@ public:
                         reply.result.id = request.fire.id;
                     }
                 }
-                break;
-            case barobo_rpc_Request_Type_SUBSCRIBE:
-                reply.type = barobo_rpc_Reply_Type_STATUS;
-                reply.has_status = true;
-                reply.status.value = decltype(reply.status.value)(activateSubscription(mSubscriptions, request.subscribe.id));
-                //mSubscriptions.activate(request.subscribe.id));
-                break;
-            case barobo_rpc_Request_Type_UNSUBSCRIBE:
-                reply.type = barobo_rpc_Reply_Type_STATUS;
-                reply.has_status = true;
-                reply.status.value = decltype(reply.status.value)(deactivateSubscription(mSubscriptions, request.unsubscribe.id));
-                //mSubscriptions.deactivate(request.unsubscribe.id));
                 break;
             case barobo_rpc_Request_Type_CONNECT:
                 reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
@@ -182,9 +137,6 @@ public:
 
         return status;
     }
-
-private:
-    Subscriptions<Interface> mSubscriptions;
 };
 
 } // namespace rpc

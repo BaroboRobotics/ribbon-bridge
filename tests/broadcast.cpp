@@ -7,16 +7,16 @@ int main () {
     enum { SUCCEEDED, FAILED };
     int testResult = SUCCEEDED;
 
-    using Attribute = rpc::Attribute<barobo::Widget>;
-    using Method = rpc::MethodIn<barobo::Widget>;
     using Broadcast = rpc::Broadcast<barobo::Widget>;
 
     ConnectedRpcObject<WidgetService, WidgetProxy> widget;
 
     try {
-        auto result = widget.proxy().get(Attribute::attribute()).get();
-        assert(13 == result.value);
-        std::cout << "get(attribute) returned: " << result.value << '\n';
+        auto status = widget.service().broadcast(Broadcast::broadcast{0.5});
+        if (hasError(status)) { throw rpc::Error { statusToString(status) }; }
+        widget.proxy().connect().get(); // make sure we're synchronized
+        auto value = widget.proxy().broadcastedBroadcast().value;
+        assert(0.5 == value);
     }
     catch (const rpc::Error& exc) {
         std::cout << "RPC error: " << exc.what() << '\n';

@@ -12,8 +12,6 @@ enum Status {
     /* Compile-time errors, if using same version of interface */
     ILLEGAL_OPERATION = 5;
     NO_SUCH_COMPONENT = 6;
-    READONLY = 8;
-    NO_SUBSCRIPTIONS = 9;
     /* Runtime errors */
     BUFFER_OVERFLOW = 7;
 }
@@ -26,29 +24,8 @@ message VersionTriplet {
 
 message Request {
     enum Type {
-        GET = 1;
-        SET = 2;
-        SUBSCRIBE = 3;
-        UNSUBSCRIBE = 4;
         FIRE = 5;
         CONNECT = 6;
-    }
-
-    message Get {
-        required uint32 id = 1;
-    }
-
-    message Set {
-        required uint32 id = 1;
-        required bytes payload = 2 [(nanopb).max_size = 128];
-    }
-
-    message Subscribe {
-        required uint32 id = 1;
-    }
-
-    message Unsubscribe {
-        required uint32 id = 1;
     }
 
     message Fire {
@@ -58,17 +35,12 @@ message Request {
 
     required Type type = 1;
     required uint32 id = 2;
-    optional Get get = 3;
-    optional Set set = 4;
-    optional Subscribe subscribe = 5;
-    optional Unsubscribe unsubscribe = 6;
     optional Fire fire = 7;
 }
 
 message Reply {
     enum Type {
         BROADCAST = 1;
-        VERSION = 2;
         RESULT = 3;
         STATUS = 4;
         SERVICEINFO = 5;

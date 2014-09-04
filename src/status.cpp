@@ -13,8 +13,6 @@ const char* statusToString (Status status) {
         ITEM(ILLEGAL_OPERATION);
         ITEM(NO_SUCH_COMPONENT);
         ITEM(BUFFER_OVERFLOW);
-        ITEM(READONLY);
-        ITEM(NO_SUBSCRIPTIONS);
 
         ITEM(UNSOLICITED_RESULT);
         ITEM(UNRECOGNIZED_RESULT);

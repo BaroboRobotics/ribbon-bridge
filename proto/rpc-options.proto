@@ -13,11 +13,6 @@ extend google.protobuf.FileOptions {
     optional VersionTriplet version = 50000;
 }
 
-message AttributeOptions {
-    optional bool readonly = 1;
-    optional bool noSubscriptions = 2;
-}
-
 message MethodOptions {
     optional bool fireAndForget = 1;
 }
@@ -27,7 +22,6 @@ message BroadcastOptions {
 }
 
 extend google.protobuf.MessageOptions {
-    optional AttributeOptions attribute = 50000;
-    optional MethodOptions method = 50001;
-    optional BroadcastOptions broadcast = 50002;
+    optional MethodOptions method = 50000;
+    optional BroadcastOptions broadcast = 50001;
 }
