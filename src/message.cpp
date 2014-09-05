@@ -98,4 +98,16 @@ Status makeConnect (uint8_t* bytes, size_t& size, uint32_t requestId) {
     return rpc::encode(request, bytes, size, size);
 }
 
+Status makeDisconnect (uint8_t* bytes, size_t& size, uint32_t requestId) {
+    assert(bytes);
+
+    barobo_rpc_Request request;
+    memset(&request, 0, sizeof(request));
+
+    request.type = barobo_rpc_Request_Type_DISCONNECT;
+    request.id = requestId;
+
+    return rpc::encode(request, bytes, size, size);
+}
+
 } // namespace rpc

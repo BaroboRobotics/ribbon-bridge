@@ -282,7 +282,7 @@
 //   using MakePromiseVariant = Variant<Promise<T>...>;
 //   using PromiseVariant = typename PromiseVariadic<Interface, MakePromiseVariant>::type;
 // and PromiseVariant will be a variant of promises for all method
-// results, and ServiceInfo (for connection replies).
+// results, void, and ServiceInfo (for connection replies).
 
 #define RPCDEF_PromiseVariadic(interface, methods) \
     template <template <class...> class F> \
@@ -290,6 +290,7 @@
         using type = F \
             < \
             BOOST_PP_SEQ_ENUM( \
+                    (void) \
                     (ServiceInfo) \
                     BOOST_PP_SEQ_TRANSFORM( \
                         rpcdef_make_typename_method_output_struct, \

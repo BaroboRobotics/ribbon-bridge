@@ -112,6 +112,22 @@ public:
                 ComponentResultUnion<Interface> result;
             } argument;
 
+            case barobo_rpc_Request_Type_CONNECT:
+                reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
+                reply.has_serviceInfo = true;
+                reply.serviceInfo.type = barobo_rpc_Reply_ServiceInfo_Type_WELCOME;
+                reply.serviceInfo.rpcVersion.major = Version<>::major;
+                reply.serviceInfo.rpcVersion.minor = Version<>::minor;
+                reply.serviceInfo.rpcVersion.patch = Version<>::patch;
+                reply.serviceInfo.interfaceVersion.major = Version<Interface>::major;
+                reply.serviceInfo.interfaceVersion.minor = Version<Interface>::minor;
+                reply.serviceInfo.interfaceVersion.patch = Version<Interface>::patch;
+                break;
+            case barobo_rpc_Request_Type_DISCONNECT:
+                reply.type = barobo_rpc_Reply_Type_STATUS;
+                reply.has_status = true;
+                reply.status.value = barobo_rpc_Status_OK;
+                break;
             case barobo_rpc_Request_Type_FIRE:
                 if (!request.has_fire) {
                     reply.type = barobo_rpc_Reply_Type_STATUS;
@@ -134,17 +150,6 @@ public:
                 reply.type = barobo_rpc_Reply_Type_RESULT;
                 reply.has_result = true;
                 reply.result.id = request.fire.id;
-                break;
-            case barobo_rpc_Request_Type_CONNECT:
-                reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
-                reply.has_serviceInfo = true;
-                reply.serviceInfo.type = barobo_rpc_Reply_ServiceInfo_Type_WELCOME;
-                reply.serviceInfo.rpcVersion.major = Version<>::major;
-                reply.serviceInfo.rpcVersion.minor = Version<>::minor;
-                reply.serviceInfo.rpcVersion.patch = Version<>::patch;
-                reply.serviceInfo.interfaceVersion.major = Version<Interface>::major;
-                reply.serviceInfo.interfaceVersion.minor = Version<Interface>::minor;
-                reply.serviceInfo.interfaceVersion.patch = Version<Interface>::patch;
                 break;
             default:
                 reply.type = barobo_rpc_Reply_Type_STATUS;

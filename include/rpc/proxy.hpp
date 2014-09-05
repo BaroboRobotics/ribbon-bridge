@@ -64,6 +64,21 @@ public:
         return future;
     }
 
+    Future<void> disconnect () {
+        BufferType buffer;
+        buffer.size = sizeof(buffer.bytes);
+        auto requestId = mRequestManager.template nextRequestId();
+        auto status = makeDisconnect(
+                    buffer.bytes, buffer.size,
+                    requestId);
+        if (hasError(status)) {
+            return mRequestManager.template finalize<void>(requestId, status);
+        }
+        auto future = mRequestManager.template finalize<void>(requestId);
+        static_cast<T*>(this)->bufferToService(buffer);
+        return future;
+    }
+
 #if 0
     // TODO
     Future<void> disconnect () {

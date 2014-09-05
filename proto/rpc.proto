@@ -26,7 +26,8 @@ message VersionTriplet {
 message Request {
     enum Type {
         CONNECT = 0;
-        FIRE = 1;
+        DISCONNECT = 1;
+        FIRE = 2;
     }
 
     message Fire {
