@@ -40,74 +40,6 @@ Status decodeProtobuf (void* pbStruct, const pb_field_t* pbFields, uint8_t* byte
         Status::DECODING_FAILURE;
 }
 
-Status makeGet (uint8_t* bytes, size_t& size, uint32_t requestId,
-        uint32_t componentId) {
-    assert(bytes);
-
-    barobo_rpc_Request request;
-    memset(&request, 0, sizeof(request));
-
-    request.type = barobo_rpc_Request_Type_GET;
-    request.id = requestId;
-    request.has_get = true;
-    request.get.id = componentId;
-
-    return rpc::encode(request, bytes, size, size);
-}
-
-Status makeSet (uint8_t* bytes, size_t& size, uint32_t requestId,
-        uint32_t componentId, const pb_field_t* fields, void* payload) {
-    assert(bytes && fields && payload);
-
-    barobo_rpc_Request request;
-    memset(&request, 0, sizeof(request));
-
-    request.type = barobo_rpc_Request_Type_SET;
-    request.id = requestId;
-    request.has_set = true;
-    request.set.id = componentId;
-
-    auto err = encodeProtobuf(
-            payload, fields,
-            request.set.payload.bytes,
-            sizeof(request.set.payload.bytes),
-            request.set.payload.size);
-    if (!hasError(err)) {
-        err = rpc::encode(request, bytes, size, size);
-    }
-    return err;
-}
-
-Status makeSubscribe (uint8_t* bytes, size_t& size, uint32_t requestId,
-        uint32_t componentId) {
-    assert(bytes);
-
-    barobo_rpc_Request request;
-    memset(&request, 0, sizeof(request));
-
-    request.type = barobo_rpc_Request_Type_SUBSCRIBE;
-    request.id = requestId;
-    request.has_subscribe = true;
-    request.subscribe.id = componentId;
-
-    return rpc::encode(request, bytes, size, size);
-}
-
-Status makeUnsubscribe (uint8_t* bytes, size_t& size, uint32_t requestId,
-        uint32_t componentId) {
-    assert(bytes);
-
-    barobo_rpc_Request request;
-    memset(&request, 0, sizeof(request));
-
-    request.type = barobo_rpc_Request_Type_UNSUBSCRIBE;
-    request.id = requestId;
-    request.has_unsubscribe = true;
-    request.unsubscribe.id = componentId;
-
-    return rpc::encode(request, bytes, size, size);
-}
-
 Status makeFire (uint8_t* bytes, size_t& size, uint32_t requestId, uint32_t componentId, const pb_field_t* fields, void* payload) {
     assert(bytes && fields && payload);
 
@@ -161,6 +93,18 @@ Status makeConnect (uint8_t* bytes, size_t& size, uint32_t requestId) {
     memset(&request, 0, sizeof(request));
 
     request.type = barobo_rpc_Request_Type_CONNECT;
+    request.id = requestId;
+
+    return rpc::encode(request, bytes, size, size);
+}
+
+Status makeDisconnect (uint8_t* bytes, size_t& size, uint32_t requestId) {
+    assert(bytes);
+
+    barobo_rpc_Request request;
+    memset(&request, 0, sizeof(request));
+
+    request.type = barobo_rpc_Request_Type_DISCONNECT;
     request.id = requestId;
 
     return rpc::encode(request, bytes, size, size);

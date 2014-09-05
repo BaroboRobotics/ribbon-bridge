@@ -15,9 +15,7 @@ enum class Status {
     INCONSISTENT_REPLY         = barobo_rpc_Status_INCONSISTENT_REPLY,
     ILLEGAL_OPERATION          = barobo_rpc_Status_ILLEGAL_OPERATION,
     NO_SUCH_COMPONENT          = barobo_rpc_Status_NO_SUCH_COMPONENT,
-    BUFFER_OVERFLOW            = barobo_rpc_Status_BUFFER_OVERFLOW,
-    READONLY                   = barobo_rpc_Status_READONLY,
-    NO_SUBSCRIPTIONS           = barobo_rpc_Status_NO_SUBSCRIPTIONS,
+    NOT_CONNECTED              = barobo_rpc_Status_NOT_CONNECTED,
 
     UNSOLICITED_RESULT,
     UNRECOGNIZED_RESULT

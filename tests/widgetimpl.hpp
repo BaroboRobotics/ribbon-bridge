@@ -21,32 +21,6 @@ public:
      * you implement multiple interfaces, you might make multiple typedefs. */
     using MethodIn = rpc::MethodIn<barobo::Widget>;
     using MethodResult = rpc::MethodResult<barobo::Widget>;
-    using Attribute = rpc::Attribute<barobo::Widget>;
-
-    Attribute::attribute onGet (Attribute::attribute) {
-        return attribute;
-    }
-    void onSet (Attribute::attribute args) {
-        attribute = args;
-        broadcast(args);
-    }
-
-    Attribute::readonlyAttribute onGet (Attribute::readonlyAttribute) {
-        return readonlyAttribute;
-    }
-    // XXX but note setReadonlyAttribute below
-
-    Attribute::noSubscriptionsAttribute onGet (Attribute::noSubscriptionsAttribute) {
-        return noSubscriptionsAttribute;
-    }
-    void onSet (Attribute::noSubscriptionsAttribute args) {
-        noSubscriptionsAttribute = args;
-        // broadcast not called
-    }
-
-    Attribute::readonlyNoSubscriptionsAttribute onGet (Attribute::readonlyNoSubscriptionsAttribute) {
-        return readonlyNoSubscriptionsAttribute;
-    }
 
     MethodResult::nullaryNoResult onFire (MethodIn::nullaryNoResult) {
         MethodResult::nullaryNoResult result;
@@ -111,19 +85,6 @@ public:
     }
 
 private:
-    /* Certain readonly attributes will need updating by the service itself,
-     * like accelerometer readings. Since readonlyAttribute is subscribable,
-     * any privileged set function must remember to broadcast the update. */
-    void setReadonlyAttribute (Attribute::readonlyAttribute val) {
-        readonlyAttribute = val;
-        broadcast(val);
-    }
-
-    Attribute::attribute attribute = { 13 };
-    Attribute::readonlyAttribute readonlyAttribute = { 13 };
-    Attribute::noSubscriptionsAttribute noSubscriptionsAttribute = { 13 };
-    Attribute::readonlyNoSubscriptionsAttribute readonlyNoSubscriptionsAttribute = { 13 };
-
     std::function<void(const BufferType&)> mPostFunc;
 };
 
@@ -135,18 +96,7 @@ public:
         mPostFunc(buffer);
     }
 
-    using Attribute = rpc::Attribute<barobo::Widget>;
     using Broadcast = rpc::Broadcast<barobo::Widget>;
-
-    void onBroadcast (Attribute::attribute args) {
-        printf("onBroadcast(attribute): %" PRId32 "\n", args.value);
-        mBroadcastedAttribute = args;
-    }
-
-    void onBroadcast (Attribute::readonlyAttribute args) {
-        printf("onBroadcast(readonlyAttribute): %" PRId32 "\n", args.value);
-        mBroadcastedReadonlyAttribute = args;
-    }
 
     void onBroadcast (Broadcast::broadcast args) {
         printf("onBroadcast(broadcast): %f\n", args.value);
@@ -155,14 +105,6 @@ public:
 
     //////
 
-    Attribute::attribute broadcastedAttribute () const {
-        return mBroadcastedAttribute;
-    }
-
-    Attribute::readonlyAttribute broadcastedReadonlyAttribute () const {
-        return mBroadcastedReadonlyAttribute;
-    }
-
     Broadcast::broadcast broadcastedBroadcast () const {
         return mBroadcastedBroadcast;
     }
@@ -170,8 +112,6 @@ public:
 private:
     std::function<void(const BufferType&)> mPostFunc;
 
-    Attribute::attribute mBroadcastedAttribute;
-    Attribute::readonlyAttribute mBroadcastedReadonlyAttribute;
     Broadcast::broadcast mBroadcastedBroadcast;
 };
 

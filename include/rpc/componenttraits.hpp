@@ -7,10 +7,6 @@
 
 namespace rpc {
 
-// Access the attribute component messages of an interface by name.
-template <class Interface>
-struct Attribute;
-
 // Access the method component messages of an interface by name.
 template <class Interface>
 struct MethodIn;
@@ -21,16 +17,6 @@ struct MethodResult;
 // Access the broadcast component messages of an interface by name.
 template <class Interface>
 struct Broadcast;
-
-// Identify whether a type is an attribute component message.
-template <class Attribute>
-struct IsAttribute { constexpr static const bool value = false; };
-
-template <class Attribute>
-struct IsSettableAttribute { constexpr static const bool value = false; };
-
-template <class Attribute>
-struct IsSubscribableAttribute { constexpr static const bool value = false; };
 
 // Metafunction to identify whether a type is a method component message.
 template <class Method>
@@ -43,13 +29,9 @@ struct IsBroadcast { constexpr static const bool value = false; };
 template <class Component>
 struct IsComponent {
     constexpr static const bool value =
-        IsAttribute<Component>::value ||
         IsMethod<Component>::value ||
         IsBroadcast<Component>::value;
 };
-
-template <class Interface>
-bool isAttribute (uint32_t id);
 
 template <class Interface>
 bool isMethod (uint32_t id);
@@ -59,8 +41,7 @@ bool isBroadcast (uint32_t id);
 
 template <class Interface>
 bool isComponent (uint32_t id) {
-    return isAttribute<Interface>(id) ||
-           isMethod<Interface>(id) ||
+    return isMethod<Interface>(id) ||
            isBroadcast<Interface>(id);
 }
 
@@ -74,53 +55,6 @@ union ComponentResultUnion;
 template <class Interface, template <class...> class F>
 struct PromiseVariadic;
 
-template <class Interface>
-struct Subscriptions;
-
-template <class Interface>
-bool& getSubscriptionRecord (Subscriptions<Interface>& subs, uint32_t id, bool& dummy, Status& status);
-
-template <class Interface>
-bool subscriptionIsActive (Subscriptions<Interface>& subs, uint32_t id) {
-    Status status;
-    bool dummy;
-    bool& record = getSubscriptionRecord(subs, id, dummy, status);
-    if (hasError(status)) {
-        assert(&dummy == &record);
-        return false;
-    }
-    return record;
-}
-
-template <class Interface>
-Status activateSubscription (Subscriptions<Interface>& subs, uint32_t id) {
-    Status status;
-    bool dummy;
-    bool& record = getSubscriptionRecord(subs, id, dummy, status);
-    if (!hasError(status)) {
-        record = true;
-    }
-    else {
-        assert(&dummy == &record);
-    }
-    return status;
-}
-
-template <class Interface>
-Status deactivateSubscription (Subscriptions<Interface>& subs, uint32_t id) {
-    Status status;
-    bool dummy;
-    bool& record = getSubscriptionRecord(subs, id, dummy, status);
-    if (!hasError(status)) {
-        record = false;
-    }
-    else {
-        assert(&dummy == &record);
-    }
-    return status;
-}
-
-
 // Access the component IDs of an interface by name.
 template <class Interface>
 struct ComponentId;
@@ -133,12 +67,6 @@ template <class T>
 struct ResultOf;
 
 template <class Interface>
-struct GetInvoker;
-
-template <class Interface>
-struct SetInvoker;
-
-template <class Interface>
 struct FireInvoker;
 
 template <class Interface>
@@ -146,21 +74,6 @@ struct BroadcastInvoker;
 
 template <class Interface>
 struct FulfillInvoker;
-
-template <class T, class Interface>
-Status invokeGet (T& service,
-        ComponentResultUnion<Interface>& argument,
-        uint32_t componentId,
-        barobo_rpc_Reply_Result_payload_t& payload) {
-    return GetInvoker<Interface>::invoke(service, argument, componentId, payload);
-}
-
-template <class T, class Interface>
-Status invokeSet (T& service,
-        ComponentInUnion<Interface>& argument,
-        uint32_t componentId) {
-    return SetInvoker<Interface>::invoke(service, argument, componentId);
-}
 
 template <class T, class Interface>
 Status invokeFire (T& service,
@@ -186,11 +99,6 @@ Status invokeFulfill(T& proxy,
 }
 
 template <class Interface>
-Status decodeSetPayload (ComponentInUnion<Interface>& args,
-        uint32_t componentId,
-        barobo_rpc_Request_Set_payload_t& payload);
-
-template <class Interface>
 Status decodeFirePayload (ComponentInUnion<Interface>& args,
         uint32_t componentId,
         barobo_rpc_Request_Fire_payload_t& payload);
@@ -205,8 +113,6 @@ Status decodeResultPayload (ComponentResultUnion<Interface>& args,
         uint32_t componentId,
         barobo_rpc_Reply_Result_payload_t& payload);
 
-RPC_DEFINE_TRAIT_HAS_MEMBER_FUNCTION_OVERLOAD(onGet)
-RPC_DEFINE_TRAIT_HAS_MEMBER_FUNCTION_OVERLOAD(onSet)
 RPC_DEFINE_TRAIT_HAS_MEMBER_FUNCTION_OVERLOAD(onFire)
 RPC_DEFINE_TRAIT_HAS_MEMBER_FUNCTION_OVERLOAD(onBroadcast)
 

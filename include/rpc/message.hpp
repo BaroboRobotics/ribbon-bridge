@@ -28,19 +28,12 @@ Status decode (T& message, uint8_t* bytes, size_t size) {
     return decodeProtobuf(&message, pbFields(message), bytes, size);
 }
 
-Status makeGet (uint8_t* bytes, size_t& size, uint32_t requestId,
-        uint32_t componentId);
-Status makeSet (uint8_t* bytes, size_t& size, uint32_t requestId,
-        uint32_t componentId, const pb_field_t* fields, void* payload);
 Status makeFire (uint8_t* bytes, size_t& size, uint32_t requestId,
         uint32_t componentId, const pb_field_t* fields, void* payload);
-Status makeSubscribe (uint8_t* bytes, size_t& size, uint32_t requestId,
-        uint32_t componentId);
-Status makeUnsubscribe (uint8_t* bytes, size_t& size, uint32_t requestId,
-        uint32_t componentId);
 Status makeBroadcast (uint8_t* bytes, size_t& size,
         uint32_t componentId, const pb_field_t* fields, void* payload);
 Status makeConnect (uint8_t* bytes, size_t& size, uint32_t requestId);
+Status makeDisconnect (uint8_t* bytes, size_t& size, uint32_t requestId);
 
 } // namespace rpc
 
