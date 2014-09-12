@@ -168,9 +168,12 @@ target_include_directories(rpc
     $<TARGET_PROPERTY:cxx-util,INTERFACE_INCLUDE_DIRECTORIES>
     )
 
-# Our asio code is header-only, so no need for us to link with Boost ourselves.
-# Consumers of our headers will have to, though.
+# Our asio code is header-only, so no need for us to link with Boost/Winsock
+# ourselves. Consumers of our headers will have to, though.
 target_link_libraries(rpc INTERFACE ${Boost_LIBRARIES})
+if(WIN32)
+    target_link_libraries(rpc INTERFACE ws2_32)
+endif()
 set_target_properties(rpc PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 ##############################################################################
