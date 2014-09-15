@@ -17,9 +17,9 @@
 #include "rpc/proxy.hpp"
 
 #include "util/deadlinescheduler.hpp"
+#include "util/variant.hpp"
 
 #include <boost/unordered_map.hpp>
-#include <boost/variant.hpp>
 
 #include <future>
 #include <tuple>
@@ -33,11 +33,11 @@ namespace rpc {
 template <class Interface>
 class AsyncRequestManager {
     template <class... Ts>
-    using MakePromiseVariant = boost::variant<std::promise<Ts>...>;
+    using MakePromiseVariant = util::Variant<std::promise<Ts>...>;
 
     using PromiseVariant = typename rpc::PromiseVariadic<Interface, MakePromiseVariant>::type;
 
-    struct Throw : boost::static_visitor<> {
+    struct Throw {
         explicit Throw (std::exception_ptr e) : mException(e) { }
 
         template <class P>
@@ -60,14 +60,14 @@ public:
             return Status::UNSOLICITED_RESULT;
         }
 
-        auto promisePtr = boost::get<std::promise<void>>(&iter->second);
+        auto promisePtr = util::get<std::promise<void>>(&iter->second);
         if (promisePtr) {
             if (!hasError(status)) {
                 promisePtr->set_value();
             }
             else {
                 auto eptr = std::make_exception_ptr(Error(statusToString(status)));
-                boost::apply_visitor(Throw(eptr), iter->second);
+                util::apply(Throw(eptr), iter->second);
             }
         }
         else {
@@ -75,11 +75,11 @@ public:
                 // No error reported, but we have a type mismatch.
                 printf("type mismatch with requestId %" PRId32 "\n", requestId);
                 auto eptr = std::make_exception_ptr(Error(statusToString(Status::UNRECOGNIZED_RESULT)));
-                boost::apply_visitor(Throw(eptr), iter->second);
+                util::apply(Throw(eptr), iter->second);
             }
             else {
                 auto eptr = std::make_exception_ptr(Error(statusToString(status)));
-                boost::apply_visitor(Throw(eptr), iter->second);
+                util::apply(Throw(eptr), iter->second);
             }
         }
 
@@ -97,7 +97,7 @@ public:
             return Status::UNSOLICITED_RESULT;
         }
 
-        auto promisePtr = boost::get<std::promise<C>>(&iter->second);
+        auto promisePtr = util::get<std::promise<C>>(&iter->second);
         if (promisePtr) {
             promisePtr->set_value(result);
         }
@@ -105,7 +105,7 @@ public:
             // type mismatch
             printf("type mismatch with requestId %" PRId32 "\n", requestId);
             auto eptr = std::make_exception_ptr(Error(statusToString(Status::UNRECOGNIZED_RESULT)));
-            boost::apply_visitor(Throw(eptr), iter->second);
+            util::apply(Throw(eptr), iter->second);
         }
 
         mPromises.erase(iter);
@@ -139,7 +139,7 @@ public:
                 assert(success);
             }
 
-            promisePtr = boost::get<std::promise<C>>(&iter->second);
+            promisePtr = util::get<std::promise<C>>(&iter->second);
             assert(promisePtr);
         }
 
@@ -148,14 +148,13 @@ public:
                 std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
                 auto iter = mPromises.find(requestId);
                 if (mPromises.end() != iter) {
-                    auto promisePtr = boost::get<std::promise<C>>(&iter->second);
+                    auto promisePtr = util::get<std::promise<C>>(&iter->second);
                     assert(promisePtr);
-                    boost::apply_visitor(
-                        Throw(std::make_exception_ptr(std::runtime_error(
-                                    std::string("No response to request ") +
-                                    std::to_string(requestId) +
-                                    std::string(" after 1000ms")))),
-                        iter->second);
+                    auto eptr = std::make_exception_ptr(std::runtime_error(
+                        std::string("No response to request ") +
+                        std::to_string(requestId) +
+                        std::string(" after 1000ms")));
+                    promisePtr->set_exception(eptr);
                     mPromises.erase(iter);
                 }
             }
