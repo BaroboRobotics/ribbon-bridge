@@ -1,12 +1,6 @@
 #ifndef RPC_ASYNCPROXY_HPP
 #define RPC_ASYNCPROXY_HPP
 
-// Boost.Variant defaults to a maximum of 20 items. Increase this limit.
-// TODO: switch to a truly-variadic variant
-#define BOOST_MPL_CFG_NO_PREPROCESSED_HEADERS
-#define BOOST_MPL_LIMIT_LIST_SIZE 30
-#define BOOST_MPL_LIMIT_VECTOR_SIZE 30 
-
 #include "rpc/config.hpp"
 
 #ifndef HAVE_STDLIB
@@ -18,6 +12,9 @@
 
 #include "util/deadlinescheduler.hpp"
 #include "util/variant.hpp"
+
+#include <boost/log/common.hpp>
+#include <boost/log/sources/logger.hpp>
 
 #include <boost/unordered_map.hpp>
 
@@ -53,15 +50,20 @@ public:
 
     // Fulfill a promise with an error from the remote host.
     Status fulfill (uint32_t requestId, Status status) {
+        BOOST_LOG_NAMED_SCOPE("rpc::AsyncRequestManager::fulfill(status)");
+
         std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
 
         auto iter = mPromises.find(requestId);
         if (mPromises.end() == iter) {
+            BOOST_LOG(mLog) << "request " << requestId << " does not exist";
             return Status::UNSOLICITED_RESULT;
         }
 
         auto promisePtr = util::get<std::promise<void>>(&iter->second);
         if (promisePtr) {
+            BOOST_LOG(mLog) << "fulfilling request " << requestId << "with "
+                            << statusToString(status);
             if (!hasError(status)) {
                 promisePtr->set_value();
             }
@@ -71,6 +73,8 @@ public:
             }
         }
         else {
+            BOOST_LOG(mLog) << "type mismatch fulfilling request " << requestId
+                            << " with " << statusToString(status);
             if (!hasError(status)) {
                 // No error reported, but we have a type mismatch.
                 printf("type mismatch with requestId %" PRId32 "\n", requestId);
@@ -90,20 +94,24 @@ public:
     // Fulfill a method or connection request promise.
     template <class C>
     Status fulfill (uint32_t requestId, C result) {
+        BOOST_LOG_NAMED_SCOPE("rpc::AsyncRequestManager::fulfill(result)");
+
         std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
 
         auto iter = mPromises.find(requestId);
         if (mPromises.end() == iter) {
+            BOOST_LOG(mLog) << "request " << requestId << " does not exist";
             return Status::UNSOLICITED_RESULT;
         }
 
         auto promisePtr = util::get<std::promise<C>>(&iter->second);
         if (promisePtr) {
+            BOOST_LOG(mLog) << "fulfilling request " << requestId;
             promisePtr->set_value(result);
         }
         else {
             // type mismatch
-            printf("type mismatch with requestId %" PRId32 "\n", requestId);
+            BOOST_LOG(mLog) << "type mismatch fulfilling request " << requestId;
             auto eptr = std::make_exception_ptr(Error(statusToString(Status::UNRECOGNIZED_RESULT)));
             util::apply(Throw(eptr), iter->second);
         }
@@ -123,6 +131,7 @@ public:
 
     template <class C>
     Future<C> finalize (uint32_t requestId) {
+        BOOST_LOG_NAMED_SCOPE("rpc::AsyncRequestManager::finalize");
         std::promise<C>* promisePtr;
         {
             std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
@@ -143,10 +152,16 @@ public:
             assert(promisePtr);
         }
 
+        BOOST_LOG(mLog) << "scheduling request " << requestId << " for reaping "
+                        << "(mPromises:" << &mPromises << ")";
         mReaper.executeAfter(std::chrono::milliseconds(1000),
             [=] () {
+                BOOST_LOG_NAMED_SCOPE("rpc::AsyncRequestManager::finalize::(lambda)");
                 std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
                 auto iter = mPromises.find(requestId);
+                BOOST_LOG(mLog) << "request " << requestId
+                                << (mPromises.end() == iter ? " no longer " : " still ")
+                                << "exists (mPromises:" << &mPromises << ")";
                 if (mPromises.end() != iter) {
                     auto promisePtr = util::get<std::promise<C>>(&iter->second);
                     assert(promisePtr);
@@ -154,7 +169,9 @@ public:
                         std::string("No response to request ") +
                         std::to_string(requestId) +
                         std::string(" after 1000ms")));
+                    BOOST_LOG(mLog) << "setting exception";
                     promisePtr->set_exception(eptr);
+                    BOOST_LOG(mLog) << "erasing";
                     mPromises.erase(iter);
                 }
             }
@@ -168,6 +185,8 @@ public:
     }
 
 private:
+    boost::log::sources::logger_mt mLog;
+
     boost::unordered_map
         < uint32_t
         , PromiseVariant
