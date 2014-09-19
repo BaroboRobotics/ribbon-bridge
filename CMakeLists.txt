@@ -65,6 +65,8 @@ if(NOT DEFINED NANOPB_ROOT)
     endif()
 endif()
 
+file(TO_CMAKE_PATH "${NANOPB_ROOT}" NANOPB_ROOT)
+
 set(NANOPB_INCLUDE_DIR ${NANOPB_ROOT} CACHE PATH "Location of pb.h")
 
 set(PROTOC_INCLUDE_DIR
