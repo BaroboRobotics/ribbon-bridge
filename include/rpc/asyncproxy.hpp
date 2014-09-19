@@ -185,7 +185,7 @@ public:
     }
 
 private:
-    boost::log::sources::logger_mt mLog;
+    mutable boost::log::sources::logger_mt mLog;
 
     boost::unordered_map
         < uint32_t
