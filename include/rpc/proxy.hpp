@@ -1,6 +1,9 @@
 #ifndef RPC_PROXY_HPP
 #define RPC_PROXY_HPP
 
+#include <boost/log/common.hpp>
+#include <boost/log/sources/logger.hpp>
+
 #include "rpc/buffer.hpp"
 #include "rpc/componenttraits.hpp"
 #include "rpc/message.hpp"
@@ -50,6 +53,7 @@ public:
     }
 
     Future<ServiceInfo> connect () {
+        BOOST_LOG_NAMED_SCOPE("rpc::Proxy::connect");
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
         auto requestId = mRequestManager.template nextRequestId();
@@ -60,6 +64,7 @@ public:
             return mRequestManager.template finalize<ServiceInfo>(requestId, status);
         }
         auto future = mRequestManager.template finalize<ServiceInfo>(requestId);
+        BOOST_LOG(mLog) << "created connection request, sending to service";
         static_cast<T*>(this)->bufferToService(buffer);
         return future;
     }
@@ -143,6 +148,8 @@ public:
     }
 
 private:
+    boost::log::sources::logger_mt mLog;
+
     RequestManager<Interface> mRequestManager;
 };
 
