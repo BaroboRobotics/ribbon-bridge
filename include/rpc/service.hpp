@@ -61,7 +61,8 @@ public:
 
         BufferType response;
         response.size = sizeof(response.bytes);
-        auto status = encode(reply, response.bytes, response.size, response.size);
+        Status status;
+        encode(reply, response.bytes, response.size, response.size, status);
         if (!hasError(status)) {
             static_cast<T*>(this)->bufferToProxy(response);
         }
@@ -82,7 +83,8 @@ public:
 
         BufferType response;
         response.size = sizeof(response.bytes);
-        auto status = encode(reply, response.bytes, response.size, response.size);
+        Status status;
+        encode(reply, response.bytes, response.size, response.size, status);
         if (!hasError(status)) {
             static_cast<T*>(this)->bufferToProxy(response);
         }
@@ -92,9 +94,10 @@ public:
 
     Status receiveProxyBuffer (BufferType in) {
         barobo_rpc_Request request;
-        auto err = decode(request, in.bytes, in.size);
-        if (hasError(err)) {
-            return err;
+        Status status;
+        decode(request, in.bytes, in.size, status);
+        if (hasError(status)) {
+            return status;
         }
         return receiveProxyRequest(request);
     }
@@ -160,7 +163,8 @@ public:
 
         BufferType response;
         response.size = sizeof(response.bytes);
-        auto status = encode(reply, response.bytes, response.size, response.size);
+        Status status;
+        encode(reply, response.bytes, response.size, response.size, status);
         if (!hasError(status)) {
             static_cast<T*>(this)->bufferToProxy(response);
         }

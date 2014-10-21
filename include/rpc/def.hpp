@@ -67,9 +67,10 @@
 //////////////////////////////////////////////////////////////////////////////
 // decode functions
 
-#define rpcdef_decodeCase(s, data, component) \
+#define rpcdef_decodeCase(s, status, component) \
     case Id::component: \
-        return decode(args.component, payload.bytes, payload.size);
+        decode(args.component, payload.bytes, payload.size, status); \
+        return status;
 
 #define RPCDEF_decodeFirePayload(interface, methods) \
     template <> \
@@ -78,7 +79,8 @@
             barobo_rpc_Request_Fire_payload_t& payload) { \
         using Id = ComponentId<interface>; \
         switch (componentId) { \
-            BOOST_PP_SEQ_FOR_EACH(rpcdef_decodeCase, ~, methods) \
+            Status status; \
+            BOOST_PP_SEQ_FOR_EACH(rpcdef_decodeCase, status, methods) \
         default: \
             return isComponent<interface>(componentId) ? \
                 Status::ILLEGAL_OPERATION : \
@@ -93,7 +95,8 @@
             barobo_rpc_Reply_Broadcast_payload_t& payload) { \
         using Id = ComponentId<interface>; \
         switch (componentId) { \
-            BOOST_PP_SEQ_FOR_EACH(rpcdef_decodeCase, ~, broadcasts) \
+            Status status; \
+            BOOST_PP_SEQ_FOR_EACH(rpcdef_decodeCase, status, broadcasts) \
             default: \
                 return isComponent<interface>(componentId) ? \
                     Status::ILLEGAL_OPERATION : \
@@ -108,7 +111,8 @@
             barobo_rpc_Reply_Result_payload_t& payload) { \
         using Id = ComponentId<interface>; \
         switch (componentId) { \
-            BOOST_PP_SEQ_FOR_EACH(rpcdef_decodeCase, ~, components) \
+            Status status; \
+            BOOST_PP_SEQ_FOR_EACH(rpcdef_decodeCase, status, components) \
             default: \
                 return isComponent<interface>(componentId) ? \
                     Status::ILLEGAL_OPERATION : \
@@ -334,9 +338,10 @@
 //////////////////////////////////////////////////////////////////////////////
 // Invokers
 
-#define rpcdef_case_invoke_fire(s, z, method) \
+#define rpcdef_case_invoke_fire(s, status, method) \
     case Id::method: \
-        return encode(service.fire(argument.method), payload.bytes, payload.size, payload.size);
+        encode(service.fire(argument.method), payload.bytes, payload.size, payload.size, status); \
+        return status;
 
 // TODO: static_assert that T implements the interface!
 #define RPCDEF_FireInvoker(interface, methods) \
@@ -350,7 +355,8 @@
             using Id = ComponentId<interface>; \
             payload.size = sizeof(payload.bytes); \
             switch (componentId) { \
-                BOOST_PP_SEQ_FOR_EACH(rpcdef_case_invoke_fire, ~, methods) \
+                Status status; \
+                BOOST_PP_SEQ_FOR_EACH(rpcdef_case_invoke_fire, status, methods) \
                 default: \
                     return isComponent<interface>(componentId) ? \
                         Status::ILLEGAL_OPERATION : \
