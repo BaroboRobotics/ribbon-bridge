@@ -31,7 +31,7 @@ message Request {
     }
 
     message Fire {
-        required uint32 id = 1; // comonent id
+        required uint32 id = 1; // component id
         required bytes payload = 2 [(nanopb).max_size = 128];
     }
 
