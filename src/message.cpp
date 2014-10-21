@@ -1,6 +1,5 @@
 #include "rpc/stdlibheaders.hpp"
 #include "rpc/message.hpp"
-#include "rpc/proxy.hpp"
 
 #include "pb_encode.h"
 #include "pb_decode.h"
