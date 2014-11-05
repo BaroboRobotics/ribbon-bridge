@@ -51,7 +51,7 @@ set(Boost_USE_STATIC_LIBS ON)
 
 # Boost.Log was introduced in Boost version 1.54.0.
 # system is required for asio
-find_package(Boost 1.54.0 REQUIRED COMPONENTS system)
+find_package(Boost 1.54.0 REQUIRED COMPONENTS system filesystem log thread coroutine context)
 
 
 ##############################################################################
@@ -77,7 +77,7 @@ set(PROTOC_EXECUTABLE
     "${NANOPB_ROOT}/generator-bin/protoc"
     CACHE FILEPATH "protocol buffer compiler")
 
-# rpc_compile_proto(<c-filepath-result-var>
+# nanopb_compile_proto(<c-filepath-result-var>
 #                   <h-filepath-result-var>
 #                   <proto-filepath>)
 #
@@ -87,7 +87,7 @@ set(PROTOC_EXECUTABLE
 # <proto-filepath> is the input file; its path will be interpreted relative to
 # the current source directory, if it is not absolute. <c-filepath-result-var>
 # and <h-filepath-result-var> 
-function(rpc_compile_proto cFilepathResultVar hFilepathResultVar protoFilepath)
+function(nanopb_compile_proto cFilepathResultVar hFilepathResultVar protoFilepath)
     # Get the input .proto file's name, stripped of the last extension. Note:
     # using get_filename_component(... NAME_WE) instead of the funky regex
     # business would incorrectly strip all extensions. protoc only strips the
@@ -112,46 +112,35 @@ function(rpc_compile_proto cFilepathResultVar hFilepathResultVar protoFilepath)
         VERBATIM)
 endfunction()
 
-# rpc_add_interface(<target-name> <proto-filepath>)
+# nanopb_add_proto(<target-name> <proto-filepath> [<other-source-files>...])
 #
-# Define a target to represent an RPC interface library. You can use
-# <target-name> in the rest of your code as a static library target, and
-# include its headers by using the
+# Define a target to represent a nanopb protobuf library. You can use
+# <target-name> in the rest of your code as a static library target (but
+# containing position-independent code, and include its headers by using the
 #
 #   $<TARGET_PROPERTY:<target-name>,INCLUDE_DIRECTORIES>
 #
 # generator expression in a suitable command's arguments.
-#
-# (Note: this function only supports building from a .proto file in the same
-# directory as CMAKE_CURRENT_LIST_FILE at the time of invocation.)
-function(rpc_add_interface _targetName _protoFile)
-    rpc_compile_proto(cFile hFile ${_protoFile})
-    get_filename_component(interfaceName ${_protoFile} NAME_WE)
-    set(cppFile gen-${interfaceName}.pb.cpp)
-    set(sources ${cFile} ${cppFile})
-    set_source_files_properties(${cppFile} PROPERTIES COMPILE_FLAGS -std=c++11)
-    add_library(${_targetName} STATIC ${sources})
-    add_dependencies(${_targetName} rpc)
+function(nanopb_add_proto _targetName _protoFile)
+    nanopb_compile_proto(cFile hFile ${_protoFile})
+    get_filename_component(protoName ${_protoFile} NAME_WE)
+    add_library(${_targetName} STATIC ${cFile} ${ARGN})
     get_filename_component(protoDir ${hFile} DIRECTORY)
     target_include_directories(${_targetName}
         PRIVATE ${NANOPB_INCLUDE_DIR}
-        PUBLIC $<TARGET_PROPERTY:rpc,INCLUDE_DIRECTORIES>
         PUBLIC ${protoDir}
         PUBLIC .)
     set_target_properties(${_targetName} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endfunction()
 
-# Eat own dog food. We don't use rpc_add_interface, because rpc.proto operates
-# at one layer below the interfaces--interfaces depend on the rpc target we're
-# about to define.
-rpc_compile_proto(RPC_PROTO_C_FILE RPC_PROTO_H_FILE proto/rpc.proto)
+# Eat own dog food.
+nanopb_add_proto(rpc-proto proto/rpc.proto)
 
 ##############################################################################
 
 set(SOURCES
     src/message.cpp
     src/status.cpp
-    ${RPC_PROTO_C_FILE}
     ${NANOPB_ROOT}/pb_decode.c
     ${NANOPB_ROOT}/pb_encode.c)
 
@@ -172,7 +161,7 @@ target_include_directories(rpc
 
 # Our asio code is header-only, so no need for us to link with Boost/Winsock
 # ourselves. Consumers of our headers will have to, though.
-target_link_libraries(rpc INTERFACE ${Boost_LIBRARIES})
+target_link_libraries(rpc PRIVATE rpc-proto INTERFACE ${Boost_LIBRARIES})
 if(WIN32)
     target_link_libraries(rpc INTERFACE ws2_32)
 endif()

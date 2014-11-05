@@ -104,7 +104,8 @@ public:
     Status receiveServiceBuffer (BufferType buffer) {
         barobo_rpc_Reply reply;
 
-        auto status = decode(reply, buffer.bytes, buffer.size);
+        Status status;
+        decode(reply, buffer.bytes, buffer.size, status);
         if (hasError(status)) {
             return status;
         }

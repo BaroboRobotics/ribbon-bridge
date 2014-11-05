@@ -2,6 +2,7 @@
 #define RPC_ERROR_HPP
 
 #include "rpc/config.hpp"
+#include "rpc/status.hpp"
 
 #ifndef HAVE_EXCEPTIONS
 #error rpc/error.hpp included with exceptions disabled
@@ -17,6 +18,9 @@ struct Error : std::runtime_error {
     //using std::runtime_error::runtime_error;
     explicit Error (const std::string& what)
         : std::runtime_error(what) { }
+
+    explicit Error (Status status)
+        : std::runtime_error(statusToString(status)) { }
 };
 
 } // namespace rpc

@@ -57,7 +57,7 @@ Status makeFire (uint8_t* bytes, size_t& size, uint32_t requestId, uint32_t comp
             request.fire.payload.size);
 
     if (!hasError(err)) {
-        err = rpc::encode(request, bytes, size, size);
+        rpc::encode(request, bytes, size, size, err);
     }
     return err;
 }
@@ -80,7 +80,7 @@ Status makeBroadcast (uint8_t* bytes, size_t& size, uint32_t componentId, const 
             reply.broadcast.payload.size);
 
     if (!hasError(err)) {
-        err = rpc::encode(reply, bytes, size, size);
+        rpc::encode(reply, bytes, size, size, err);
     }
     return err;
 }
@@ -94,7 +94,9 @@ Status makeConnect (uint8_t* bytes, size_t& size, uint32_t requestId) {
     request.type = barobo_rpc_Request_Type_CONNECT;
     request.id = requestId;
 
-    return rpc::encode(request, bytes, size, size);
+    Status status;
+    rpc::encode(request, bytes, size, size, status);
+    return status;
 }
 
 Status makeDisconnect (uint8_t* bytes, size_t& size, uint32_t requestId) {
@@ -106,7 +108,9 @@ Status makeDisconnect (uint8_t* bytes, size_t& size, uint32_t requestId) {
     request.type = barobo_rpc_Request_Type_DISCONNECT;
     request.id = requestId;
 
-    return rpc::encode(request, bytes, size, size);
+    Status status;
+    rpc::encode(request, bytes, size, size, status);
+    return status;
 }
 
 } // namespace rpc
