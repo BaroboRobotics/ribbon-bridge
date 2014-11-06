@@ -13,7 +13,7 @@ int main () {
 
     try {
         auto status = widget.service().broadcast(Broadcast::broadcast{0.5});
-        if (hasError(status)) { throw rpc::Error { statusToString(status) }; }
+        if (hasError(status)) { throw rpc::Error(status); }
         widget.proxy().connect().get(); // make sure we're synchronized
         auto value = widget.proxy().broadcastedBroadcast().value;
         assert(0.5 == value);

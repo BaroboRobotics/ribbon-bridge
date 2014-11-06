@@ -144,7 +144,11 @@ set(SOURCES
     ${NANOPB_ROOT}/pb_decode.c
     ${NANOPB_ROOT}/pb_encode.c)
 
-set_source_files_properties(src/message.cpp src/status.cpp PROPERTIES
+if(HAVE_EXCEPTIONS)
+    list(APPEND SOURCES src/system_error.cpp)
+endif()
+
+set_source_files_properties(src/message.cpp src/status.cpp src/system_error.cpp PROPERTIES
     COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS")
 
 add_library(rpc STATIC ${SOURCES})
