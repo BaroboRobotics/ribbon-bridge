@@ -1,6 +1,8 @@
 #ifndef RPC_VERSION_HPP
 #define RPC_VERSION_HPP
 
+#include "rpc/config.hpp"
+
 #include "rpc.pb.h"
 
 #ifdef HAVE_STDLIB
