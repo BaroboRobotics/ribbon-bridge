@@ -45,18 +45,11 @@ public:
         barobo_rpc_ServerMessage svMessage;
         memset(&svMessage, 0, sizeof(svMessage));
 
-        // refactor the next 10 lines or so into a makeServiceInfo(refuse|welcome)
         svMessage.type = barobo_rpc_ServerMessage_Type_REPLY;
         svMessage.has_reply = true;
-        svMessage.reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
-        svMessage.reply.has_serviceInfo = true;
-        svMessage.reply.serviceInfo.type = barobo_rpc_Reply_ServiceInfo_Type_REFUSAL;
-        svMessage.reply.serviceInfo.rpcVersion.major = Version<>::major;
-        svMessage.reply.serviceInfo.rpcVersion.minor = Version<>::minor;
-        svMessage.reply.serviceInfo.rpcVersion.patch = Version<>::patch;
-        svMessage.reply.serviceInfo.interfaceVersion.major = Version<Interface>::major;
-        svMessage.reply.serviceInfo.interfaceVersion.minor = Version<Interface>::minor;
-        svMessage.reply.serviceInfo.interfaceVersion.patch = Version<Interface>::patch;
+        svMessage.reply.type = barobo_rpc_Reply_Type_STATUS;
+        svMessage.reply.has_status = true;
+        svMessage.reply.status.value = barobo_rpc_Status_CONNECTION_REFUSED;
         svMessage.has_inReplyTo = true;
         svMessage.inReplyTo = clMessage.id;
 
@@ -122,7 +115,6 @@ public:
             case barobo_rpc_Request_Type_CONNECT:
                 svMessage.reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
                 svMessage.reply.has_serviceInfo = true;
-                svMessage.reply.serviceInfo.type = barobo_rpc_Reply_ServiceInfo_Type_WELCOME;
                 svMessage.reply.serviceInfo.rpcVersion.major = Version<>::major;
                 svMessage.reply.serviceInfo.rpcVersion.minor = Version<>::minor;
                 svMessage.reply.serviceInfo.rpcVersion.patch = Version<>::patch;

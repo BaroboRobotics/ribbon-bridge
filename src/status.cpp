@@ -13,6 +13,7 @@ const char* statusToString (Status status) {
         ITEM(ILLEGAL_OPERATION);
         ITEM(NO_SUCH_COMPONENT);
         ITEM(NOT_CONNECTED);
+        ITEM(CONNECTION_REFUSED);
 
         ITEM(UNSOLICITED_REPLY);
         ITEM(UNRECOGNIZED_RESULT);
@@ -33,6 +34,7 @@ const char* statusToString (RemoteStatus status) {
         ITEM(ILLEGAL_OPERATION);
         ITEM(NO_SUCH_COMPONENT);
         ITEM(NOT_CONNECTED);
+        ITEM(CONNECTION_REFUSED);
         default:
             return "(unknown remote status)";
     }

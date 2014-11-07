@@ -66,18 +66,14 @@ class ServiceInfo {
 public:
 	ServiceInfo () = default;
 
-	ServiceInfo (barobo_rpc_Reply_ServiceInfo reply)
-			: mConnected(barobo_rpc_Reply_ServiceInfo_Type_REFUSAL == reply.type
-						 ? false : true)
-			, mRpcVersion(reply.rpcVersion)
-			, mInterfaceVersion(reply.interfaceVersion) { }
+	ServiceInfo (barobo_rpc_Reply_ServiceInfo info)
+			: mRpcVersion(info.rpcVersion)
+			, mInterfaceVersion(info.interfaceVersion) { }
 
-	bool connected () const { return mConnected; }
 	VersionTriplet rpcVersion () const { return mRpcVersion; }
 	VersionTriplet interfaceVersion () const { return mInterfaceVersion; }
 
 private:
-	bool mConnected = false;
 	VersionTriplet mRpcVersion = { 0, 0, 0 };
 	VersionTriplet mInterfaceVersion = { 0, 0, 0 };
 };

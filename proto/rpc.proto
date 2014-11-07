@@ -15,6 +15,7 @@ enum Status {
     NO_SUCH_COMPONENT = 6;
     /* not connected to the request's origin */
     NOT_CONNECTED = 7;
+    CONNECTION_REFUSED = 8;
 }
 
 message VersionTriplet {
@@ -52,11 +53,6 @@ message Reply {
     }
 
     message ServiceInfo {
-        enum Type {
-            REFUSAL = 0;
-            WELCOME = 1;
-        }
-        required Type type = 1;
         required VersionTriplet rpcVersion = 2;
         required VersionTriplet interfaceVersion = 3;
     }

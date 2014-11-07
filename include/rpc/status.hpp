@@ -15,7 +15,8 @@ namespace rpc {
     INCONSISTENT_REPLY         = barobo_rpc_Status_INCONSISTENT_REPLY, \
     ILLEGAL_OPERATION          = barobo_rpc_Status_ILLEGAL_OPERATION, \
     NO_SUCH_COMPONENT          = barobo_rpc_Status_NO_SUCH_COMPONENT, \
-    NOT_CONNECTED              = barobo_rpc_Status_NOT_CONNECTED
+    NOT_CONNECTED              = barobo_rpc_Status_NOT_CONNECTED, \
+    CONNECTION_REFUSED         = barobo_rpc_Status_CONNECTION_REFUSED
 
 enum class Status {
     rpc_Status_basic_enumeration,
