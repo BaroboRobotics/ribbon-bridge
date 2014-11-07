@@ -66,6 +66,7 @@ message Reply {
                                 // to figure this out by keeping a map of
                                 // request IDs, but duplicating it here makes
                                 // implementation much easier.
+                                // Update: the Asio implementation does not use this
         required bytes payload = 2 [(nanopb).max_size = 128];
     }
 

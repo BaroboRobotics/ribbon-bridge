@@ -30,37 +30,57 @@ void serverCoroutine (std::shared_ptr<Server> server,
 	try {
 		server->messageQueue().asyncHandshake(yield);
 
+		bool done = false;
 		uint32_t requestId;
 		barobo_rpc_Request request;
-		std::tie(requestId, request) = server->asyncReceiveRequest(yield);
-		switch (request.type) {
-			case barobo_rpc_Request_Type_CONNECT:
-				BOOST_LOG(log) << "server received a CONNECT";
-				{
-					barobo_rpc_Reply reply;
-					memset(&reply, 0, sizeof(reply));
-					reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
-					reply.has_serviceInfo = true;
-					reply.serviceInfo.type = barobo_rpc_Reply_ServiceInfo_Type_WELCOME;
-			        reply.serviceInfo.rpcVersion.major = rpc::Version<>::major;
-			        reply.serviceInfo.rpcVersion.minor = rpc::Version<>::minor;
-			        reply.serviceInfo.rpcVersion.patch = rpc::Version<>::patch;
-			        reply.serviceInfo.interfaceVersion.major = rpc::Version<barobo::Widget>::major;
-			        reply.serviceInfo.interfaceVersion.minor = rpc::Version<barobo::Widget>::minor;
-			        reply.serviceInfo.interfaceVersion.patch = rpc::Version<barobo::Widget>::patch;
-			        server->asyncReply(requestId, reply, yield);
-				}
-				break;
-			case barobo_rpc_Request_Type_DISCONNECT:
-				BOOST_LOG(log) << "server received a DISCONNECT";
-				break;
-			case barobo_rpc_Request_Type_FIRE:
-				BOOST_LOG(log) << "server received a FIRE";
-				break;
-			default:
-				throw rpc::Error(rpc::Status::INCONSISTENT_REQUEST);
-				break;
-		}
+		do {
+			std::tie(requestId, request) = server->asyncReceiveRequest(yield);
+			switch (request.type) {
+				case barobo_rpc_Request_Type_CONNECT:
+					BOOST_LOG(log) << "server received a CONNECT";
+					{
+						barobo_rpc_Reply reply;
+						memset(&reply, 0, sizeof(reply));
+						reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
+						reply.has_serviceInfo = true;
+				        reply.serviceInfo.rpcVersion.major = rpc::Version<>::major;
+				        reply.serviceInfo.rpcVersion.minor = rpc::Version<>::minor;
+				        reply.serviceInfo.rpcVersion.patch = rpc::Version<>::patch;
+				        reply.serviceInfo.interfaceVersion.major = rpc::Version<barobo::Widget>::major;
+				        reply.serviceInfo.interfaceVersion.minor = rpc::Version<barobo::Widget>::minor;
+				        reply.serviceInfo.interfaceVersion.patch = rpc::Version<barobo::Widget>::patch;
+				        server->asyncReply(requestId, reply, yield);
+					}
+					break;
+				case barobo_rpc_Request_Type_DISCONNECT:
+					BOOST_LOG(log) << "server received a DISCONNECT";
+					{
+						barobo_rpc_Reply reply;
+						memset(&reply, 0, sizeof(reply));
+						reply.type = barobo_rpc_Reply_Type_STATUS;
+						reply.has_status = true;
+						reply.status.value = barobo_rpc_Status_OK;
+						server->asyncReply(requestId, reply, yield);
+						done = true;
+					}
+					break;
+				case barobo_rpc_Request_Type_FIRE:
+					BOOST_LOG(log) << "server received a FIRE";
+					{
+						// unimplemented
+						barobo_rpc_Reply reply;
+						memset(&reply, 0, sizeof(reply));
+						reply.type = barobo_rpc_Reply_Type_STATUS;
+						reply.has_status = true;
+						reply.status.value = barobo_rpc_Status_ILLEGAL_OPERATION;
+						server->asyncReply(requestId, reply, yield);
+					}
+					break;
+				default:
+					throw rpc::Error(rpc::Status::INCONSISTENT_REQUEST);
+					break;
+			}
+		} while (!done);
 
 		server->messageQueue().asyncShutdown(yield);
 		server->messageQueue().stream().close();
@@ -108,25 +128,13 @@ void clientCoroutine (boost::asio::io_service& ioService,
 		BOOST_LOG(log) << "Connected to " << Tcp::endpoint(*endpoint);
 		messageQueue.asyncHandshake(yield);
 
-		barobo_rpc_Request request;
-		request.type = barobo_rpc_Request_Type_CONNECT;
-		auto reply = client.asyncRequest(request, std::chrono::milliseconds(500), yield);
+		auto info = rpc::asio::asyncConnect(client, std::chrono::milliseconds(500), yield);
+		BOOST_LOG(log) << "client connected to server with RPC version "
+					   << info.rpcVersion() << ", Interface version "
+					   << info.interfaceVersion();
 
-		BOOST_LOG(log) << "client got a reply";
-		switch (reply.type) {
-			case barobo_rpc_Reply_Type_SERVICEINFO:
-				BOOST_LOG(log) << "client got a SERVICEINFO back";
-				break;
-			case barobo_rpc_Reply_Type_STATUS:
-				BOOST_LOG(log) << "client got a STATUS back";
-				break;
-			case barobo_rpc_Reply_Type_RESULT:
-				BOOST_LOG(log) << "client got a RESULT back";
-				break;
-			default:
-				throw rpc::Error(rpc::Status::INCONSISTENT_REPLY);
-				break;
-		}
+		rpc::asio::asyncDisconnect(client, std::chrono::milliseconds(500), yield);
+		BOOST_LOG(log) << "client disconnected";
 
 		messageQueue.asyncShutdown(yield);
 		stream.close();

@@ -31,6 +31,9 @@ public:
     MessageQueue& messageQueue () { return mImpl->mMessageQueue; }
     const MessageQueue& messageQueue () const { return mImpl->mMessageQueue; }
 
+    // Make a request of the remote server and wait for the reply to arrive.
+    // In general, you'll want to use the asyncConnect, asyncDisconnect, and
+    // asyncFire free functions instead, to make this easier.
     template <class Duration, class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code,barobo_rpc_Reply))
     asyncRequest (barobo_rpc_Request request, Duration&& timeout, Handler&& handler) {
@@ -246,6 +249,159 @@ private:
 
     std::shared_ptr<Impl> mImpl;
 };
+
+// Make a connection request to the remote server. An rpc::ServiceInfo object
+// is passed to the connection handler.
+template <class RpcClient, class Duration, class Handler>
+BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code,ServiceInfo))
+asyncConnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
+    boost::asio::detail::async_result_init<
+        Handler, void(boost::system::error_code,ServiceInfo)
+    > init { std::forward<Handler>(handler) };
+    auto& realHandler = init.handler;
+
+    barobo_rpc_Request request;
+    memset(&request, 0, sizeof(request));
+    request.type = barobo_rpc_Request_Type_CONNECT;
+    client.asyncRequest(request, std::forward<Duration>(timeout),
+        [realHandler] (boost::system::error_code ec, barobo_rpc_Reply reply) mutable {
+            if (ec) {
+                realHandler(ec, ServiceInfo());
+                return;
+            }
+            switch (reply.type) {
+                case barobo_rpc_Reply_Type_SERVICEINFO:
+                    if (!reply.has_serviceInfo) {
+                        realHandler(Status::INCONSISTENT_REPLY, ServiceInfo());
+                    }
+                    else {
+                        realHandler(boost::system::error_code(), reply.serviceInfo);
+                    }
+                    break;
+                case barobo_rpc_Reply_Type_STATUS:
+                    if (!reply.has_status || barobo_rpc_Status_OK == reply.status.value) {
+                        realHandler(Status::INCONSISTENT_REPLY, ServiceInfo());
+                    }
+                    else {
+                        realHandler(make_error_code(RemoteStatus(reply.status.value)), ServiceInfo());
+                    }
+                    break;
+                case barobo_rpc_Reply_Type_RESULT:
+                    realHandler(Status::INCONSISTENT_REPLY, ServiceInfo());
+                    break;
+                default:
+                    realHandler(Status::INCONSISTENT_REPLY, ServiceInfo());
+                    break;
+            }
+        });
+
+    return init.result.get();
+}
+
+// Make a disconnection request to the remote server.
+template <class RpcClient, class Duration, class Handler>
+BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
+asyncDisconnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
+    boost::asio::detail::async_result_init<
+        Handler, void(boost::system::error_code)
+    > init { std::forward<Handler>(handler) };
+    auto& realHandler = init.handler;
+
+    barobo_rpc_Request request;
+    memset(&request, 0, sizeof(request));
+    request.type = barobo_rpc_Request_Type_DISCONNECT;
+    client.asyncRequest(request, std::forward<Duration>(timeout),
+        [realHandler] (boost::system::error_code ec, barobo_rpc_Reply reply) mutable {
+            if (ec) {
+                realHandler(ec);
+                return;
+            }
+            switch (reply.type) {
+                case barobo_rpc_Reply_Type_SERVICEINFO:
+                    realHandler(Status::INCONSISTENT_REPLY);
+                    break;
+                case barobo_rpc_Reply_Type_STATUS:
+                    if (!reply.has_status) {
+                        realHandler(Status::INCONSISTENT_REPLY);
+                    }
+                    else {
+                        realHandler(make_error_code(RemoteStatus(reply.status.value)));
+                    }
+                    break;
+                case barobo_rpc_Reply_Type_RESULT:
+                    realHandler(Status::INCONSISTENT_REPLY);
+                    break;
+                default:
+                    realHandler(Status::INCONSISTENT_REPLY);
+                    break;
+            }
+        });
+
+    return init.result.get();
+}
+
+// Make a fire method request to the remote server.
+template <class RpcClient, class Method, class Duration, class Handler, class Result = ResultOf<Method>>
+BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code, ResultOf<Method>))
+asyncFire (RpcClient& client, Method args, Duration&& timeout, Handler&& handler) {
+    boost::asio::detail::async_result_init<
+        Handler, void(boost::system::error_code, ResultOf<Method>)
+    > init { std::forward<Handler>(handler) };
+    auto& realHandler = init.handler;
+
+    barobo_rpc_Request request;
+    memset(&request, 0, sizeof(request));
+    request.type = barobo_rpc_Request_Type_FIRE;
+    request.has_fire = true;
+    request.fire.id = componentId(args);
+    Status status;
+    rpc::encode(args,
+        request.fire.payload.bytes,
+        sizeof(request.fire.payload.bytes),
+        request.fire.payload.size, status);
+    if (hasError(status)) {
+        client.getIoService().post(std::bind(realHandler, status, Result()));
+        return;
+    }
+
+    client.asyncRequest(request, std::forward<Duration>(timeout),
+        [realHandler] (boost::system::error_code ec, barobo_rpc_Reply reply) mutable {
+            if (ec) {
+                realHandler(ec, Result());
+                return;
+            }
+            switch (reply.type) {
+                case barobo_rpc_Reply_Type_SERVICEINFO:
+                    realHandler(Status::INCONSISTENT_REPLY);
+                    break;
+                case barobo_rpc_Reply_Type_STATUS:
+                    if (!reply.has_status) {
+                        realHandler(Status::INCONSISTENT_REPLY);
+                    }
+                    else {
+                        realHandler(make_error_code(RemoteStatus(reply.status.value), Result()));
+                    }
+                    break;
+                case barobo_rpc_Reply_Type_RESULT:
+                    if (!reply.has_result) {
+                        realHandler(Status::INCONSISTENT_REPLY);
+                    }
+                    else {
+                        Status status;
+                        Result result;
+                        memset(&result, 0, sizeof(result));
+                        rpc::decode(result, reply.result.payload.bytes, reply.result.payload.size, status);
+                        realHandler(status, result);
+                    }
+                    break;
+                default:
+                    realHandler(Status::INCONSISTENT_REPLY, ServiceInfo());
+                    break;
+            }
+        });
+
+    return init.result.get();
+}
 
 } // namespace asio
 } // namespace rpc
