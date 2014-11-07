@@ -22,7 +22,7 @@ public:
 	uint32_t patch () const { return mTriplet.patch; }
 
 private:
-	const barobo_rpc_VersionTriplet mTriplet;
+	barobo_rpc_VersionTriplet mTriplet;
 };
 
 #ifdef HAVE_STDLIB
@@ -62,6 +62,8 @@ struct Version<void> {
 
 class ServiceInfo {
 public:
+	ServiceInfo () = default;
+
 	ServiceInfo (barobo_rpc_Reply_ServiceInfo reply)
 			: mConnected(barobo_rpc_Reply_ServiceInfo_Type_REFUSAL == reply.type
 						 ? false : true)
@@ -73,9 +75,9 @@ public:
 	VersionTriplet interfaceVersion () const { return mInterfaceVersion; }
 
 private:
-	bool mConnected;
-	VersionTriplet mRpcVersion;
-	VersionTriplet mInterfaceVersion;
+	bool mConnected = false;
+	VersionTriplet mRpcVersion = { 0, 0, 0 };
+	VersionTriplet mInterfaceVersion = { 0, 0, 0 };
 };
 
 } // namespace rpc
