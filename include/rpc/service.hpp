@@ -41,28 +41,29 @@ public:
         return static_cast<T*>(this)->onFire(args);
     }
 
-    Status refuseConnection (barobo_rpc_Request request) {
-        barobo_rpc_Reply reply;
-        memset(&reply, 0, sizeof(reply));
+    Status refuseConnection (barobo_rpc_ClientMessage clMessage) {
+        barobo_rpc_ServerMessage svMessage;
+        memset(&svMessage, 0, sizeof(svMessage));
 
         // refactor the next 10 lines or so into a makeServiceInfo(refuse|welcome)
-        reply.has_inReplyTo = true;
-        reply.inReplyTo = request.id;
-
-        reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
-        reply.has_serviceInfo = true;
-        reply.serviceInfo.type = barobo_rpc_Reply_ServiceInfo_Type_REFUSAL;
-        reply.serviceInfo.rpcVersion.major = Version<>::major;
-        reply.serviceInfo.rpcVersion.minor = Version<>::minor;
-        reply.serviceInfo.rpcVersion.patch = Version<>::patch;
-        reply.serviceInfo.interfaceVersion.major = Version<Interface>::major;
-        reply.serviceInfo.interfaceVersion.minor = Version<Interface>::minor;
-        reply.serviceInfo.interfaceVersion.patch = Version<Interface>::patch;
+        svMessage.type = barobo_rpc_ServerMessage_Type_REPLY;
+        svMessage.has_reply = true;
+        svMessage.reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
+        svMessage.reply.has_serviceInfo = true;
+        svMessage.reply.serviceInfo.type = barobo_rpc_Reply_ServiceInfo_Type_REFUSAL;
+        svMessage.reply.serviceInfo.rpcVersion.major = Version<>::major;
+        svMessage.reply.serviceInfo.rpcVersion.minor = Version<>::minor;
+        svMessage.reply.serviceInfo.rpcVersion.patch = Version<>::patch;
+        svMessage.reply.serviceInfo.interfaceVersion.major = Version<Interface>::major;
+        svMessage.reply.serviceInfo.interfaceVersion.minor = Version<Interface>::minor;
+        svMessage.reply.serviceInfo.interfaceVersion.patch = Version<Interface>::patch;
+        svMessage.has_inReplyTo = true;
+        svMessage.inReplyTo = clMessage.id;
 
         BufferType response;
         response.size = sizeof(response.bytes);
         Status status;
-        encode(reply, response.bytes, response.size, response.size, status);
+        encode(svMessage, response.bytes, response.size, response.size, status);
         if (!hasError(status)) {
             static_cast<T*>(this)->bufferToProxy(response);
         }
@@ -70,21 +71,22 @@ public:
         return status;
     }
 
-    Status refuseRequest (barobo_rpc_Request request) {
-        barobo_rpc_Reply reply;
-        memset(&reply, 0, sizeof(reply));
+    Status refuseRequest (barobo_rpc_ClientMessage clMessage) {
+        barobo_rpc_ServerMessage svMessage;
+        memset(&svMessage, 0, sizeof(svMessage));
 
-        reply.has_inReplyTo = true;
-        reply.inReplyTo = request.id;
-
-        reply.type = barobo_rpc_Reply_Type_STATUS;
-        reply.has_status = true;
-        reply.status.value = barobo_rpc_Status_NOT_CONNECTED;
+        svMessage.type = barobo_rpc_ServerMessage_Type_REPLY;
+        svMessage.has_reply = true;
+        svMessage.reply.type = barobo_rpc_Reply_Type_STATUS;
+        svMessage.reply.has_status = true;
+        svMessage.reply.status.value = barobo_rpc_Status_NOT_CONNECTED;
+        svMessage.has_inReplyTo = true;
+        svMessage.inReplyTo = clMessage.id;
 
         BufferType response;
         response.size = sizeof(response.bytes);
         Status status;
-        encode(reply, response.bytes, response.size, response.size, status);
+        encode(svMessage, response.bytes, response.size, response.size, status);
         if (!hasError(status)) {
             static_cast<T*>(this)->bufferToProxy(response);
         }
@@ -93,78 +95,80 @@ public:
     }
 
     Status receiveProxyBuffer (BufferType in) {
-        barobo_rpc_Request request;
+        barobo_rpc_ClientMessage message;
         Status status;
-        decode(request, in.bytes, in.size, status);
+        decode(message, in.bytes, in.size, status);
         if (hasError(status)) {
             return status;
         }
-        return receiveProxyRequest(request);
+        return receiveProxyRequest(message);
     }
 
-    Status receiveProxyRequest (barobo_rpc_Request request) {
-        barobo_rpc_Reply reply;
-        memset(&reply, 0, sizeof(reply));
+    Status receiveProxyRequest (barobo_rpc_ClientMessage clMessage) {
+        barobo_rpc_ServerMessage svMessage;
+        memset(&svMessage, 0, sizeof(svMessage));
 
-        reply.has_inReplyTo = true;
-        reply.inReplyTo = request.id;
+        svMessage.type = barobo_rpc_ServerMessage_Type_REPLY;
+        svMessage.has_inReplyTo = true;
+        svMessage.inReplyTo = clMessage.id;
 
-        switch (request.type) {
+        svMessage.has_reply = true;
+        switch (clMessage.request.type) {
             union {
                 ComponentInUnion<Interface> in;
                 ComponentResultUnion<Interface> result;
             } argument;
 
             case barobo_rpc_Request_Type_CONNECT:
-                reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
-                reply.has_serviceInfo = true;
-                reply.serviceInfo.type = barobo_rpc_Reply_ServiceInfo_Type_WELCOME;
-                reply.serviceInfo.rpcVersion.major = Version<>::major;
-                reply.serviceInfo.rpcVersion.minor = Version<>::minor;
-                reply.serviceInfo.rpcVersion.patch = Version<>::patch;
-                reply.serviceInfo.interfaceVersion.major = Version<Interface>::major;
-                reply.serviceInfo.interfaceVersion.minor = Version<Interface>::minor;
-                reply.serviceInfo.interfaceVersion.patch = Version<Interface>::patch;
+                svMessage.reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
+                svMessage.reply.has_serviceInfo = true;
+                svMessage.reply.serviceInfo.type = barobo_rpc_Reply_ServiceInfo_Type_WELCOME;
+                svMessage.reply.serviceInfo.rpcVersion.major = Version<>::major;
+                svMessage.reply.serviceInfo.rpcVersion.minor = Version<>::minor;
+                svMessage.reply.serviceInfo.rpcVersion.patch = Version<>::patch;
+                svMessage.reply.serviceInfo.interfaceVersion.major = Version<Interface>::major;
+                svMessage.reply.serviceInfo.interfaceVersion.minor = Version<Interface>::minor;
+                svMessage.reply.serviceInfo.interfaceVersion.patch = Version<Interface>::patch;
                 break;
             case barobo_rpc_Request_Type_DISCONNECT:
-                reply.type = barobo_rpc_Reply_Type_STATUS;
-                reply.has_status = true;
-                reply.status.value = barobo_rpc_Status_OK;
+                svMessage.reply.type = barobo_rpc_Reply_Type_STATUS;
+                svMessage.reply.has_status = true;
+                svMessage.reply.status.value = barobo_rpc_Status_OK;
                 break;
             case barobo_rpc_Request_Type_FIRE:
-                if (!request.has_fire) {
-                    reply.type = barobo_rpc_Reply_Type_STATUS;
-                    reply.has_status = true;
-                    reply.status.value = barobo_rpc_Status_INCONSISTENT_REQUEST;
+                if (!clMessage.request.has_fire) {
+                    svMessage.reply.type = barobo_rpc_Reply_Type_STATUS;
+                    svMessage.reply.has_status = true;
+                    svMessage.reply.status.value = barobo_rpc_Status_INCONSISTENT_REQUEST;
                     break;
                 }
-                reply.status.value = decltype(reply.status.value)(decodeFirePayload(argument.in, request.fire.id, request.fire.payload));
-                if (barobo_rpc_Status_OK != reply.status.value) {
-                    reply.type = barobo_rpc_Reply_Type_STATUS;
-                    reply.has_status = true;
+                svMessage.reply.status.value = decltype(svMessage.reply.status.value)(decodeFirePayload(argument.in, clMessage.request.fire.id, clMessage.request.fire.payload));
+                if (barobo_rpc_Status_OK != svMessage.reply.status.value) {
+                    svMessage.reply.type = barobo_rpc_Reply_Type_STATUS;
+                    svMessage.reply.has_status = true;
                     break;
                 }
-                reply.status.value = decltype(reply.status.value)(invokeFire(*this, argument.in, request.fire.id, reply.result.payload));
-                if (barobo_rpc_Status_OK != reply.status.value) {
-                    reply.type = barobo_rpc_Reply_Type_STATUS;
-                    reply.has_status = true;
+                svMessage.reply.status.value = decltype(svMessage.reply.status.value)(invokeFire(*this, argument.in, clMessage.request.fire.id, svMessage.reply.result.payload));
+                if (barobo_rpc_Status_OK != svMessage.reply.status.value) {
+                    svMessage.reply.type = barobo_rpc_Reply_Type_STATUS;
+                    svMessage.reply.has_status = true;
                     break;
                 }
-                reply.type = barobo_rpc_Reply_Type_RESULT;
-                reply.has_result = true;
-                reply.result.id = request.fire.id;
+                svMessage.reply.type = barobo_rpc_Reply_Type_RESULT;
+                svMessage.reply.has_result = true;
+                svMessage.reply.result.id = clMessage.request.fire.id;
                 break;
             default:
-                reply.type = barobo_rpc_Reply_Type_STATUS;
-                reply.has_status = true;
-                reply.status.value = barobo_rpc_Status_ILLEGAL_OPERATION;
+                svMessage.reply.type = barobo_rpc_Reply_Type_STATUS;
+                svMessage.reply.has_status = true;
+                svMessage.reply.status.value = barobo_rpc_Status_ILLEGAL_OPERATION;
                 break;
         }
 
         BufferType response;
         response.size = sizeof(response.bytes);
         Status status;
-        encode(reply, response.bytes, response.size, response.size, status);
+        encode(svMessage, response.bytes, response.size, response.size, status);
         if (!hasError(status)) {
             static_cast<T*>(this)->bufferToProxy(response);
         }

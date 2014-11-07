@@ -7,13 +7,13 @@
 namespace rpc {
 
 template <>
-const pb_field_t* pbFields (barobo_rpc_Request) {
-    return barobo_rpc_Request_fields;
+const pb_field_t* pbFields (barobo_rpc_ClientMessage) {
+    return barobo_rpc_ClientMessage_fields;
 }
 
 template <>
-const pb_field_t* pbFields (barobo_rpc_Reply) {
-    return barobo_rpc_Reply_fields;
+const pb_field_t* pbFields (barobo_rpc_ServerMessage) {
+    return barobo_rpc_ServerMessage_fields;
 }
 
 Status encodeProtobuf (const void* pbStruct, const pb_field_t* pbFields, uint8_t* bytes, size_t size, size_t& bytesWritten) {
@@ -42,22 +42,22 @@ Status decodeProtobuf (void* pbStruct, const pb_field_t* pbFields, uint8_t* byte
 Status makeFire (uint8_t* bytes, size_t& size, uint32_t requestId, uint32_t componentId, const pb_field_t* fields, void* payload) {
     assert(bytes && fields && payload);
 
-    barobo_rpc_Request request;
-    memset(&request, 0, sizeof(request));
+    barobo_rpc_ClientMessage message;
+    memset(&message, 0, sizeof(message));
 
-    request.type = barobo_rpc_Request_Type_FIRE;
-    request.id = requestId;
-    request.has_fire = true;
-    request.fire.id = componentId;
+    message.id = requestId;
+    message.request.type = barobo_rpc_Request_Type_FIRE;
+    message.request.has_fire = true;
+    message.request.fire.id = componentId;
 
     auto err = encodeProtobuf(
             payload, fields,
-            request.fire.payload.bytes,
-            sizeof(request.fire.payload.bytes),
-            request.fire.payload.size);
+            message.request.fire.payload.bytes,
+            sizeof(message.request.fire.payload.bytes),
+            message.request.fire.payload.size);
 
     if (!hasError(err)) {
-        rpc::encode(request, bytes, size, size, err);
+        rpc::encode(message, bytes, size, size, err);
     }
     return err;
 }
@@ -65,22 +65,22 @@ Status makeFire (uint8_t* bytes, size_t& size, uint32_t requestId, uint32_t comp
 Status makeBroadcast (uint8_t* bytes, size_t& size, uint32_t componentId, const pb_field_t* fields, void* payload) {
     assert(bytes && fields && payload);
 
-    barobo_rpc_Reply reply;
-    memset(&reply, 0, sizeof(reply));
+    barobo_rpc_ServerMessage message;
+    memset(&message, 0, sizeof(message));
 
-    reply.type = barobo_rpc_Reply_Type_BROADCAST;
-    reply.has_inReplyTo = false;
-    reply.has_broadcast = true;
-    reply.broadcast.id = componentId;
+    message.type = barobo_rpc_ServerMessage_Type_BROADCAST;
+    message.has_inReplyTo = false;
+    message.has_broadcast = true;
+    message.broadcast.id = componentId;
 
     auto err = encodeProtobuf(
             payload, fields,
-            reply.broadcast.payload.bytes,
-            sizeof(reply.broadcast.payload.bytes),
-            reply.broadcast.payload.size);
+            message.broadcast.payload.bytes,
+            sizeof(message.broadcast.payload.bytes),
+            message.broadcast.payload.size);
 
     if (!hasError(err)) {
-        rpc::encode(reply, bytes, size, size, err);
+        rpc::encode(message, bytes, size, size, err);
     }
     return err;
 }
@@ -88,28 +88,30 @@ Status makeBroadcast (uint8_t* bytes, size_t& size, uint32_t componentId, const 
 Status makeConnect (uint8_t* bytes, size_t& size, uint32_t requestId) {
     assert(bytes);
 
-    barobo_rpc_Request request;
-    memset(&request, 0, sizeof(request));
+    barobo_rpc_ClientMessage message;
+    memset(&message, 0, sizeof(message));
 
-    request.type = barobo_rpc_Request_Type_CONNECT;
-    request.id = requestId;
+    message.id = requestId;
+    message.request.type = barobo_rpc_Request_Type_CONNECT;
+    message.request.has_fire = false;
 
     Status status;
-    rpc::encode(request, bytes, size, size, status);
+    rpc::encode(message, bytes, size, size, status);
     return status;
 }
 
 Status makeDisconnect (uint8_t* bytes, size_t& size, uint32_t requestId) {
     assert(bytes);
 
-    barobo_rpc_Request request;
-    memset(&request, 0, sizeof(request));
+    barobo_rpc_ClientMessage message;
+    memset(&message, 0, sizeof(message));
 
-    request.type = barobo_rpc_Request_Type_DISCONNECT;
-    request.id = requestId;
+    message.id = requestId;
+    message.request.type = barobo_rpc_Request_Type_DISCONNECT;
+    message.request.has_fire = false;
 
     Status status;
-    rpc::encode(request, bytes, size, size, status);
+    rpc::encode(message, bytes, size, size, status);
     return status;
 }
 

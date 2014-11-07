@@ -106,7 +106,7 @@ Status decodeFirePayload (ComponentInUnion<Interface>& args,
 template <class Interface>
 Status decodeBroadcastPayload (ComponentResultUnion<Interface>& args,
         uint32_t componentId,
-        barobo_rpc_Reply_Broadcast_payload_t& payload);
+        barobo_rpc_Broadcast_payload_t& payload);
 
 template <class Interface>
 Status decodeResultPayload (ComponentResultUnion<Interface>& args,

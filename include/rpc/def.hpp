@@ -92,7 +92,7 @@
     template <> \
     Status decodeBroadcastPayload (ComponentResultUnion<interface>& args, \
             uint32_t componentId, \
-            barobo_rpc_Reply_Broadcast_payload_t& payload) { \
+            barobo_rpc_Broadcast_payload_t& payload) { \
         using Id = ComponentId<interface>; \
         switch (componentId) { \
             Status status; \
