@@ -28,6 +28,7 @@ public:
     replyPoster () {
         return [this] (const rpc::Buffer<256>& payload) {
             auto success = mServiceToProxyQueue.push(payload);
+            (void)success;
             assert(success);
         };
     }
@@ -36,6 +37,7 @@ public:
     requestPoster () {
         return [this] (const rpc::Buffer<256>& payload) {
             auto success = mProxyToServiceQueue.push(payload);
+            (void)success;
             assert(success);
         };
     }
