@@ -66,6 +66,9 @@ constexpr uint32_t componentId (Payload);
 template <class T>
 struct ResultOf;
 
+template <class T>
+struct ResultOf<T&> : ResultOf<T> { };
+
 template <class Interface>
 struct FireInvoker;
 
