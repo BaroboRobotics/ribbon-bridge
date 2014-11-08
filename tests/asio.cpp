@@ -61,71 +61,96 @@ struct WidgetImpl {
 };
 
 void serverCoroutine (std::shared_ptr<Server> server,
-	Tcp::endpoint peer,
-	boost::asio::yield_context yield) {
-	boost::log::sources::logger log;
-	try {
-		server->messageQueue().asyncHandshake(yield);
+    Tcp::endpoint peer,
+    boost::asio::yield_context yield) {
+    boost::log::sources::logger log;
+    try {
+        server->messageQueue().asyncHandshake(yield);
 
-		bool done = false;
-		uint32_t requestId;
-		barobo_rpc_Request request;
-		do {
-			std::tie(requestId, request) = server->asyncReceiveRequest(yield);
-			switch (request.type) {
-				case barobo_rpc_Request_Type_CONNECT:
-					BOOST_LOG(log) << "server received a CONNECT";
-					{
-						barobo_rpc_Reply reply;
-						memset(&reply, 0, sizeof(reply));
-						reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
-						reply.has_serviceInfo = true;
-				        reply.serviceInfo.rpcVersion.major = rpc::Version<>::major;
-				        reply.serviceInfo.rpcVersion.minor = rpc::Version<>::minor;
-				        reply.serviceInfo.rpcVersion.patch = rpc::Version<>::patch;
-				        reply.serviceInfo.interfaceVersion.major = rpc::Version<barobo::Widget>::major;
-				        reply.serviceInfo.interfaceVersion.minor = rpc::Version<barobo::Widget>::minor;
-				        reply.serviceInfo.interfaceVersion.patch = rpc::Version<barobo::Widget>::patch;
-				        server->asyncReply(requestId, reply, yield);
-					}
-					break;
-				case barobo_rpc_Request_Type_DISCONNECT:
-					BOOST_LOG(log) << "server received a DISCONNECT";
-					{
-						barobo_rpc_Reply reply;
-						memset(&reply, 0, sizeof(reply));
-						reply.type = barobo_rpc_Reply_Type_STATUS;
-						reply.has_status = true;
-						reply.status.value = barobo_rpc_Status_OK;
-						server->asyncReply(requestId, reply, yield);
-						done = true;
-					}
-					break;
-				case barobo_rpc_Request_Type_FIRE:
-					BOOST_LOG(log) << "server received a FIRE";
-					{
-						// unimplemented
-						barobo_rpc_Reply reply;
-						memset(&reply, 0, sizeof(reply));
-						reply.type = barobo_rpc_Reply_Type_STATUS;
-						reply.has_status = true;
-						reply.status.value = barobo_rpc_Status_ILLEGAL_OPERATION;
-						server->asyncReply(requestId, reply, yield);
-					}
-					break;
-				default:
-					throw rpc::Error(rpc::Status::INCONSISTENT_REQUEST);
-					break;
-			}
-		} while (!done);
+        uint32_t requestId;
+        barobo_rpc_Request request;
+        barobo_rpc_Reply reply;
+        // Loop through incoming requests until we see a CONNECT. All other
+        // requests get denied with a NOT_CONNECTED status.
+        std::tie(requestId, request) = server->asyncReceiveRequest(yield);
+        while (barobo_rpc_Request_Type_CONNECT != request.type) {
+            BOOST_LOG(log) << "server " << server.get() << " ignoring non-CONNECT packet";
+            reply = decltype(reply)();
+            reply.type = barobo_rpc_Reply_Type_STATUS;
+            reply.has_status = true;
+            reply.status.value = barobo_rpc_Status_NOT_CONNECTED;
+            server->asyncReply(requestId, reply, yield);
+            std::tie(requestId, request) = server->asyncReceiveRequest(yield);
+        }
 
-		server->messageQueue().asyncShutdown(yield);
-		server->messageQueue().stream().close();
-	}
-	catch (std::exception& e) {
-		BOOST_LOG(log) << "server code threw " << e.what();
-	}
-	BOOST_LOG(log) << "serverCoroutine exiting";
+        // We received a connection request, greet the friend warmly.
+        reply = decltype(reply)();
+        reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
+        reply.has_serviceInfo = true;
+        reply.serviceInfo.rpcVersion.major = rpc::Version<>::major;
+        reply.serviceInfo.rpcVersion.minor = rpc::Version<>::minor;
+        reply.serviceInfo.rpcVersion.patch = rpc::Version<>::patch;
+        reply.serviceInfo.interfaceVersion.major = rpc::Version<barobo::Widget>::major;
+        reply.serviceInfo.interfaceVersion.minor = rpc::Version<barobo::Widget>::minor;
+        reply.serviceInfo.interfaceVersion.patch = rpc::Version<barobo::Widget>::patch;
+        const auto siReply = reply;
+        server->asyncReply(requestId, siReply, yield);
+
+        BOOST_LOG(log) << "server " << server.get() << " connected";
+
+        WidgetImpl widgetImpl;
+
+        std::tie(requestId, request) = server->asyncReceiveRequest(yield);
+        while (barobo_rpc_Request_Type_DISCONNECT != request.type) {
+            if (barobo_rpc_Request_Type_CONNECT == request.type) {
+                server->asyncReply(requestId, siReply, yield);
+            }
+            else if (barobo_rpc_Request_Type_FIRE == request.type) {
+                if (!request.has_fire) {
+                    throw rpc::Error(rpc::Status::INCONSISTENT_REPLY);
+                }
+
+                rpc::ComponentInUnion<barobo::Widget> args;
+                auto status = rpc::decodeFirePayload(args, request.fire.id, request.fire.payload);
+
+                reply = decltype(reply)();
+                if (!hasError(status)) {
+                    status = rpc::invokeFire(widgetImpl, args, request.fire.id, reply.result.payload);
+                }
+
+                if (rpc::hasError(status)) {
+                    reply.type = barobo_rpc_Reply_Type_STATUS;
+                    reply.has_status = true;
+                    reply.status.value = static_cast<barobo_rpc_Status>(status);
+                }
+                else {
+                    reply.type = barobo_rpc_Reply_Type_RESULT;
+                    reply.has_result = true;
+                    reply.result.id = request.fire.id;
+                }
+                server->asyncReply(requestId, reply, yield);
+            }
+            else {
+                throw rpc::Error(rpc::Status::INCONSISTENT_REPLY);
+            }
+
+            std::tie(requestId, request) = server->asyncReceiveRequest(yield);
+        }
+
+        BOOST_LOG(log) << "server " << server.get() << " received disconnection request";
+        reply = decltype(reply)();
+        reply.type = barobo_rpc_Reply_Type_STATUS;
+        reply.has_status = true;
+        reply.status.value = barobo_rpc_Status_OK;
+        server->asyncReply(requestId, reply, yield);
+
+        server->messageQueue().asyncShutdown(yield);
+        server->messageQueue().stream().close();
+    }
+    catch (std::exception& e) {
+        BOOST_LOG(log) << "server code threw " << e.what();
+    }
+    BOOST_LOG(log) << "serverCoroutine exiting";
 }
 
 
@@ -153,34 +178,37 @@ void acceptorCoroutine (boost::asio::io_service& ioService,
 
 
 void clientCoroutine (boost::asio::io_service& ioService,
-	Tcp::resolver::iterator iter,
-	boost::asio::yield_context yield) {
-	boost::log::sources::logger log;
-	Client client { ioService };
-	try {
-		auto& messageQueue = client.messageQueue();
-		auto& stream = messageQueue.stream();
+    Tcp::resolver::iterator iter,
+    boost::asio::yield_context yield) {
+    boost::log::sources::logger log;
+    Client client { ioService };
+    try {
+        auto& messageQueue = client.messageQueue();
+        auto& stream = messageQueue.stream();
 
-		auto endpoint = boost::asio::async_connect(stream, iter, yield);
-		BOOST_LOG(log) << "Connected to " << Tcp::endpoint(*endpoint);
-		messageQueue.asyncHandshake(yield);
+        auto endpoint = boost::asio::async_connect(stream, iter, yield);
+        BOOST_LOG(log) << "Connected to " << Tcp::endpoint(*endpoint);
+        messageQueue.asyncHandshake(yield);
 
-		auto info = rpc::asio::asyncConnect(client, std::chrono::milliseconds(500), yield);
-		BOOST_LOG(log) << "client connected to server with RPC version "
-					   << info.rpcVersion() << ", Interface version "
-					   << info.interfaceVersion();
+        auto info = rpc::asio::asyncConnect(client, std::chrono::milliseconds(500), yield);
+        BOOST_LOG(log) << "client connected to server with RPC version "
+                       << info.rpcVersion() << ", Interface version "
+                       << info.interfaceVersion();
 
-		rpc::asio::asyncDisconnect(client, std::chrono::milliseconds(500), yield);
-		BOOST_LOG(log) << "client disconnected";
+        auto result = rpc::asio::asyncFire(client, MethodIn::unaryWithResult{2.71828}, std::chrono::milliseconds(500), yield);
+        BOOST_LOG(log) << "client fired unaryWithResult(2.71828) -> " << result.value;
 
-		messageQueue.asyncShutdown(yield);
-		stream.close();
-	}
-	catch (boost::system::system_error& e) {
-		BOOST_LOG(log) << "client code threw " << e.what();
-		client.messageQueue().cancel();
-	}
-	BOOST_LOG(log) << "clientCoroutine exiting";
+        rpc::asio::asyncDisconnect(client, std::chrono::milliseconds(500), yield);
+        BOOST_LOG(log) << "client disconnected";
+
+        messageQueue.asyncShutdown(yield);
+        stream.close();
+    }
+    catch (boost::system::system_error& e) {
+        BOOST_LOG(log) << "client code threw " << e.what();
+        client.messageQueue().cancel();
+    }
+    BOOST_LOG(log) << "clientCoroutine exiting";
 }
 
 
