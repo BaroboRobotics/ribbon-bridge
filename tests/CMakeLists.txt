@@ -12,7 +12,7 @@ set_source_files_properties(
 
 add_executable(asio asio.cpp)
 target_include_directories(asio PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(asio sfp rpc cxx-util ${Boost_LIBRARIES} pthread rt)
+target_link_libraries(asio widget-interface sfp rpc cxx-util ${Boost_LIBRARIES} pthread rt)
 add_test(NAME asio COMMAND asio)
 
 add_executable(fire fire.cpp)
