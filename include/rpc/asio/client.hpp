@@ -344,11 +344,11 @@ asyncDisconnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
 }
 
 // Make a fire method request to the remote server.
-template <class RpcClient, class Method, class Duration, class Handler, class Result = ResultOf<Method>>
-BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code, ResultOf<Method>))
+template <class RpcClient, class Method, class Duration, class Handler, class Result = typename ResultOf<Method>::type>
+BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code, Result))
 asyncFire (RpcClient& client, Method args, Duration&& timeout, Handler&& handler) {
     boost::asio::detail::async_result_init<
-        Handler, void(boost::system::error_code, ResultOf<Method>)
+        Handler, void(boost::system::error_code, Result)
     > init { std::forward<Handler>(handler) };
     auto& realHandler = init.handler;
 
