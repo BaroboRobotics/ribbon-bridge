@@ -28,27 +28,10 @@ public:
         return result;
     }
 
-    MethodResult::nullaryWithResultOut onFire (MethodIn::nullaryWithResultOut) {
-        MethodResult::nullaryWithResultOut result;
-        memset(&result, 0, sizeof(result));
-        result.has_out = true;
-        result.out.value = 2.718281828;
-        return result;
-    }
-
-    MethodResult::nullaryWithResultError onFire (MethodIn::nullaryWithResultError) {
-        MethodResult::nullaryWithResultError result;
-        memset(&result, 0, sizeof(result));
-        result.has_error = true;
-        result.error.value = barobo_Widget_nullaryWithResultError_Result_Error_Value_FAILURE;
-        return result;
-    }
-
     MethodResult::nullaryWithResult onFire (MethodIn::nullaryWithResult) {
         MethodResult::nullaryWithResult result;
         memset(&result, 0, sizeof(result));
-        result.has_out = true;
-        result.out.value = 2.718281828;
+        result.value = 2.718281828;
         return result;
     }
 
@@ -59,28 +42,10 @@ public:
         return result;
     }
 
-    MethodResult::unaryWithResultOut onFire (MethodIn::unaryWithResultOut args) {
-        MethodResult::unaryWithResultOut result;
-        memset(&result, 0, sizeof(result));
-        result.has_out = true;
-        result.out.value = args.value;
-        return result;
-    }
-
-    MethodResult::unaryWithResultError onFire (MethodIn::unaryWithResultError args) {
-        MethodResult::unaryWithResultError result;
-        memset(&result, 0, sizeof(result));
-        printf("onFire(unaryWithResultError): %f\n", args.value);
-        result.has_error = true;
-        result.error.value = barobo_Widget_unaryWithResultError_Result_Error_Value_FAILURE;
-        return result;
-    }
-
     MethodResult::unaryWithResult onFire (MethodIn::unaryWithResult args) {
         MethodResult::unaryWithResult result;
         memset(&result, 0, sizeof(result));
-        result.has_out = true;
-        result.out.value = args.value;
+        result.value = args.value;
         return result;
     }
 

@@ -15,41 +15,6 @@ package barobo.Widget;
  * interface. */
 
 //////////////////////////////////////////////////////////////////////////////
-// Attributes
-
-/* Attribute messages contain a single value. They can be serialized and used
- * as the payload for a ToObject SET message, a Reply OUT message, or a
- * FromObject ATTRIBUTE_UPDATE message. When used in a SET, the value
- * represents the desired new value of the attribute. When used in a Reply OUT
- * in response to a ToObject GET message, the value is the reported value of
- * the attribute. When used in a FromObject ATTRIBUTE_UPDATE, the value is the
- * updated value of the attribute. */
-
-message attribute {
-    //option (attribute).readonly = false;
-    //option (attribute).noSubscriptions = false;
-    required uint32 value = 1;
-}
-
-message readonlyAttribute {
-    //option (attribute).readonly = true;
-    //option (attribute).noSubscriptions = false;
-    required uint32 value = 1;
-}
-
-message noSubscriptionsAttribute {
-    //option (attribute).readonly = false;
-    //option (attribute).noSubscriptions = true;
-    required uint32 value = 1;
-}
-
-message readonlyNoSubscriptionsAttribute {
-    //option (attribute).readonly = true;
-    //option (attribute).noSubscriptions = true;
-    required uint32 value = 1;
-}
-
-//////////////////////////////////////////////////////////////////////////////
 // Methods
 
 /* Although message identifiers would typically begin with a capital letter, it
@@ -71,54 +36,10 @@ message nullaryNoResult {
     message In {
     }
 
+    /* The Result message contains the output parameters, and is used as the
+     * payload for a Reply RESULT message in response to a ToObject FIRE. This
+     * message would only exist if the method has output parameters. */
     message Result {
-        /* The Out message contains the output parameters, and is used as the
-         * payload for a Reply OUT message in response to a ToObject FIRE. This
-         * message would only exist if the method has output parameters. */
-        message Out {
-        }
-
-        /* The Error message contains the error code reportable by the method, and
-         * is used as the payload for a Reply ERROR message in response to a
-         * ToObject FIRE. This message would only exist if the method has error
-         * codes. */
-        message Error {
-        }
-
-        optional Out out = 1;
-        optional Error error = 2;
-    }
-}
-
-message nullaryWithResultOut {
-    //option (method).fireAndForget = false;
-    message In {
-    }
-    message Result {
-        message Out {
-            required float value = 1;
-        }
-        message Error {
-        }
-
-        optional Out out = 1;
-        optional Error error = 2;
-    }
-}
-
-message nullaryWithResultError {
-    //option (method).fireAndForget = false;
-    message In {
-    }
-    message Result {
-        message Out {
-        }
-        message Error {
-            enum Value { FAILURE = 1; }
-            required Value value = 1;
-        }
-        optional Out out = 1;
-        optional Error error = 2;
     }
 }
 
@@ -127,15 +48,7 @@ message nullaryWithResult {
     message In {
     }
     message Result {
-        message Out {
-            required float value = 1;
-        }
-        message Error {
-            enum Value { FAILURE = 1; }
-            required Value value = 1;
-        }
-        optional Out out = 1;
-        optional Error error = 2;
+        required float value = 1;
     }
 }
 
@@ -145,46 +58,6 @@ message unaryNoResult {
         required float value = 1;
     }
     message Result {
-        message Out {
-        }
-        message Error {
-        }
-        optional Out out = 1;
-        optional Error error = 2;
-    }
-}
-
-message unaryWithResultOut {
-    //option (method).fireAndForget = false;
-    message In {
-        required float value = 1;
-    }
-    message Result {
-        message Out {
-            required float value = 1;
-        }
-        message Error {
-        }
-
-        optional Out out = 1;
-        optional Error error = 2;
-    }
-}
-
-message unaryWithResultError {
-    //option (method).fireAndForget = false;
-    message In {
-        required float value = 1;
-    }
-    message Result {
-        message Out {
-        }
-        message Error {
-            enum Value { FAILURE = 1; }
-            required Value value = 1;
-        }
-        optional Out out = 1;
-        optional Error error = 2;
     }
 }
 
@@ -194,15 +67,7 @@ message unaryWithResult {
         required float value = 1;
     }
     message Result {
-        message Out {
-            required float value = 1;
-        }
-        message Error {
-            enum Value { FAILURE = 1; }
-            required Value value = 1;
-        }
-        optional Out out = 1;
-        optional Error error = 2;
+        required float value = 1;
     }
 }
 

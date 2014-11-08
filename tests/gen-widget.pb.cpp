@@ -3,13 +3,9 @@
 
 RPCDEF_CPP((barobo, Widget),
         (nullaryNoResult)
-        (nullaryWithResultOut)
-        (nullaryWithResultError)
         (nullaryWithResult)
         (unaryNoResult)
         (unaryWithResult)
-        (unaryWithResultOut)
-        (unaryWithResultError)
         ,
         (broadcast)
         )
