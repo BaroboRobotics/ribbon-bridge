@@ -364,44 +364,44 @@ asyncFire (RpcClient& client, Method args, Duration&& timeout, Handler&& handler
         request.fire.payload.size, status);
     if (hasError(status)) {
         client.getIoService().post(std::bind(realHandler, status, Result()));
-        return;
     }
-
-    client.asyncRequest(request, std::forward<Duration>(timeout),
-        [realHandler] (boost::system::error_code ec, barobo_rpc_Reply reply) mutable {
-            if (ec) {
-                realHandler(ec, Result());
-                return;
-            }
-            switch (reply.type) {
-                case barobo_rpc_Reply_Type_SERVICEINFO:
-                    realHandler(Status::INCONSISTENT_REPLY);
-                    break;
-                case barobo_rpc_Reply_Type_STATUS:
-                    if (!reply.has_status) {
-                        realHandler(Status::INCONSISTENT_REPLY);
-                    }
-                    else {
-                        realHandler(make_error_code(RemoteStatus(reply.status.value), Result()));
-                    }
-                    break;
-                case barobo_rpc_Reply_Type_RESULT:
-                    if (!reply.has_result) {
-                        realHandler(Status::INCONSISTENT_REPLY);
-                    }
-                    else {
-                        Status status;
-                        Result result;
-                        memset(&result, 0, sizeof(result));
-                        rpc::decode(result, reply.result.payload.bytes, reply.result.payload.size, status);
-                        realHandler(status, result);
-                    }
-                    break;
-                default:
-                    realHandler(Status::INCONSISTENT_REPLY, ServiceInfo());
-                    break;
-            }
-        });
+    else {
+        client.asyncRequest(request, std::forward<Duration>(timeout),
+            [realHandler] (boost::system::error_code ec, barobo_rpc_Reply reply) mutable {
+                if (ec) {
+                    realHandler(ec, Result());
+                    return;
+                }
+                switch (reply.type) {
+                    case barobo_rpc_Reply_Type_SERVICEINFO:
+                        realHandler(Status::INCONSISTENT_REPLY, Result());
+                        break;
+                    case barobo_rpc_Reply_Type_STATUS:
+                        if (!reply.has_status) {
+                            realHandler(Status::INCONSISTENT_REPLY, Result());
+                        }
+                        else {
+                            realHandler(make_error_code(RemoteStatus(reply.status.value)), Result());
+                        }
+                        break;
+                    case barobo_rpc_Reply_Type_RESULT:
+                        if (!reply.has_result) {
+                            realHandler(Status::INCONSISTENT_REPLY, Result());
+                        }
+                        else {
+                            Status status;
+                            Result result;
+                            memset(&result, 0, sizeof(result));
+                            rpc::decode(result, reply.result.payload.bytes, reply.result.payload.size, status);
+                            realHandler(status, result);
+                        }
+                        break;
+                    default:
+                        realHandler(Status::INCONSISTENT_REPLY, Result());
+                        break;
+                }
+            });
+    }
 
     return init.result.get();
 }
