@@ -178,6 +178,7 @@ private:
                 std::vector<uint8_t> buf(1024);
                 while (mReplyHandlers.size() || mBroadcastHandlers.size()) {
                     auto size = mMessageQueue.asyncReceive(boost::asio::buffer(buf), yield);
+                    BOOST_LOG(mLog) << "client received " << size << " bytes";
                     barobo_rpc_ServerMessage message;
                     decode(message, buf.data(), size);
 

@@ -33,6 +33,7 @@ public:
                 barobo_rpc_ClientMessage message;
                 Status status;
                 rpc::decode(message, buf->data(), size, status);
+                BOOST_LOG(mLog) << "server received " << size << " bytes";
                 mMessageQueue.getIoService().post(
                     std::bind(realHandler, status, std::make_pair(message.id, message.request)));
             });
