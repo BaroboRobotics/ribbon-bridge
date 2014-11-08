@@ -28,6 +28,8 @@ public:
         : mImpl(std::make_shared<Impl>(std::forward<Args>(args)...))
     {}
 
+    boost::asio::io_service& getIoService () { return mImpl->mMessageQueue.getIoService(); }
+
     MessageQueue& messageQueue () { return mImpl->mMessageQueue; }
     const MessageQueue& messageQueue () const { return mImpl->mMessageQueue; }
 
