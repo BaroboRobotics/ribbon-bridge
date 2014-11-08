@@ -18,10 +18,47 @@
 
 using namespace std::placeholders;
 
+using MethodIn = rpc::MethodIn<barobo::Widget>;
+using MethodResult = rpc::MethodResult<barobo::Widget>;
+
 using Tcp = boost::asio::ip::tcp;
 using MessageQueue = sfp::asio::MessageQueue<Tcp::socket>;
 using Client = rpc::asio::Client<MessageQueue>;
 using Server = rpc::asio::Server<MessageQueue>;
+
+struct WidgetImpl {
+    template <class In, class Result = typename rpc::ResultOf<In>::type>
+    Result fire (In&& x) {
+        return onFire(std::forward<In>(x));
+    }
+
+    MethodResult::nullaryNoResult onFire (MethodIn::nullaryNoResult) {
+        MethodResult::nullaryNoResult result;
+        memset(&result, 0, sizeof(result));
+        return result;
+    }
+
+    MethodResult::nullaryWithResult onFire (MethodIn::nullaryWithResult) {
+        MethodResult::nullaryWithResult result;
+        memset(&result, 0, sizeof(result));
+        result.value = 2.718281828;
+        return result;
+    }
+
+    MethodResult::unaryNoResult onFire (MethodIn::unaryNoResult args) {
+        MethodResult::unaryNoResult result;
+        memset(&result, 0, sizeof(result));
+        printf("onFire(unaryNoResult): %f\n", args.value);
+        return result;
+    }
+
+    MethodResult::unaryWithResult onFire (MethodIn::unaryWithResult args) {
+        MethodResult::unaryWithResult result;
+        memset(&result, 0, sizeof(result));
+        result.value = args.value;
+        return result;
+    }
+};
 
 void serverCoroutine (std::shared_ptr<Server> server,
 	Tcp::endpoint peer,
