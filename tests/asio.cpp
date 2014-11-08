@@ -156,23 +156,23 @@ void serverCoroutine (std::shared_ptr<Server> server,
 
 
 void acceptorCoroutine (boost::asio::io_service& ioService,
-	Tcp::resolver::iterator iter,
-	boost::asio::yield_context yield) {
-	boost::log::sources::logger log;
-	try {
-		Tcp::acceptor acceptor { ioService, *iter };
-		while (true) {
-			auto server = std::make_shared<Server>(ioService);
-			Tcp::endpoint peer;
-			acceptor.async_accept(server->messageQueue().stream(), peer, yield);
-			BOOST_LOG(log) << "Accepted connection from " << peer;
-			boost::asio::spawn(ioService, std::bind(serverCoroutine, server, peer, _1));
-		}
-	}
-	catch (std::exception& e) {
-		BOOST_LOG(log) << "acceptor code threw " << e.what();
-	}
-	BOOST_LOG(log) << "acceptorCoroutine exiting";
+    Tcp::resolver::iterator iter,
+    boost::asio::yield_context yield) {
+    boost::log::sources::logger log;
+    try {
+        Tcp::acceptor acceptor { ioService, *iter };
+        while (true) {
+            auto server = std::make_shared<Server>(ioService);
+            Tcp::endpoint peer;
+            acceptor.async_accept(server->messageQueue().stream(), peer, yield);
+            BOOST_LOG(log) << "Accepted connection from " << peer;
+            boost::asio::spawn(ioService, std::bind(serverCoroutine, server, peer, _1));
+        }
+    }
+    catch (std::exception& e) {
+        BOOST_LOG(log) << "acceptor code threw " << e.what();
+    }
+    BOOST_LOG(log) << "acceptorCoroutine exiting";
 }
 
 
@@ -215,44 +215,44 @@ void clientCoroutine (boost::asio::io_service& ioService,
 
 
 int main (int argc, char** argv) try {
-	util::Monospawn sentinel { "baromesh", std::chrono::seconds(1) };
-	// TODO initialize logging core
-	boost::log::sources::logger log;
-	boost::asio::io_service ioService;
+    util::Monospawn sentinel { "baromesh", std::chrono::seconds(1) };
+    // TODO initialize logging core
+    boost::log::sources::logger log;
+    boost::asio::io_service ioService;
 
 #if 0 // TODO
-	// Make a deadman switch to stop the daemon if we get an exclusive
-	// producer lock.
-	util::asio::TmpFileLock producerLock { ioService };
-	producerLock.asyncLock([&] (boost::system::error_code ec) {
-		if (!ec) {
-			BOOST_LOG(log) << "No more baromesh producers, exiting";
-			ioService.stop();
-		}
-	});
+    // Make a deadman switch to stop the daemon if we get an exclusive
+    // producer lock.
+    util::asio::TmpFileLock producerLock { ioService };
+    producerLock.asyncLock([&] (boost::system::error_code ec) {
+        if (!ec) {
+            BOOST_LOG(log) << "No more baromesh producers, exiting";
+            ioService.stop();
+        }
+    });
 #endif
 
-	Tcp::resolver resolver { ioService };
-	auto iter = resolver.resolve(std::string("42000"));
+    Tcp::resolver resolver { ioService };
+    auto iter = resolver.resolve(std::string("42000"));
 
-	boost::asio::spawn(ioService, std::bind(acceptorCoroutine, std::ref(ioService), iter, _1));
+    boost::asio::spawn(ioService, std::bind(acceptorCoroutine, std::ref(ioService), iter, _1));
 
-	auto nClients = 10;
-	if (argc > 1) {
-		nClients = std::stoi(argv[1]);
-	}
+    auto nClients = 10;
+    if (argc > 1) {
+        nClients = std::stoi(argv[1]);
+    }
 
-	for (int i = 0; i < nClients; ++i) {
-		boost::asio::spawn(ioService, std::bind(clientCoroutine, std::ref(ioService), iter, _1));
-	}
+    for (int i = 0; i < nClients; ++i) {
+        boost::asio::spawn(ioService, std::bind(clientCoroutine, std::ref(ioService), iter, _1));
+    }
 
-	ioService.run();
+    ioService.run();
 }
 catch (util::Monospawn::DuplicateProcess& e) {
-	boost::log::sources::logger log;
-	BOOST_LOG(log) << "baromesh daemon already running, exiting";
+    boost::log::sources::logger log;
+    BOOST_LOG(log) << "baromesh daemon already running, exiting";
 }
 catch (std::exception& e) {
-	boost::log::sources::logger log;
-	BOOST_LOG(log) << "baromesh daemon caught some other exception: " << e.what();
+    boost::log::sources::logger log;
+    BOOST_LOG(log) << "baromesh daemon caught some other exception: " << e.what();
 }
