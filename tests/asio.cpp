@@ -152,28 +152,27 @@ void serverCoroutine (std::shared_ptr<rpc::asio::TcpPolyServer> server,
 
 
 
-void clientCoroutine (boost::asio::io_service& ioService,
+void clientCoroutine (std::shared_ptr<Client> client,
     Tcp::resolver::iterator iter,
     boost::asio::yield_context yield) {
     boost::log::sources::logger log;
-    Client client { ioService };
     try {
-        auto& messageQueue = client.messageQueue();
+        auto& messageQueue = client->messageQueue();
         auto& stream = messageQueue.stream();
 
         auto endpoint = boost::asio::async_connect(stream, iter, yield);
         BOOST_LOG(log) << "Connected to " << Tcp::endpoint(*endpoint);
         messageQueue.asyncHandshake(yield);
 
-        auto info = rpc::asio::asyncConnect(client, std::chrono::milliseconds(500), yield);
+        auto info = rpc::asio::asyncConnect(*client, std::chrono::milliseconds(500), yield);
         BOOST_LOG(log) << "client connected to server with RPC version "
                        << info.rpcVersion() << ", Interface version "
                        << info.interfaceVersion();
 
-        auto result = rpc::asio::asyncFire(client, MethodIn::unaryWithResult{2.71828}, std::chrono::milliseconds(500), yield);
+        auto result = rpc::asio::asyncFire(*client, MethodIn::unaryWithResult{2.71828}, std::chrono::milliseconds(500), yield);
         BOOST_LOG(log) << "client fired unaryWithResult(2.71828) -> " << result.value;
 
-        rpc::asio::asyncDisconnect(client, std::chrono::milliseconds(500), yield);
+        rpc::asio::asyncDisconnect(*client, std::chrono::milliseconds(500), yield);
         BOOST_LOG(log) << "client disconnected";
 
         messageQueue.asyncShutdown(yield);
@@ -181,7 +180,7 @@ void clientCoroutine (boost::asio::io_service& ioService,
     }
     catch (boost::system::system_error& e) {
         BOOST_LOG(log) << "client code threw " << e.what();
-        client.messageQueue().cancel();
+        client->messageQueue().cancel();
     }
     BOOST_LOG(log) << "clientCoroutine exiting";
 }
@@ -219,7 +218,8 @@ int main (int argc, char** argv) try {
     }
 
     for (int i = 0; i < nClients; ++i) {
-        boost::asio::spawn(ioService, std::bind(clientCoroutine, std::ref(ioService), iter, _1));
+        auto client = std::make_shared<Client>(ioService);
+        boost::asio::spawn(ioService, std::bind(clientCoroutine, client, iter, _1));
     }
 
     boost::system::error_code ec;
