@@ -20,6 +20,7 @@ using namespace std::placeholders;
 
 using MethodIn = rpc::MethodIn<barobo::Widget>;
 using MethodResult = rpc::MethodResult<barobo::Widget>;
+using Broadcast = rpc::Broadcast<barobo::Widget>;
 
 using Tcp = boost::asio::ip::tcp;
 using MessageQueue = sfp::asio::MessageQueue<Tcp::socket>;
@@ -27,6 +28,8 @@ using Client = rpc::asio::Client<MessageQueue>;
 using Server = rpc::asio::Server<MessageQueue>;
 
 struct WidgetImpl {
+    WidgetImpl (std::shared_ptr<rpc::asio::TcpPolyServer> server) : mServer(server) {}
+
     template <class In, class Result = typename rpc::ResultOf<In>::type>
     Result fire (In&& x) {
         return onFire(std::forward<In>(x));
@@ -53,11 +56,21 @@ struct WidgetImpl {
     }
 
     MethodResult::unaryWithResult onFire (MethodIn::unaryWithResult args) {
+        Broadcast::broadcast broadcast;
+        broadcast.value = 1.333;
+        rpc::asio::asyncBroadcast(*mServer, broadcast, [] (boost::system::error_code ec) {
+            if (ec) {
+                boost::log::sources::logger log;
+                BOOST_LOG(log) << "broadcast failed with " << ec.message();
+            }
+        });
         MethodResult::unaryWithResult result;
         memset(&result, 0, sizeof(result));
         result.value = args.value;
         return result;
     }
+
+    std::shared_ptr<rpc::asio::TcpPolyServer> mServer;
 };
 
 void serverCoroutine (std::shared_ptr<rpc::asio::TcpPolyServer> server,
@@ -95,7 +108,7 @@ void serverCoroutine (std::shared_ptr<rpc::asio::TcpPolyServer> server,
 
         BOOST_LOG(log) << "server " << server.get() << " connected";
 
-        WidgetImpl widgetImpl;
+        WidgetImpl widgetImpl { server };
 
         std::tie(requestId, request) = server->asyncReceiveRequest(yield);
         while (barobo_rpc_Request_Type_DISCONNECT != request.type) {

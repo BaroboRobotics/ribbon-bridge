@@ -120,6 +120,32 @@ private:
 	MessageQueue mMessageQueue;
 };
 
+template <class RpcServer, class Broadcast, class Handler>
+BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
+asyncBroadcast (RpcServer& server, Broadcast args, Handler&& handler) {
+    boost::asio::detail::async_result_init<
+        Handler, void(boost::system::error_code)
+    > init { std::forward<Handler>(handler) };
+    auto& realHandler = init.handler;
+
+    barobo_rpc_Broadcast broadcast;
+    broadcast = decltype(broadcast)();
+    broadcast.id = componentId(args);
+    Status status;
+    rpc::encode(args,
+        broadcast.payload.bytes,
+        sizeof(broadcast.payload.bytes),
+        broadcast.payload.size, status);
+    if (hasError(status)) {
+        server.get_io_service().post(std::bind(realHandler, status));
+    }
+    else {
+        server.asyncBroadcast(broadcast, realHandler);
+    }
+
+    return init.result.get();
+}
+
 } // namespace asio
 } // namespace rpc
 
