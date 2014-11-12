@@ -4,7 +4,7 @@
 
 #include "rpc/message.hpp"
 #include "rpc/asio/client.hpp"
-#include "rpc/asio/server.hpp"
+#include "rpc/asio/tcppolyserver.hpp"
 
 #include "util/hexdump.hpp"
 #include "util/monospawn.hpp"
@@ -60,14 +60,11 @@ struct WidgetImpl {
     }
 };
 
-void serverCoroutine (std::shared_ptr<Server> server,
-    Tcp::endpoint peer,
+void serverCoroutine (std::shared_ptr<rpc::asio::TcpPolyServer> server,
     boost::asio::yield_context yield) {
     boost::log::sources::logger log;
     try {
-        server->messageQueue().asyncHandshake(yield);
-
-        uint32_t requestId;
+        decltype(server)::element_type::RequestId requestId;
         barobo_rpc_Request request;
         barobo_rpc_Reply reply;
         // Loop through incoming requests until we see a CONNECT. All other
@@ -103,12 +100,14 @@ void serverCoroutine (std::shared_ptr<Server> server,
         std::tie(requestId, request) = server->asyncReceiveRequest(yield);
         while (barobo_rpc_Request_Type_DISCONNECT != request.type) {
             if (barobo_rpc_Request_Type_CONNECT == request.type) {
+                BOOST_LOG(log) << "server " << server.get() << " received a connect request";
                 server->asyncReply(requestId, siReply, yield);
             }
             else if (barobo_rpc_Request_Type_FIRE == request.type) {
                 if (!request.has_fire) {
                     throw rpc::Error(rpc::Status::INCONSISTENT_REPLY);
                 }
+                BOOST_LOG(log) << "server " << server.get() << " received a fire request";
 
                 rpc::ComponentInUnion<barobo::Widget> args;
                 auto status = rpc::decodeFirePayload(args, request.fire.id, request.fire.payload);
@@ -134,6 +133,7 @@ void serverCoroutine (std::shared_ptr<Server> server,
                 throw rpc::Error(rpc::Status::INCONSISTENT_REPLY);
             }
 
+            BOOST_LOG(log) << "server " << server.get() << " waiting on next request";
             std::tie(requestId, request) = server->asyncReceiveRequest(yield);
         }
 
@@ -143,36 +143,11 @@ void serverCoroutine (std::shared_ptr<Server> server,
         reply.has_status = true;
         reply.status.value = barobo_rpc_Status_OK;
         server->asyncReply(requestId, reply, yield);
-
-        server->messageQueue().asyncShutdown(yield);
-        server->messageQueue().stream().close();
     }
     catch (std::exception& e) {
         BOOST_LOG(log) << "server code threw " << e.what();
     }
     BOOST_LOG(log) << "serverCoroutine exiting";
-}
-
-
-
-void acceptorCoroutine (boost::asio::io_service& ioService,
-    Tcp::resolver::iterator iter,
-    boost::asio::yield_context yield) {
-    boost::log::sources::logger log;
-    try {
-        Tcp::acceptor acceptor { ioService, *iter };
-        while (true) {
-            auto server = std::make_shared<Server>(ioService);
-            Tcp::endpoint peer;
-            acceptor.async_accept(server->messageQueue().stream(), peer, yield);
-            BOOST_LOG(log) << "Accepted connection from " << peer;
-            boost::asio::spawn(ioService, std::bind(serverCoroutine, server, peer, _1));
-        }
-    }
-    catch (std::exception& e) {
-        BOOST_LOG(log) << "acceptor code threw " << e.what();
-    }
-    BOOST_LOG(log) << "acceptorCoroutine exiting";
 }
 
 
@@ -235,7 +210,8 @@ int main (int argc, char** argv) try {
     Tcp::resolver resolver { ioService };
     auto iter = resolver.resolve(std::string("42000"));
 
-    boost::asio::spawn(ioService, std::bind(acceptorCoroutine, std::ref(ioService), iter, _1));
+    auto server = std::make_shared<rpc::asio::TcpPolyServer>(ioService, *iter);
+    boost::asio::spawn(ioService, std::bind(serverCoroutine, server, _1));
 
     auto nClients = 10;
     if (argc > 1) {
@@ -246,7 +222,9 @@ int main (int argc, char** argv) try {
         boost::asio::spawn(ioService, std::bind(clientCoroutine, std::ref(ioService), iter, _1));
     }
 
-    ioService.run();
+    boost::system::error_code ec;
+    auto nHandlers = ioService.run(ec);
+    BOOST_LOG(log) << "Event loop executed " << nHandlers << " handlers -- " << ec.message();
 }
 catch (util::Monospawn::DuplicateProcess& e) {
     boost::log::sources::logger log;
