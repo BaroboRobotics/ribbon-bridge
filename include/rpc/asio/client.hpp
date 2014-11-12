@@ -22,7 +22,9 @@ using namespace std::placeholders;
 
 template <class MessageQueue>
 class Client {
+    using RequestId = uint32_t;
 public:
+
     template <class... Args>
     explicit Client (Args&&... args)
         : mImpl(std::make_shared<Impl>(std::forward<Args>(args)...))
@@ -109,7 +111,7 @@ private:
             , mStrand(mIoService)
         {}
 
-        void handleReply (uint32_t requestId, boost::system::error_code ec, barobo_rpc_Reply reply) {
+        void handleReply (RequestId requestId, boost::system::error_code ec, barobo_rpc_Reply reply) {
             auto handlerIter = mReplyHandlers.find(requestId);
             if (mReplyHandlers.cend() != handlerIter) {
                 mIoService.post(std::bind(handlerIter->second, ec, reply));
@@ -126,7 +128,7 @@ private:
             }
         }
 
-        void emplaceReplyHandler (uint32_t key, ReplyHandler replyHandler) {
+        void emplaceReplyHandler (RequestId key, ReplyHandler replyHandler) {
             mReplyHandlers.emplace(std::piecewise_construct,
                 std::forward_as_tuple(key),
                 std::forward_as_tuple(replyHandler));
@@ -134,7 +136,7 @@ private:
         }
 
         template <class Duration>
-        void emplaceReplyTimeout (uint32_t requestId, Duration&& timeout) {
+        void emplaceReplyTimeout (RequestId requestId, Duration&& timeout) {
             auto& timer = mReplyTimeouts.emplace(std::piecewise_construct,
                 std::forward_as_tuple(requestId),
                 std::forward_as_tuple(mIoService)).first->second;
@@ -229,7 +231,7 @@ private:
             }
         }
 
-        uint32_t nextRequestId () { return mNextRequestId++; }
+        RequestId nextRequestId () { return mNextRequestId++; }
 
         mutable boost::log::sources::logger mLog;
 
@@ -239,11 +241,11 @@ private:
 
         bool mReceiveCoroutineRunning = false;
 
-        std::atomic<uint32_t> mNextRequestId = { 0 };
+        std::atomic<RequestId> mNextRequestId = { 0 };
 
-        std::queue<std::pair<uint32_t, barobo_rpc_Reply>> mReplyInbox;
-        boost::unordered_map<uint32_t, ReplyHandler> mReplyHandlers;
-        boost::unordered_map<uint32_t, boost::asio::steady_timer> mReplyTimeouts;
+        std::queue<std::pair<RequestId, barobo_rpc_Reply>> mReplyInbox;
+        boost::unordered_map<RequestId, ReplyHandler> mReplyHandlers;
+        boost::unordered_map<RequestId, boost::asio::steady_timer> mReplyTimeouts;
 
         std::queue<barobo_rpc_Broadcast> mBroadcastInbox;
         std::queue<BroadcastHandler> mBroadcastHandlers;

@@ -11,6 +11,8 @@ namespace asio {
 template <class MessageQueue>
 class Server {
 public:
+    using RequestId = uint32_t;
+
 	template <class... Args>
 	explicit Server (Args&&... args)
 		: mMessageQueue(std::forward<Args>(args)...)
@@ -20,10 +22,10 @@ public:
 	const MessageQueue& messageQueue () const { return mMessageQueue; }
 
     template <class Handler>
-    BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code, std::pair<uint32_t, barobo_rpc_Request>))
+    BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code, std::pair<RequestId, barobo_rpc_Request>))
     asyncReceiveRequest (Handler&& handler) {
         boost::asio::detail::async_result_init<
-            Handler, void(boost::system::error_code, std::pair<uint32_t, barobo_rpc_Request>)
+            Handler, void(boost::system::error_code, std::pair<RequestId, barobo_rpc_Request>)
         > init { std::forward<Handler>(handler) };
         auto& realHandler = init.handler;
 
@@ -43,7 +45,7 @@ public:
 
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
-    asyncReply (uint32_t requestId, barobo_rpc_Reply reply, Handler&& handler) {
+    asyncReply (RequestId requestId, barobo_rpc_Reply reply, Handler&& handler) {
         boost::asio::detail::async_result_init<
             Handler, void(boost::system::error_code)
         > init { std::forward<Handler>(handler) };
