@@ -18,6 +18,8 @@ public:
 		: mMessageQueue(std::forward<Args>(args)...)
 	{}
 
+    boost::asio::io_service& get_io_service () { return mMessageQueue.get_io_service(); }
+
 	MessageQueue& messageQueue () { return mMessageQueue; }
 	const MessageQueue& messageQueue () const { return mMessageQueue; }
 
@@ -36,7 +38,7 @@ public:
                 Status status;
                 rpc::decode(message, buf->data(), size, status);
                 BOOST_LOG(mLog) << "server received " << size << " bytes";
-                mMessageQueue.getIoService().post(
+                mMessageQueue.get_io_service().post(
                     std::bind(realHandler, status, std::make_pair(message.id, message.request)));
             });
 
@@ -72,7 +74,7 @@ public:
         }
         catch (boost::system::system_error& e) {
             BOOST_LOG(mLog) << "server: posting error sending reply";
-            mMessageQueue.getIoService().post(std::bind(realHandler, e.code()));
+            mMessageQueue.get_io_service().post(std::bind(realHandler, e.code()));
         }
 
         return init.result.get();
@@ -106,7 +108,7 @@ public:
         }
         catch (boost::system::system_error& e) {
             BOOST_LOG(mLog) << "server: posting error sending broadcast";
-            mMessageQueue.getIoService().post(std::bind(realHandler, e.code()));
+            mMessageQueue.get_io_service().post(std::bind(realHandler, e.code()));
         }
 
         return init.result.get();

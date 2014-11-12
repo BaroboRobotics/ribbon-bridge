@@ -30,7 +30,7 @@ public:
         : mImpl(std::make_shared<Impl>(std::forward<Args>(args)...))
     {}
 
-    boost::asio::io_service& getIoService () { return mImpl->mMessageQueue.getIoService(); }
+    boost::asio::io_service& get_io_service () { return mImpl->mMessageQueue.get_io_service(); }
 
     MessageQueue& messageQueue () { return mImpl->mMessageQueue; }
     const MessageQueue& messageQueue () const { return mImpl->mMessageQueue; }
@@ -74,7 +74,7 @@ public:
         }
         catch (boost::system::system_error& e) {
             BOOST_LOG(m->mLog) << "client: posting error in asyncRequest";
-            m->mMessageQueue.getIoService().post(std::bind(realHandler, e.code(), barobo_rpc_Reply()));
+            m->mMessageQueue.get_io_service().post(std::bind(realHandler, e.code(), barobo_rpc_Reply()));
         }
 
         return init.result.get();
@@ -107,7 +107,7 @@ private:
         template <class... Args>
         explicit Impl (Args&&... args)
             : mMessageQueue(std::forward<Args>(args)...)
-            , mIoService(mMessageQueue.getIoService())
+            , mIoService(mMessageQueue.get_io_service())
             , mStrand(mIoService)
         {}
 
@@ -365,7 +365,7 @@ asyncFire (RpcClient& client, Method args, Duration&& timeout, Handler&& handler
         sizeof(request.fire.payload.bytes),
         request.fire.payload.size, status);
     if (hasError(status)) {
-        client.getIoService().post(std::bind(realHandler, status, Result()));
+        client.get_io_service().post(std::bind(realHandler, status, Result()));
     }
     else {
         client.asyncRequest(request, std::forward<Duration>(timeout),
