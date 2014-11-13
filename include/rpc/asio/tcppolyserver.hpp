@@ -134,7 +134,7 @@ public:
                 });
         }
         else if (requestId.first == Tcp::endpoint()) {
-            BOOST_LOG(mLog) << "Reply to inaddr_any endpoint in polyserver, ignoring";
+            BOOST_LOG(mLog) << "Reply to inaddr_any endpoint in polyserver, probably to our DISCONNECT, ignoring";
             auto& ios = work.get_io_service();
             ios.post(std::bind(handler, boost::system::error_code()));
         }
