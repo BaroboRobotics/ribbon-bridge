@@ -3,6 +3,7 @@
 #include "sfp/asio/messagequeue.hpp"
 
 #include "rpc/message.hpp"
+#include "rpc/version.hpp"
 #include "rpc/asio/client.hpp"
 #include "rpc/asio/tcppolyserver.hpp"
 
@@ -79,32 +80,17 @@ void serverCoroutine (std::shared_ptr<rpc::asio::TcpPolyServer> server,
     try {
         decltype(server)::element_type::RequestId requestId;
         barobo_rpc_Request request;
-        barobo_rpc_Reply reply;
         // Loop through incoming requests until we see a CONNECT. All other
         // requests get denied with a NOT_CONNECTED status.
         std::tie(requestId, request) = server->asyncReceiveRequest(yield);
         while (barobo_rpc_Request_Type_CONNECT != request.type) {
-            BOOST_LOG(log) << "server " << server.get() << " ignoring non-CONNECT packet";
-            reply = decltype(reply)();
-            reply.type = barobo_rpc_Reply_Type_STATUS;
-            reply.has_status = true;
-            reply.status.value = barobo_rpc_Status_NOT_CONNECTED;
-            server->asyncReply(requestId, reply, yield);
+            BOOST_LOG(log) << "server " << server.get() << " rejecting non-CONNECT packet";
+            asyncReply(*server, requestId, rpc::Status::NOT_CONNECTED, yield);
             std::tie(requestId, request) = server->asyncReceiveRequest(yield);
         }
 
         // We received a connection request, greet the friend warmly.
-        reply = decltype(reply)();
-        reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
-        reply.has_serviceInfo = true;
-        reply.serviceInfo.rpcVersion.major = rpc::Version<>::major;
-        reply.serviceInfo.rpcVersion.minor = rpc::Version<>::minor;
-        reply.serviceInfo.rpcVersion.patch = rpc::Version<>::patch;
-        reply.serviceInfo.interfaceVersion.major = rpc::Version<barobo::Widget>::major;
-        reply.serviceInfo.interfaceVersion.minor = rpc::Version<barobo::Widget>::minor;
-        reply.serviceInfo.interfaceVersion.patch = rpc::Version<barobo::Widget>::patch;
-        const auto siReply = reply;
-        server->asyncReply(requestId, siReply, yield);
+        asyncReply(*server, requestId, rpc::ServiceInfo::create<barobo::Widget>(), yield);
 
         BOOST_LOG(log) << "server " << server.get() << " connected";
 
@@ -114,7 +100,7 @@ void serverCoroutine (std::shared_ptr<rpc::asio::TcpPolyServer> server,
         while (barobo_rpc_Request_Type_DISCONNECT != request.type) {
             if (barobo_rpc_Request_Type_CONNECT == request.type) {
                 BOOST_LOG(log) << "server " << server.get() << " received a connect request";
-                server->asyncReply(requestId, siReply, yield);
+                asyncReply(*server, requestId, rpc::ServiceInfo::create<barobo::Widget>(), yield);
             }
             else if (barobo_rpc_Request_Type_FIRE == request.type) {
                 if (!request.has_fire) {
@@ -123,39 +109,32 @@ void serverCoroutine (std::shared_ptr<rpc::asio::TcpPolyServer> server,
                 BOOST_LOG(log) << "server " << server.get() << " received a fire request";
 
                 rpc::ComponentInUnion<barobo::Widget> args;
-                auto status = rpc::decodeFirePayload(args, request.fire.id, request.fire.payload);
+                barobo_rpc_Reply reply = decltype(reply)();
 
-                reply = decltype(reply)();
+                auto status = rpc::decodeFirePayload(args, request.fire.id, request.fire.payload);
                 if (!hasError(status)) {
                     status = rpc::invokeFire(widgetImpl, args, request.fire.id, reply.result.payload);
                 }
 
-                if (rpc::hasError(status)) {
-                    reply.type = barobo_rpc_Reply_Type_STATUS;
-                    reply.has_status = true;
-                    reply.status.value = static_cast<barobo_rpc_Status>(status);
-                }
-                else {
+                if (!rpc::hasError(status)) {
                     reply.type = barobo_rpc_Reply_Type_RESULT;
                     reply.has_result = true;
                     reply.result.id = request.fire.id;
+                    server->asyncSendReply(requestId, reply, yield);
                 }
-                server->asyncReply(requestId, reply, yield);
+                else {
+                    asyncReply(*server, requestId, status, yield);
+                }
             }
             else {
                 throw rpc::Error(rpc::Status::INCONSISTENT_REPLY);
             }
 
-            BOOST_LOG(log) << "server " << server.get() << " waiting on next request";
             std::tie(requestId, request) = server->asyncReceiveRequest(yield);
         }
 
         BOOST_LOG(log) << "server " << server.get() << " received disconnection request";
-        reply = decltype(reply)();
-        reply.type = barobo_rpc_Reply_Type_STATUS;
-        reply.has_status = true;
-        reply.status.value = barobo_rpc_Status_OK;
-        server->asyncReply(requestId, reply, yield);
+        asyncReply(*server, requestId, rpc::Status::OK, yield);
     }
     catch (std::exception& e) {
         BOOST_LOG(log) << "server code threw " << e.what();

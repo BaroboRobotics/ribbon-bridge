@@ -124,10 +124,10 @@ public:
         return init.result.get();
     }
 
-    void asyncReplyImpl (IoService::work work, RequestId requestId, barobo_rpc_Reply reply, ReplyHandler handler) {
+    void asyncSendReplyImpl (IoService::work work, RequestId requestId, barobo_rpc_Reply reply, ReplyHandler handler) {
         auto iter = mSubServers.find(requestId.first);
         if (iter != mSubServers.end()) {
-            iter->second.asyncReply(requestId.second, reply,
+            iter->second.asyncSendReply(requestId.second, reply,
                 [work, handler] (boost::system::error_code ec) mutable {
                     auto& ios = work.get_io_service();
                     ios.post(std::bind(handler, ec));
@@ -147,35 +147,35 @@ public:
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler,
         ReplyHandlerSignature)
-    asyncReply (IoService::work work, RequestId requestId, barobo_rpc_Reply reply, Handler&& handler) {
+    asyncSendReply (IoService::work work, RequestId requestId, barobo_rpc_Reply reply, Handler&& handler) {
         boost::asio::detail::async_result_init<
             Handler, ReplyHandlerSignature
         > init { std::forward<Handler>(handler) };
 
-        mStrand.dispatch(std::bind(&TcpPolyServerImpl::asyncReplyImpl,
+        mStrand.dispatch(std::bind(&TcpPolyServerImpl::asyncSendReplyImpl,
             this->shared_from_this(), work, requestId, reply, init.handler));
 
         return init.result.get();
     }
 
-    void asyncBroadcastImpl (IoService::work work, barobo_rpc_Broadcast broadcast, BroadcastHandler handler) {
+    void asyncSendBroadcastImpl (IoService::work work, barobo_rpc_Broadcast broadcast, BroadcastHandler handler) {
         auto& ios = work.get_io_service();
         detail::WaitMultipleCompleter<BroadcastHandler> completer { ios, handler };
         for (auto& kv : mSubServers) {
             BOOST_LOG(mLog) << "Broadcasting to " << kv.first;
-            kv.second.asyncBroadcast(broadcast, completer);
+            kv.second.asyncSendBroadcast(broadcast, completer);
         }
     }
 
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler,
         BroadcastHandlerSignature)
-    asyncBroadcast (IoService::work work, barobo_rpc_Broadcast broadcast, Handler&& handler) {
+    asyncSendBroadcast (IoService::work work, barobo_rpc_Broadcast broadcast, Handler&& handler) {
         boost::asio::detail::async_result_init<
             Handler, BroadcastHandlerSignature
         > init { std::forward<Handler>(handler) };
 
-        mStrand.dispatch(std::bind(&TcpPolyServerImpl::asyncBroadcastImpl,
+        mStrand.dispatch(std::bind(&TcpPolyServerImpl::asyncSendBroadcastImpl,
             this->shared_from_this(), work, broadcast, init.handler));
 
         return init.result.get();
@@ -183,48 +183,35 @@ public:
 
     void subServerCoroutine (Tcp::endpoint peer, boost::asio::yield_context yield) {
         try {
-            // This lambda will throw if the a subserver is removed while we're
-            // not executing. This would only happen if the acceptor coroutine
-            // encountered an error. Another option would be to store shared_ptrs
-            // to subservers.
-            auto server = [this, peer] () { return mSubServers.at(peer); };
-            server().messageQueue().asyncHandshake(yield);
+            auto& server = mSubServers.at(peer);
+            server.messageQueue().asyncHandshake(yield);
 
             SubServer::RequestId requestId;
             barobo_rpc_Request request;
-            barobo_rpc_Reply reply;
             // Loop through incoming requests until we see a CONNECT. All other
             // requests get denied with a NOT_CONNECTED status.
-            std::tie(requestId, request) = server().asyncReceiveRequest(yield);
+            std::tie(requestId, request) = server.asyncReceiveRequest(yield);
             while (barobo_rpc_Request_Type_CONNECT != request.type) {
                 BOOST_LOG(mLog) << "Ignoring non-CONNECT packet from " << peer;
-                reply = decltype(reply)();
-                reply.type = barobo_rpc_Reply_Type_STATUS;
-                reply.has_status = true;
-                reply.status.value = barobo_rpc_Status_NOT_CONNECTED;
-                server().asyncReply(requestId, reply, yield);
-                std::tie(requestId, request) = server().asyncReceiveRequest(yield);
+                asyncReply(server, requestId, Status::NOT_CONNECTED, yield);
+                std::tie(requestId, request) = server.asyncReceiveRequest(yield);
             }
 
             // We received a connection request, forward it up.
             mInbox.push(std::make_pair(std::make_pair(peer, requestId), request));
             postReceives();
 
-            std::tie(requestId, request) = server().asyncReceiveRequest(yield);
+            std::tie(requestId, request) = server.asyncReceiveRequest(yield);
             while (barobo_rpc_Request_Type_DISCONNECT != request.type) {
                 mInbox.push(std::make_pair(std::make_pair(peer, requestId), request));
                 postReceives();
-                std::tie(requestId, request) = server().asyncReceiveRequest(yield);
+                std::tie(requestId, request) = server.asyncReceiveRequest(yield);
             }
 
-            reply = decltype(reply)();
-            reply.type = barobo_rpc_Reply_Type_STATUS;
-            reply.has_status = true;
-            reply.status.value = barobo_rpc_Status_OK;
-            server().asyncReply(requestId, reply, yield);
+            asyncReply(server, requestId, Status::OK, yield);
 
-            server().messageQueue().asyncShutdown(yield);
-            server().messageQueue().stream().close();
+            server.messageQueue().asyncShutdown(yield);
+            server.messageQueue().stream().close();
         }
         catch (boost::system::system_error) {
             BOOST_LOG(mLog) << "Error communicating with " << peer;
@@ -336,19 +323,19 @@ public:
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler,
         void(boost::system::error_code))
-    asyncReply (implementation_type& impl,
+    asyncSendReply (implementation_type& impl,
             RequestId requestId, barobo_rpc_Reply reply, Handler&& handler) {
         IoService::work work { this->get_io_service() };
-        return impl->asyncReply(work, requestId, reply, std::forward<Handler>(handler));
+        return impl->asyncSendReply(work, requestId, reply, std::forward<Handler>(handler));
     }
 
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler,
         void(boost::system::error_code))
-    asyncBroadcast (implementation_type& impl,
+    asyncSendBroadcast (implementation_type& impl,
             barobo_rpc_Broadcast broadcast, Handler&& handler) {
         IoService::work work { this->get_io_service() };
-        return impl->asyncBroadcast(work, broadcast, std::forward<Handler>(handler));
+        return impl->asyncSendBroadcast(work, broadcast, std::forward<Handler>(handler));
     }
 
 private:
@@ -384,16 +371,16 @@ public:
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler,
         void(boost::system::error_code))
-    asyncReply (RequestId requestId, barobo_rpc_Reply reply, Handler&& handler) {
-        return this->get_service().asyncReply(this->get_implementation(),
+    asyncSendReply (RequestId requestId, barobo_rpc_Reply reply, Handler&& handler) {
+        return this->get_service().asyncSendReply(this->get_implementation(),
             requestId, reply, std::forward<Handler>(handler));
     }
 
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler,
         void(boost::system::error_code))
-    asyncBroadcast (barobo_rpc_Broadcast broadcast, Handler&& handler) {
-        return this->get_service().asyncBroadcast(this->get_implementation(),
+    asyncSendBroadcast (barobo_rpc_Broadcast broadcast, Handler&& handler) {
+        return this->get_service().asyncSendBroadcast(this->get_implementation(),
             broadcast, std::forward<Handler>(handler));
     }
 };

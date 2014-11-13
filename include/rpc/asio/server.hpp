@@ -47,7 +47,7 @@ public:
 
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
-    asyncReply (RequestId requestId, barobo_rpc_Reply reply, Handler&& handler) {
+    asyncSendReply (RequestId requestId, barobo_rpc_Reply reply, Handler&& handler) {
         boost::asio::detail::async_result_init<
             Handler, void(boost::system::error_code)
         > init { std::forward<Handler>(handler) };
@@ -82,7 +82,7 @@ public:
 
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
-    asyncBroadcast (barobo_rpc_Broadcast broadcast, Handler&& handler) {
+    asyncSendBroadcast (barobo_rpc_Broadcast broadcast, Handler&& handler) {
         boost::asio::detail::async_result_init<
             Handler, void(boost::system::error_code)
         > init { std::forward<Handler>(handler) };
@@ -140,10 +140,32 @@ asyncBroadcast (RpcServer& server, Broadcast args, Handler&& handler) {
         server.get_io_service().post(std::bind(realHandler, status));
     }
     else {
-        server.asyncBroadcast(broadcast, realHandler);
+        server.asyncSendBroadcast(broadcast, realHandler);
     }
 
     return init.result.get();
+}
+
+template <class S, class Handler>
+BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
+asyncReply (S& server, typename S::RequestId requestId, Status status, Handler&& handler) {
+    barobo_rpc_Reply reply;
+    reply = decltype(reply)();
+    reply.type = barobo_rpc_Reply_Type_STATUS;
+    reply.has_status = true;
+    reply.status.value = decltype(reply.status.value)(status);
+    server.asyncSendReply(requestId, reply, std::forward<Handler>(handler));
+}
+
+template <class S, class Handler>
+BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
+asyncReply (S& server, typename S::RequestId requestId, ServiceInfo info, Handler&& handler) {
+    barobo_rpc_Reply reply;
+    reply = decltype(reply)();
+    reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
+    reply.has_serviceInfo = true;
+    reply.serviceInfo = info;
+    server.asyncSendReply(requestId, reply, std::forward<Handler>(handler));
 }
 
 } // namespace asio
