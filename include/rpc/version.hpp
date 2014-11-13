@@ -19,6 +19,10 @@ public:
 	constexpr VersionTriplet (barobo_rpc_VersionTriplet triplet)
 			: mTriplet(triplet) { }
 
+	constexpr operator barobo_rpc_VersionTriplet () const {
+		return mTriplet;
+	}
+
 	uint32_t major () const { return mTriplet.major; }
 	uint32_t minor () const { return mTriplet.minor; }
 	uint32_t patch () const { return mTriplet.patch; }
@@ -69,6 +73,21 @@ public:
 	ServiceInfo (barobo_rpc_Reply_ServiceInfo info)
 			: mRpcVersion(info.rpcVersion)
 			, mInterfaceVersion(info.interfaceVersion) { }
+
+	template <class Interface>
+	static ServiceInfo create () {
+		barobo_rpc_Reply_ServiceInfo info;
+		info.rpcVersion = Version<>::triplet();
+		info.interfaceVersion = Version<Interface>::triplet();
+		return info;
+	}
+
+	operator barobo_rpc_Reply_ServiceInfo () const {
+		barobo_rpc_Reply_ServiceInfo info;
+        info.rpcVersion = rpcVersion();
+        info.interfaceVersion = interfaceVersion();
+        return info;
+	}
 
 	VersionTriplet rpcVersion () const { return mRpcVersion; }
 	VersionTriplet interfaceVersion () const { return mInterfaceVersion; }
