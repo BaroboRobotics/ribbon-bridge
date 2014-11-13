@@ -82,7 +82,7 @@ public:
         , mAcceptor(ioService)
     {}
 
-    void start (Tcp::endpoint endpoint) {
+    void init (Tcp::endpoint endpoint) {
         // Replicate what the Tcp::acceptor(ioService, endpoint) ctor would do.
         mAcceptor.open(endpoint.protocol());
         mAcceptor.set_option(boost::asio::socket_base::reuse_address(true));
@@ -321,8 +321,8 @@ public:
         impl.reset();
     }
 
-    void start (implementation_type& impl, Tcp::endpoint endpoint) {
-        impl->start(endpoint);
+    void init (implementation_type& impl, Tcp::endpoint endpoint) {
+        impl->init(endpoint);
     }
 
     template <class Handler>
@@ -370,7 +370,7 @@ public:
     BasicTcpPolyServer (IoService& ioService, Tcp::endpoint endpoint)
         : boost::asio::basic_io_object<Service>(ioService)
     {
-        this->get_service().start(this->get_implementation(), endpoint);
+        this->get_service().init(this->get_implementation(), endpoint);
     }
 
     template <class Handler>
