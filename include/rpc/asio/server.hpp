@@ -1,6 +1,8 @@
 #ifndef RPC_ASIO_SERVER_HPP
 #define RPC_ASIO_SERVER_HPP
 
+#include "rpc.pb.h"
+
 #include "util/hexdump.hpp"
 
 #include <utility>
@@ -12,6 +14,7 @@ template <class MessageQueue>
 class Server {
 public:
     using RequestId = uint32_t;
+    using RequestPair = std::pair<RequestId, barobo_rpc_Request>;
 
 	template <class... Args>
 	explicit Server (Args&&... args)

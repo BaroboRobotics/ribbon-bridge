@@ -66,9 +66,11 @@ using Tcp = boost::asio::ip::tcp;
 class TcpPolyServerImpl : public std::enable_shared_from_this<TcpPolyServerImpl> {
 public:
     using SubServer = Server<sfp::asio::MessageQueue<Tcp::socket>>;
-    using RequestId = std::pair<Tcp::endpoint, typename SubServer::RequestId>;
 
-    using RequestHandlerSignature = void(boost::system::error_code, std::pair<RequestId, barobo_rpc_Request>);
+    using RequestId = std::pair<Tcp::endpoint, typename SubServer::RequestId>;
+    using RequestPair = std::pair<RequestId, barobo_rpc_Request>;
+
+    using RequestHandlerSignature = void(boost::system::error_code, RequestPair);
     using RequestHandler = std::function<RequestHandlerSignature>;
 
     using ReplyHandlerSignature = void(boost::system::error_code);
@@ -285,6 +287,7 @@ public:
     static IoService::id id;
 
     using RequestId = typename Impl::RequestId;
+    using RequestPair = typename Impl::RequestPair;
 
     explicit TcpPolyServerService (IoService& ioService)
         : IoService::service(ioService)
@@ -314,7 +317,7 @@ public:
 
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler,
-        void(boost::system::error_code, std::pair<RequestId, barobo_rpc_Request>))
+        void(boost::system::error_code, RequestPair))
     asyncReceiveRequest (implementation_type& impl, Handler&& handler) {
         IoService::work work { this->get_io_service() };
         return impl->asyncReceiveRequest(work, std::forward<Handler>(handler));
@@ -353,6 +356,7 @@ template <class Service = TcpPolyServerService<>>
 class BasicTcpPolyServer : public boost::asio::basic_io_object<Service> {
 public:
     using RequestId = typename Service::RequestId;
+    using RequestPair = typename Service::RequestPair;
 
     BasicTcpPolyServer (IoService& ioService, Tcp::endpoint endpoint)
         : boost::asio::basic_io_object<Service>(ioService)
@@ -362,7 +366,7 @@ public:
 
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler,
-        void(boost::system::error_code, std::pair<RequestId, barobo_rpc_Request>))
+        void(boost::system::error_code, RequestPair))
     asyncReceiveRequest (Handler&& handler) {
         return this->get_service().asyncReceiveRequest(this->get_implementation(),
             std::forward<Handler>(handler));
