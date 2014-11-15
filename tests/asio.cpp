@@ -86,7 +86,7 @@ void serverCoroutine (std::shared_ptr<rpc::asio::TcpPolyServer> server,
         // Refuse requests with Status::NOT_CONNECTED until we get a CONNECT
         // request. Reply with barobo::Widget's version information.
         std::tie(requestId, request) = processRequestsCoro(*server,
-            std::bind(&rpc::asio::notConnectedCoro<PolyServer>, _1, _2, _3, _4), yield);
+            std::bind(&rpc::asio::notConnectedCoro<PolyServer>, std::ref(*server), _1, _2, _3), yield);
 
         asyncReply(*server, requestId, rpc::ServiceInfo::create<barobo::Widget>(), yield);
         BOOST_LOG(log) << "server " << server.get() << " connected";

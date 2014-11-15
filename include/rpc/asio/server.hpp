@@ -174,7 +174,7 @@ asyncReply (S& server, typename S::RequestId requestId, ServiceInfo info, Handle
 template <class S, class ProcessorCoro>
 typename S::RequestPair processRequestsCoro (S& server, ProcessorCoro&& process, boost::asio::yield_context yield) {
     auto rp = server.asyncReceiveRequest(yield);
-    while (std::forward<ProcessorCoro>(process)(server, rp.first, rp.second, yield)) {
+    while (std::forward<ProcessorCoro>(process)(rp.first, rp.second, yield)) {
         rp = server.asyncReceiveRequest(yield);
     }
     return rp;

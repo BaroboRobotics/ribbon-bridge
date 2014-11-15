@@ -192,7 +192,7 @@ public:
             barobo_rpc_Request request;
 
             std::tie(requestId, request) = processRequestsCoro(server,
-                std::bind(&rpc::asio::notConnectedCoro<SubServer>, _1, _2, _3, _4), yield);
+                std::bind(&rpc::asio::notConnectedCoro<SubServer>, std::ref(server), _1, _2, _3), yield);
 
             mInbox.push(std::make_pair(std::make_pair(peer, requestId), request));
             postReceives();
