@@ -197,15 +197,17 @@ public:
             mInbox.push(std::make_pair(std::make_pair(peer, requestId), request));
             postReceives();
 
-            std::tie(requestId, request) = server.asyncReceiveRequest(yield);
-            while (barobo_rpc_Request_Type_DISCONNECT != request.type) {
-                mInbox.push(std::make_pair(std::make_pair(peer, requestId), request));
-                postReceives();
-                std::tie(requestId, request) = server.asyncReceiveRequest(yield);
-            }
+            std::tie(requestId, request) = processRequestsCoro(server,
+                [peer, this] (SubServer::RequestId requestId, barobo_rpc_Request request, boost::asio::yield_context yield) {
+                    if (barobo_rpc_Request_Type_DISCONNECT != request.type) {
+                        mInbox.push(std::make_pair(std::make_pair(peer, requestId), request));
+                        postReceives();
+                        return true;
+                    }
+                    return false;
+                }, yield);
 
             BOOST_LOG(mLog) << "disconnecting " << peer;
-
             asyncReply(server, requestId, Status::OK, yield);
 
             BOOST_LOG(mLog) << "shutting down " << peer << "'s message queue and stream";
