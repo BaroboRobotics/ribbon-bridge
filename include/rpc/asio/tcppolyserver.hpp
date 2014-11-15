@@ -120,7 +120,7 @@ public:
             Handler, RequestHandlerSignature
         > init { std::forward<Handler>(handler) };
 
-        mStrand.dispatch(std::bind(&TcpPolyServerImpl::asyncReceiveRequestImpl,
+        mStrand.post(std::bind(&TcpPolyServerImpl::asyncReceiveRequestImpl,
             this->shared_from_this(), work, init.handler));
 
         return init.result.get();
@@ -154,7 +154,7 @@ public:
             Handler, ReplyHandlerSignature
         > init { std::forward<Handler>(handler) };
 
-        mStrand.dispatch(std::bind(&TcpPolyServerImpl::asyncSendReplyImpl,
+        mStrand.post(std::bind(&TcpPolyServerImpl::asyncSendReplyImpl,
             this->shared_from_this(), work, requestId, reply, init.handler));
 
         return init.result.get();
@@ -177,7 +177,7 @@ public:
             Handler, BroadcastHandlerSignature
         > init { std::forward<Handler>(handler) };
 
-        mStrand.dispatch(std::bind(&TcpPolyServerImpl::asyncSendBroadcastImpl,
+        mStrand.post(std::bind(&TcpPolyServerImpl::asyncSendBroadcastImpl,
             this->shared_from_this(), work, broadcast, init.handler));
 
         return init.result.get();
