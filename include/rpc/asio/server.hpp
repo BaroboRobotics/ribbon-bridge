@@ -123,9 +123,9 @@ private:
 	MessageQueue mMessageQueue;
 };
 
-template <class RpcServer, class Broadcast, class Handler>
+template <class S, class Broadcast, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
-asyncBroadcast (RpcServer& server, Broadcast args, Handler&& handler) {
+asyncBroadcast (S& server, Broadcast args, Handler&& handler) {
     boost::asio::detail::async_result_init<
         Handler, void(boost::system::error_code)
     > init { std::forward<Handler>(handler) };
