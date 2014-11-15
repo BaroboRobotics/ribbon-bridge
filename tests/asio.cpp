@@ -62,7 +62,7 @@ struct WidgetImpl {
         asyncBroadcast(*mServer, broadcast, [] (boost::system::error_code ec) {
             if (ec) {
                 boost::log::sources::logger log;
-                BOOST_LOG(log) << "broadcast failed with " << ec.message();
+                BOOST_LOG(log) << "asyncBroadcast failed with: " << ec.message();
             }
         });
         MethodResult::unaryWithResult result;
