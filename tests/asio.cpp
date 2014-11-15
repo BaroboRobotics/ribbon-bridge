@@ -59,7 +59,7 @@ struct WidgetImpl {
     MethodResult::unaryWithResult onFire (MethodIn::unaryWithResult args) {
         Broadcast::broadcast broadcast;
         broadcast.value = 1.333;
-        rpc::asio::asyncBroadcast(*mServer, broadcast, [] (boost::system::error_code ec) {
+        asyncBroadcast(*mServer, broadcast, [] (boost::system::error_code ec) {
             if (ec) {
                 boost::log::sources::logger log;
                 BOOST_LOG(log) << "broadcast failed with " << ec.message();
