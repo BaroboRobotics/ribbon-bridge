@@ -190,16 +190,10 @@ public:
 
             SubServer::RequestId requestId;
             barobo_rpc_Request request;
-            // Loop through incoming requests until we see a CONNECT. All other
-            // requests get denied with a NOT_CONNECTED status.
-            std::tie(requestId, request) = server.asyncReceiveRequest(yield);
-            while (barobo_rpc_Request_Type_CONNECT != request.type) {
-                BOOST_LOG(mLog) << "Ignoring non-CONNECT packet from " << peer;
-                asyncReply(server, requestId, Status::NOT_CONNECTED, yield);
-                std::tie(requestId, request) = server.asyncReceiveRequest(yield);
-            }
 
-            // We received a connection request, forward it up.
+            std::tie(requestId, request) = processRequestsCoro(server,
+                std::bind(&rpc::asio::notConnectedCoro<SubServer>, _1, _2, _3, _4), yield);
+
             mInbox.push(std::make_pair(std::make_pair(peer, requestId), request));
             postReceives();
 

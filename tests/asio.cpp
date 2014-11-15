@@ -74,24 +74,21 @@ struct WidgetImpl {
     std::shared_ptr<rpc::asio::TcpPolyServer> mServer;
 };
 
+
+
 void serverCoroutine (std::shared_ptr<rpc::asio::TcpPolyServer> server,
     boost::asio::yield_context yield) {
     boost::log::sources::logger log;
     try {
-        decltype(server)::element_type::RequestId requestId;
+        using PolyServer = decltype(server)::element_type;
+        PolyServer::RequestId requestId;
         barobo_rpc_Request request;
-        // Loop through incoming requests until we see a CONNECT. All other
-        // requests get denied with a NOT_CONNECTED status.
-        std::tie(requestId, request) = server->asyncReceiveRequest(yield);
-        while (barobo_rpc_Request_Type_CONNECT != request.type) {
-            BOOST_LOG(log) << "server " << server.get() << " rejecting non-CONNECT packet";
-            asyncReply(*server, requestId, rpc::Status::NOT_CONNECTED, yield);
-            std::tie(requestId, request) = server->asyncReceiveRequest(yield);
-        }
+        // Refuse requests with Status::NOT_CONNECTED until we get a CONNECT
+        // request. Reply with barobo::Widget's version information.
+        std::tie(requestId, request) = processRequestsCoro(*server,
+            std::bind(&rpc::asio::notConnectedCoro<PolyServer>, _1, _2, _3, _4), yield);
 
-        // We received a connection request, greet the friend warmly.
         asyncReply(*server, requestId, rpc::ServiceInfo::create<barobo::Widget>(), yield);
-
         BOOST_LOG(log) << "server " << server.get() << " connected";
 
         WidgetImpl widgetImpl { server };

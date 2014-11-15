@@ -171,6 +171,29 @@ asyncReply (S& server, typename S::RequestId requestId, ServiceInfo info, Handle
     server.asyncSendReply(requestId, reply, std::forward<Handler>(handler));
 }
 
+template <class S, class ProcessorCoro>
+typename S::RequestPair processRequestsCoro (S& server, ProcessorCoro&& process, boost::asio::yield_context yield) {
+    auto rp = server.asyncReceiveRequest(yield);
+    while (std::forward<ProcessorCoro>(process)(server, rp.first, rp.second, yield)) {
+        rp = server.asyncReceiveRequest(yield);
+    }
+    return rp;
+}
+
+template <class S>
+bool notConnectedCoro (S& server,
+    typename S::RequestId requestId,
+    barobo_rpc_Request request,
+    boost::asio::yield_context yield)
+{
+    if (barobo_rpc_Request_Type_CONNECT != request.type) {
+        asyncReply(server, requestId, rpc::Status::NOT_CONNECTED, yield);
+        return true;
+    }
+    return false;
+}
+
+
 } // namespace asio
 } // namespace rpc
 
