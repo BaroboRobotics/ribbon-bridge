@@ -210,8 +210,11 @@ public:
                 std::tie(requestId, request) = server.asyncReceiveRequest(yield);
             }
 
+            BOOST_LOG(mLog) << "disconnecting " << peer;
+
             asyncReply(server, requestId, Status::OK, yield);
 
+            BOOST_LOG(mLog) << "shutting down " << peer << "'s message queue and stream";
             server.messageQueue().asyncShutdown(yield);
             server.messageQueue().stream().close();
         }
@@ -222,6 +225,7 @@ public:
         BOOST_LOG(mLog) << peer << " disconnected";
 
         mSubServers.erase(peer);
+        BOOST_LOG(mLog) << peer << " erased";
         if (!mSubServers.size() && mShutdownOnLastDisconnect) {
             BOOST_LOG(mLog) << "Shutting down acceptor coroutine";
             mAcceptor.cancel();
@@ -233,6 +237,8 @@ public:
             mInbox.push(std::make_pair(std::make_pair(Tcp::endpoint(), nextRequestId()), request));
             postReceives();
         }
+
+        BOOST_LOG(mLog) << mSubServers.size() << " subservers remaining";
     }
 
     void acceptorCoroutine (boost::asio::yield_context yield) {
