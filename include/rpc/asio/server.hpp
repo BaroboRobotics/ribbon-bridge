@@ -181,7 +181,7 @@ typename S::RequestPair processRequestsCoro (S& server, ProcessorCoro&& process,
 }
 
 template <class S>
-bool notConnectedCoro (S& server,
+bool rejectIfNotConnectCoro (S& server,
     typename S::RequestId requestId,
     barobo_rpc_Request request,
     boost::asio::yield_context yield)
@@ -193,6 +193,47 @@ bool notConnectedCoro (S& server,
     return false;
 }
 
+template <class S, class Interface, class Impl>
+bool serveIfNotDisconnectCoro (S& server,
+    Impl& impl,
+    typename S::RequestId requestId,
+    barobo_rpc_Request request,
+    boost::asio::yield_context yield)
+{
+    if (barobo_rpc_Request_Type_DISCONNECT != request.type) {
+        if (barobo_rpc_Request_Type_CONNECT == request.type) {
+            asyncReply(server, requestId, rpc::ServiceInfo::create<Interface>(), yield);
+        }
+        else if (barobo_rpc_Request_Type_FIRE == request.type) {
+            if (!request.has_fire) {
+                throw rpc::Error(rpc::Status::INCONSISTENT_REPLY);
+            }
+
+            rpc::ComponentInUnion<Interface> args;
+            barobo_rpc_Reply reply = decltype(reply)();
+
+            auto status = rpc::decodeFirePayload(args, request.fire.id, request.fire.payload);
+            if (!hasError(status)) {
+                status = rpc::invokeFire(impl, args, request.fire.id, reply.result.payload);
+            }
+
+            if (!rpc::hasError(status)) {
+                reply.type = barobo_rpc_Reply_Type_RESULT;
+                reply.has_result = true;
+                reply.result.id = request.fire.id;
+                server.asyncSendReply(requestId, reply, yield);
+            }
+            else {
+                asyncReply(server, requestId, status, yield);
+            }
+        }
+        else {
+            throw rpc::Error(rpc::Status::INCONSISTENT_REPLY);
+        }
+        return true;
+    }
+    return false;
+}
 
 } // namespace asio
 } // namespace rpc
