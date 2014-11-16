@@ -24,12 +24,17 @@ using MethodResult = rpc::MethodResult<barobo::Widget>;
 using Broadcast = rpc::Broadcast<barobo::Widget>;
 
 using Tcp = boost::asio::ip::tcp;
-using MessageQueue = sfp::asio::MessageQueue<Tcp::socket>;
-using Client = rpc::asio::Client<MessageQueue>;
-using Server = rpc::asio::Server<MessageQueue>;
+using TcpMessageQueue = sfp::asio::MessageQueue<Tcp::socket>;
+using TcpClient = rpc::asio::Client<TcpMessageQueue>;
+using TcpServer = rpc::asio::Server<TcpMessageQueue>;
+
+using UnixDomainSocket = boost::asio::local::stream_protocol::socket;
+using UdsMessageQueue = sfp::asio::MessageQueue<UnixDomainSocket>;
+using UdsClient = rpc::asio::Client<UdsMessageQueue>;
+using UdsServer = rpc::asio::Server<UdsMessageQueue>;
 
 struct WidgetImpl {
-    WidgetImpl (std::shared_ptr<rpc::asio::TcpPolyServer> server) : mServer(server) {}
+    WidgetImpl (std::shared_ptr<UdsServer> server) : mServer(server) {}
 
     template <class In, class Result = typename rpc::ResultOf<In>::type>
     Result fire (In&& x) {
@@ -71,64 +76,114 @@ struct WidgetImpl {
         return result;
     }
 
-    std::shared_ptr<rpc::asio::TcpPolyServer> mServer;
+    std::shared_ptr<UdsServer> mServer;
 };
 
-
-
-void serverCoroutine (std::shared_ptr<rpc::asio::TcpPolyServer> server,
+template <class C, class S>
+void forwardBroadcastsCoroutine (C& client,
+    S& server,
     boost::asio::yield_context yield) {
     boost::log::sources::logger log;
     try {
-        using PolyServer = decltype(server)::element_type;
-        PolyServer::RequestId requestId;
+        while (true) {
+            auto broadcast = client.asyncReceiveBroadcast(yield);
+            server.asyncSendBroadcast(broadcast, yield);
+            BOOST_LOG(log) << "Forwarded broadcast";
+        }
+    }
+    catch (boost::system::system_error& e) {
+        BOOST_LOG(log) << "Error forwarding broadcasts: " << e.what();
+    }
+}
+
+template <class C, class S>
+void forwardRequestsCoroutine (C& client,
+    S& server,
+    boost::asio::yield_context yield) {
+    boost::log::sources::logger log;
+    typename S::RequestId requestId;
+    barobo_rpc_Request request;
+    try {
+        do {
+            std::tie(requestId, request) = server.asyncReceiveRequest(yield);
+            auto reply = client.asyncRequest(request, std::chrono::seconds(60), yield);
+            server.asyncSendReply(requestId, reply, yield);
+            const char* reqType = nullptr;
+            switch (request.type) {
+                case barobo_rpc_Request_Type_CONNECT:
+                    reqType = "CONNECT";
+                    break;
+                case barobo_rpc_Request_Type_DISCONNECT:
+                    reqType = "DISCONNECT";
+                    break;
+                case barobo_rpc_Request_Type_FIRE:
+                    reqType = "FIRE";
+                    break;
+
+            }
+            const char* repType = nullptr;
+            switch (reply.type) {
+                case barobo_rpc_Reply_Type_SERVICEINFO:
+                    repType = "SERVICEINFO";
+                    break;
+                case barobo_rpc_Reply_Type_STATUS:
+                    repType = "STATUS";
+                    break;
+                case barobo_rpc_Reply_Type_RESULT:
+                    repType = "RESULT";
+                    break;
+            }
+            assert(reqType && repType);
+            BOOST_LOG(log) << "proxy forwarded request " << requestId.first << "/" << requestId.second << ": " << std::string(reqType) << " -> " << std::string(repType);
+        } while (request.type != barobo_rpc_Request_Type_DISCONNECT);
+    }
+    catch (boost::system::system_error& e) {
+        BOOST_LOG(log) << "Error forwarding requests: " << e.what();
+    }
+}
+
+void proxyCoroutine (std::shared_ptr<UdsClient> client,
+    std::shared_ptr<rpc::asio::TcpPolyServer> server,
+    boost::asio::yield_context yield) {
+    boost::log::sources::logger log;
+    try {
+        client->messageQueue().asyncHandshake(yield);
+
+        boost::asio::spawn(yield,
+            std::bind(&forwardBroadcastsCoroutine<UdsClient, rpc::asio::TcpPolyServer>,
+                std::ref(*client), std::ref(*server), _1));
+        forwardRequestsCoroutine(*client, *server, yield);
+
+        client->messageQueue().asyncShutdown(yield);
+        client->messageQueue().stream().close();
+    }
+    catch (boost::system::system_error& e) {
+        BOOST_LOG(log) << "Error in proxy code " << e.what();
+    }
+}
+
+void serverCoroutine (std::shared_ptr<UdsServer> server,
+    boost::asio::yield_context yield) {
+    boost::log::sources::logger log;
+    try {
+        server->messageQueue().asyncHandshake(yield);
+        using S = decltype(server)::element_type;
+        S::RequestId requestId;
         barobo_rpc_Request request;
         // Refuse requests with Status::NOT_CONNECTED until we get a CONNECT
         // request. Reply with barobo::Widget's version information.
         std::tie(requestId, request) = processRequestsCoro(*server,
-            std::bind(&rpc::asio::notConnectedCoro<PolyServer>, std::ref(*server), _1, _2, _3), yield);
+            std::bind(&rpc::asio::rejectIfNotConnectCoro<S>,
+                std::ref(*server), _1, _2, _3), yield);
 
         asyncReply(*server, requestId, rpc::ServiceInfo::create<barobo::Widget>(), yield);
         BOOST_LOG(log) << "server " << server.get() << " connected";
 
         WidgetImpl widgetImpl { server };
 
-        std::tie(requestId, request) = server->asyncReceiveRequest(yield);
-        while (barobo_rpc_Request_Type_DISCONNECT != request.type) {
-            if (barobo_rpc_Request_Type_CONNECT == request.type) {
-                BOOST_LOG(log) << "server " << server.get() << " received a connect request";
-                asyncReply(*server, requestId, rpc::ServiceInfo::create<barobo::Widget>(), yield);
-            }
-            else if (barobo_rpc_Request_Type_FIRE == request.type) {
-                if (!request.has_fire) {
-                    throw rpc::Error(rpc::Status::INCONSISTENT_REPLY);
-                }
-                BOOST_LOG(log) << "server " << server.get() << " received a fire request";
-
-                rpc::ComponentInUnion<barobo::Widget> args;
-                barobo_rpc_Reply reply = decltype(reply)();
-
-                auto status = rpc::decodeFirePayload(args, request.fire.id, request.fire.payload);
-                if (!hasError(status)) {
-                    status = rpc::invokeFire(widgetImpl, args, request.fire.id, reply.result.payload);
-                }
-
-                if (!rpc::hasError(status)) {
-                    reply.type = barobo_rpc_Reply_Type_RESULT;
-                    reply.has_result = true;
-                    reply.result.id = request.fire.id;
-                    server->asyncSendReply(requestId, reply, yield);
-                }
-                else {
-                    asyncReply(*server, requestId, status, yield);
-                }
-            }
-            else {
-                throw rpc::Error(rpc::Status::INCONSISTENT_REPLY);
-            }
-
-            std::tie(requestId, request) = server->asyncReceiveRequest(yield);
-        }
+        std::tie(requestId, request) = processRequestsCoro(*server,
+            std::bind(&rpc::asio::serveIfNotDisconnectCoro<S, barobo::Widget, WidgetImpl>,
+                std::ref(*server), widgetImpl, _1, _2, _3), yield);
 
         BOOST_LOG(log) << "server " << server.get() << " received disconnection request";
         asyncReply(*server, requestId, rpc::Status::OK, yield);
@@ -141,7 +196,7 @@ void serverCoroutine (std::shared_ptr<rpc::asio::TcpPolyServer> server,
 
 
 
-void clientCoroutine (std::shared_ptr<Client> client,
+void clientCoroutine (std::shared_ptr<TcpClient> client,
     Tcp::resolver::iterator iter,
     boost::asio::yield_context yield) {
     boost::log::sources::logger log;
@@ -198,8 +253,15 @@ int main (int argc, char** argv) try {
     Tcp::resolver resolver { ioService };
     auto iter = resolver.resolve(std::string("42000"));
 
-    auto server = std::make_shared<rpc::asio::TcpPolyServer>(ioService, *iter);
+    auto server = std::make_shared<UdsServer>(ioService);
+    auto proxyClient = std::make_shared<UdsClient>(ioService);
+    auto proxyServer = std::make_shared<rpc::asio::TcpPolyServer>(ioService, *iter);
+
+    boost::asio::local::connect_pair(
+        server->messageQueue().stream(),
+        proxyClient->messageQueue().stream());
     boost::asio::spawn(ioService, std::bind(serverCoroutine, server, _1));
+    boost::asio::spawn(ioService, std::bind(proxyCoroutine, proxyClient, proxyServer, _1));
 
     auto nClients = 10;
     if (argc > 1) {
@@ -207,7 +269,7 @@ int main (int argc, char** argv) try {
     }
 
     for (int i = 0; i < nClients; ++i) {
-        auto client = std::make_shared<Client>(ioService);
+        auto client = std::make_shared<TcpClient>(ioService);
         boost::asio::spawn(ioService, std::bind(clientCoroutine, client, iter, _1));
     }
 
