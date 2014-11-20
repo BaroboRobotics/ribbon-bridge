@@ -109,6 +109,9 @@ public:
                 this->shared_from_this(), _1));
     }
 
+    boost::asio::ip::tcp::endpoint endpoint () const {
+        return mAcceptor.local_endpoint();
+    }
 
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler,
@@ -330,6 +333,10 @@ public:
         impl->init(endpoint);
     }
 
+    Tcp::endpoint endpoint (const implementation_type& impl) const {
+        return impl->endpoint();
+    }
+
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler,
         void(boost::system::error_code, RequestPair))
@@ -379,6 +386,10 @@ public:
         : boost::asio::basic_io_object<Service>(ioService)
     {
         this->get_service().init(this->get_implementation(), endpoint);
+    }
+
+    Tcp::endpoint endpoint () const {
+        return this->get_service().endpoint(this->get_implementation());
     }
 
     template <class Handler>
