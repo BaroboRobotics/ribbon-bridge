@@ -12,7 +12,6 @@
 #include <boost/system/error_code.hpp>
 #include <boost/system/system_error.hpp>
 
-#include <stdexcept>
 #include <string>
 
 namespace rpc {
