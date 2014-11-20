@@ -6,6 +6,8 @@
 
 #include <boost/asio.hpp>
 #include <boost/asio/async_result.hpp>
+#include <boost/asio/spawn.hpp>
+#include <boost/asio/steady_timer.hpp>
 
 #include <boost/unordered_map.hpp>
 
@@ -13,6 +15,7 @@
 #include <boost/log/sources/logger.hpp>
 
 #include <memory>
+#include <queue>
 #include <utility>
 
 namespace rpc {

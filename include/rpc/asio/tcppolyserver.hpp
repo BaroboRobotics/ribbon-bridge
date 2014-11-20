@@ -61,6 +61,7 @@ struct WaitMultipleCompleter {
 
 } // namespace detail
 
+using namespace std::placeholders;
 using Tcp = boost::asio::ip::tcp;
 
 class TcpPolyServerImpl : public std::enable_shared_from_this<TcpPolyServerImpl> {
@@ -198,7 +199,7 @@ public:
             postReceives();
 
             std::tie(requestId, request) = processRequestsCoro(server,
-                [peer, this] (SubServer::RequestId requestId, barobo_rpc_Request request, boost::asio::yield_context yield) {
+                [peer, this] (SubServer::RequestId requestId, barobo_rpc_Request request, boost::asio::yield_context) {
                     if (barobo_rpc_Request_Type_DISCONNECT != request.type) {
                         mInbox.push(std::make_pair(std::make_pair(peer, requestId), request));
                         postReceives();
