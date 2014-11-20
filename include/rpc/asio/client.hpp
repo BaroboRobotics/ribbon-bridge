@@ -189,14 +189,14 @@ private:
 
                     switch (message.type) {
                         case barobo_rpc_ServerMessage_Type_REPLY:
-                            if (!message.has_inReplyTo) {
+                            if (!message.has_inReplyTo || !message.has_reply) {
                                 // FIXME INCONSISTENT_REPLY should be INCONSISTENT_MESSAGE
                                 throw Error(Status::INCONSISTENT_REPLY);
                             }
                             mReplyInbox.push(std::make_pair(message.inReplyTo, message.reply));
                             break;
                         case barobo_rpc_ServerMessage_Type_BROADCAST:
-                            if (message.has_inReplyTo) {
+                            if (message.has_inReplyTo || !message.has_broadcast) {
                                 throw Error(Status::INCONSISTENT_REPLY);
                             }
                             mBroadcastInbox.push(message.broadcast);
