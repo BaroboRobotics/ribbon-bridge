@@ -85,6 +85,18 @@ public:
         , mAcceptor(ioService)
     {}
 
+    void cancel () {
+        boost::system::error_code ec;
+        cancel(ec);
+        if (ec) {
+            throw boost::system::system_error(ec);
+        }
+    }
+
+    void cancel (boost::system::error_code& ec) {
+        mAcceptor.cancel(ec);
+    }
+
     void init (Tcp::endpoint endpoint) {
         // Replicate what the Tcp::acceptor(ioService, endpoint) ctor would do.
         mAcceptor.open(endpoint.protocol());
@@ -223,10 +235,7 @@ public:
 
         mSubServers.erase(peer);
         BOOST_LOG(mLog) << peer << " erased";
-        if (!mSubServers.size() && mShutdownOnLastDisconnect) {
-            BOOST_LOG(mLog) << "Shutting down acceptor coroutine";
-            mAcceptor.cancel();
-
+        if (!mSubServers.size()) {
             BOOST_LOG(mLog) << "Emitting disconnect";
             barobo_rpc_Request request;
             request = decltype(request)();
@@ -271,8 +280,6 @@ private:
 
     mutable boost::log::sources::logger mLog;
 
-    bool mShutdownOnLastDisconnect = true;
-
     IoService::strand mStrand;
     Tcp::acceptor mAcceptor;
 
@@ -311,6 +318,11 @@ public:
     }
 
     void destroy (implementation_type& impl) {
+        boost::system::error_code ec;
+        impl->cancel(ec);
+        if (ec) {
+            BOOST_LOG(mLog) << "Error canceling TcpPolyServer implementation: " << ec.message();
+        }
         impl.reset();
     }
 
@@ -346,6 +358,8 @@ public:
 
 private:
     void shutdown_service () {}
+
+    mutable boost::log::sources::logger mLog;
 
     IoService mAsyncIoService;
     boost::optional<IoService::work> mAsyncWork;
