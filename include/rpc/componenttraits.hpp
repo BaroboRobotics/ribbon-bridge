@@ -52,6 +52,9 @@ union ComponentInUnion;
 template <class Interface>
 union ComponentResultUnion;
 
+template <class Interface>
+union ComponentBroadcastUnion;
+
 template <class Interface, template <class...> class F>
 struct PromiseVariadic;
 
@@ -88,7 +91,7 @@ Status invokeFire (T& service,
 
 template <class T, class Interface>
 Status invokeBroadcast (T& proxy,
-        ComponentResultUnion<Interface>& argument,
+        ComponentBroadcastUnion<Interface>& argument,
         uint32_t componentId) {
     return BroadcastInvoker<Interface>::invoke(proxy, argument, componentId);
 }
@@ -107,7 +110,7 @@ Status decodeFirePayload (ComponentInUnion<Interface>& args,
         barobo_rpc_Request_Fire_payload_t& payload);
 
 template <class Interface>
-Status decodeBroadcastPayload (ComponentResultUnion<Interface>& args,
+Status decodeBroadcastPayload (ComponentBroadcastUnion<Interface>& args,
         uint32_t componentId,
         barobo_rpc_Broadcast_payload_t& payload);
 

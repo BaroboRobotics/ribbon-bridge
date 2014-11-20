@@ -111,7 +111,8 @@ public:
         }
 
         switch (message.type) {
-            ComponentResultUnion<Interface> argument;
+            ComponentResultUnion<Interface> resultArg;
+            ComponentBroadcastUnion<Interface> broadcastArg;
 
             case barobo_rpc_ServerMessage_Type_REPLY:
                 if (!message.has_reply || !message.has_inReplyTo) {
@@ -127,9 +128,9 @@ public:
                         if (!message.reply.has_result) {
                             return Status::INCONSISTENT_REPLY;
                         }
-                        status = decodeResultPayload(argument, message.reply.result.id, message.reply.result.payload);
+                        status = decodeResultPayload(resultArg, message.reply.result.id, message.reply.result.payload);
                         if (!hasError(status)) {
-                            status = invokeFulfill(mRequestManager, argument, message.reply.result.id, message.inReplyTo);
+                            status = invokeFulfill(mRequestManager, resultArg, message.reply.result.id, message.inReplyTo);
                         }
                         return status;
                     case barobo_rpc_Reply_Type_SERVICEINFO:
@@ -145,9 +146,9 @@ public:
                 if (!message.has_broadcast) {
                     return Status::INCONSISTENT_REPLY;
                 }
-                status = decodeBroadcastPayload(argument, message.broadcast.id, message.broadcast.payload);
+                status = decodeBroadcastPayload(broadcastArg, message.broadcast.id, message.broadcast.payload);
                 if (!hasError(status)) {
-                    status = invokeBroadcast(*this, argument, message.broadcast.id);
+                    status = invokeBroadcast(*this, broadcastArg, message.broadcast.id);
                 }
                 return status;
             default:
