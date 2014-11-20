@@ -109,21 +109,6 @@ public:
                 this->shared_from_this(), _1));
     }
 
-    void postReceives () {
-        BOOST_LOG(mLog) << "inbox: " << mInbox.size() << " -- receives: " << mReceives.size();
-        while (mInbox.size() && mReceives.size()) {
-            auto& ios = mReceives.front().first.get_io_service();
-            ios.post(std::bind(mReceives.front().second, boost::system::error_code(), mInbox.front()));
-            mInbox.pop();
-            mReceives.pop();
-        }
-    }
-
-    void asyncReceiveRequestImpl (IoService::work work, RequestHandler handler) {
-        mReceives.emplace(std::piecewise_construct,
-            std::forward_as_tuple(work), std::forward_as_tuple(handler));
-        postReceives();
-    }
 
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler,
@@ -137,26 +122,6 @@ public:
             this->shared_from_this(), work, init.handler));
 
         return init.result.get();
-    }
-
-    void asyncSendReplyImpl (IoService::work work, RequestId requestId, barobo_rpc_Reply reply, ReplyHandler handler) {
-        auto iter = mSubServers.find(requestId.first);
-        if (iter != mSubServers.end()) {
-            iter->second.asyncSendReply(requestId.second, reply,
-                [work, handler] (boost::system::error_code ec) mutable {
-                    auto& ios = work.get_io_service();
-                    ios.post(std::bind(handler, ec));
-                });
-        }
-        else if (requestId.first == Tcp::endpoint()) {
-            BOOST_LOG(mLog) << "Reply to inaddr_any endpoint in polyserver, probably to our DISCONNECT, ignoring";
-            auto& ios = work.get_io_service();
-            ios.post(std::bind(handler, boost::system::error_code()));
-        }
-        else {
-            auto& ios = work.get_io_service();
-            ios.post(std::bind(handler, Status::NOT_CONNECTED));
-        }
     }
 
     template <class Handler>
@@ -173,15 +138,6 @@ public:
         return init.result.get();
     }
 
-    void asyncSendBroadcastImpl (IoService::work work, barobo_rpc_Broadcast broadcast, BroadcastHandler handler) {
-        auto& ios = work.get_io_service();
-        detail::WaitMultipleCompleter<BroadcastHandler> completer { ios, handler };
-        for (auto& kv : mSubServers) {
-            BOOST_LOG(mLog) << "Broadcasting to " << kv.first;
-            kv.second.asyncSendBroadcast(broadcast, completer);
-        }
-    }
-
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler,
         BroadcastHandlerSignature)
@@ -196,6 +152,7 @@ public:
         return init.result.get();
     }
 
+private:
     void subServerCoroutine (Tcp::endpoint peer, boost::asio::yield_context yield) {
         try {
             auto& server = mSubServers.at(peer);
@@ -272,7 +229,50 @@ public:
         }
     }
 
-private:
+    void asyncReceiveRequestImpl (IoService::work work, RequestHandler handler) {
+        mReceives.emplace(std::piecewise_construct,
+            std::forward_as_tuple(work), std::forward_as_tuple(handler));
+        postReceives();
+    }
+
+    void asyncSendReplyImpl (IoService::work work, RequestId requestId, barobo_rpc_Reply reply, ReplyHandler handler) {
+        auto iter = mSubServers.find(requestId.first);
+        if (iter != mSubServers.end()) {
+            iter->second.asyncSendReply(requestId.second, reply,
+                [work, handler] (boost::system::error_code ec) mutable {
+                    auto& ios = work.get_io_service();
+                    ios.post(std::bind(handler, ec));
+                });
+        }
+        else if (requestId.first == Tcp::endpoint()) {
+            BOOST_LOG(mLog) << "Reply to inaddr_any endpoint in polyserver, probably to our DISCONNECT, ignoring";
+            auto& ios = work.get_io_service();
+            ios.post(std::bind(handler, boost::system::error_code()));
+        }
+        else {
+            auto& ios = work.get_io_service();
+            ios.post(std::bind(handler, Status::NOT_CONNECTED));
+        }
+    }
+
+    void asyncSendBroadcastImpl (IoService::work work, barobo_rpc_Broadcast broadcast, BroadcastHandler handler) {
+        auto& ios = work.get_io_service();
+        detail::WaitMultipleCompleter<BroadcastHandler> completer { ios, handler };
+        for (auto& kv : mSubServers) {
+            BOOST_LOG(mLog) << "Broadcasting to " << kv.first;
+            kv.second.asyncSendBroadcast(broadcast, completer);
+        }
+    }
+
+    void postReceives () {
+        BOOST_LOG(mLog) << "inbox: " << mInbox.size() << " -- receives: " << mReceives.size();
+        while (mInbox.size() && mReceives.size()) {
+            auto& ios = mReceives.front().first.get_io_service();
+            ios.post(std::bind(mReceives.front().second, boost::system::error_code(), mInbox.front()));
+            mInbox.pop();
+            mReceives.pop();
+        }
+    }
 
     SubServer::RequestId nextRequestId () {
         return mNextRequestId++;
