@@ -6,6 +6,7 @@
 #include "rpc/version.hpp"
 #include "rpc/asio/client.hpp"
 #include "rpc/asio/tcppolyserver.hpp"
+#include "rpc/asio/forwardcoroutines.hpp"
 
 #include "util/hexdump.hpp"
 #include "util/monospawn.hpp"
@@ -79,69 +80,6 @@ struct WidgetImpl {
     std::shared_ptr<UdsServer> mServer;
 };
 
-template <class C, class S>
-void forwardBroadcastsCoroutine (C& client,
-    S& server,
-    boost::asio::yield_context yield) {
-    boost::log::sources::logger log;
-    try {
-        while (true) {
-            auto broadcast = client.asyncReceiveBroadcast(yield);
-            server.asyncSendBroadcast(broadcast, yield);
-            BOOST_LOG(log) << "Forwarded broadcast";
-        }
-    }
-    catch (boost::system::system_error& e) {
-        BOOST_LOG(log) << "Error forwarding broadcasts: " << e.what();
-    }
-}
-
-template <class C, class S>
-void forwardRequestsCoroutine (C& client,
-    S& server,
-    boost::asio::yield_context yield) {
-    boost::log::sources::logger log;
-    typename S::RequestId requestId;
-    barobo_rpc_Request request;
-    try {
-        do {
-            std::tie(requestId, request) = server.asyncReceiveRequest(yield);
-            auto reply = client.asyncRequest(request, std::chrono::seconds(60), yield);
-            server.asyncSendReply(requestId, reply, yield);
-            const char* reqType = nullptr;
-            switch (request.type) {
-                case barobo_rpc_Request_Type_CONNECT:
-                    reqType = "CONNECT";
-                    break;
-                case barobo_rpc_Request_Type_DISCONNECT:
-                    reqType = "DISCONNECT";
-                    break;
-                case barobo_rpc_Request_Type_FIRE:
-                    reqType = "FIRE";
-                    break;
-
-            }
-            const char* repType = nullptr;
-            switch (reply.type) {
-                case barobo_rpc_Reply_Type_SERVICEINFO:
-                    repType = "SERVICEINFO";
-                    break;
-                case barobo_rpc_Reply_Type_STATUS:
-                    repType = "STATUS";
-                    break;
-                case barobo_rpc_Reply_Type_RESULT:
-                    repType = "RESULT";
-                    break;
-            }
-            assert(reqType && repType);
-            BOOST_LOG(log) << "proxy forwarded request " << requestId.first << "/" << requestId.second << ": " << std::string(reqType) << " -> " << std::string(repType);
-        } while (request.type != barobo_rpc_Request_Type_DISCONNECT);
-    }
-    catch (boost::system::system_error& e) {
-        BOOST_LOG(log) << "Error forwarding requests: " << e.what();
-    }
-}
-
 void proxyCoroutine (std::shared_ptr<UdsClient> client,
     std::shared_ptr<rpc::asio::TcpPolyServer> server,
     boost::asio::yield_context yield) {
@@ -150,9 +88,9 @@ void proxyCoroutine (std::shared_ptr<UdsClient> client,
         client->messageQueue().asyncHandshake(yield);
 
         boost::asio::spawn(yield,
-            std::bind(&forwardBroadcastsCoroutine<UdsClient, rpc::asio::TcpPolyServer>,
+            std::bind(&rpc::asio::forwardBroadcastsCoroutine<UdsClient, rpc::asio::TcpPolyServer>,
                 std::ref(*client), std::ref(*server), _1));
-        forwardRequestsCoroutine(*client, *server, yield);
+        rpc::asio::forwardRequestsCoroutine(*client, *server, yield);
 
         client->messageQueue().asyncShutdown(yield);
         client->messageQueue().stream().close();
