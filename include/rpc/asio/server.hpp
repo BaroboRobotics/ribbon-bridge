@@ -37,12 +37,18 @@ public:
         auto buf = std::make_shared<std::vector<uint8_t>>(1024);
         mMessageQueue.asyncReceive(boost::asio::buffer(*buf),
             [this, realHandler, buf] (boost::system::error_code ec, size_t size) mutable {
-                barobo_rpc_ClientMessage message;
-                Status status;
-                rpc::decode(message, buf->data(), size, status);
-                BOOST_LOG(mLog) << "server received " << size << " bytes";
-                mMessageQueue.get_io_service().post(
-                    std::bind(realHandler, status, std::make_pair(message.id, message.request)));
+                if (!ec) {
+                    barobo_rpc_ClientMessage message;
+                    Status status;
+                    rpc::decode(message, buf->data(), size, status);
+                    BOOST_LOG(mLog) << "server received " << size << " bytes";
+                    mMessageQueue.get_io_service().post(
+                        std::bind(realHandler, status, std::make_pair(message.id, message.request)));
+                }
+                else {
+                    mMessageQueue.get_io_service().post(
+                        std::bind(realHandler, ec, RequestPair()));
+                }
             });
 
         return init.result.get();
