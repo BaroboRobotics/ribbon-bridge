@@ -85,16 +85,24 @@ public:
         , mAcceptor(ioService)
     {}
 
-    void cancel () {
+    void destroy () {
         boost::system::error_code ec;
         cancel(ec);
-        if (ec) {
-            throw boost::system::system_error(ec);
-        }
     }
 
     void cancel (boost::system::error_code& ec) {
         mAcceptor.cancel(ec);
+        if (ec) {
+            BOOST_LOG(mLog) << "Error canceling acceptor: " << ec.message();
+        }
+        for (auto& kv : mSubServers) {
+            kv.second.cancel(ec);
+            if (ec) {
+                BOOST_LOG(mLog) << "Error canceling subserver "
+                                << kv.first << ": " << ec.message();
+            }
+        }
+        voidReceives(boost::asio::error::operation_aborted);
     }
 
     void init (Tcp::endpoint endpoint) {
@@ -268,12 +276,28 @@ private:
     }
 
     void postReceives () {
-        BOOST_LOG(mLog) << "inbox: " << mInbox.size() << " -- receives: " << mReceives.size();
         while (mInbox.size() && mReceives.size()) {
-            auto& ios = mReceives.front().first.get_io_service();
-            ios.post(std::bind(mReceives.front().second, boost::system::error_code(), mInbox.front()));
+            auto request = mInbox.front();
+            auto op = mReceives.front();
+            auto& ios = op.first.get_io_service();
+            auto& handler = op.second;
+
             mInbox.pop();
             mReceives.pop();
+
+            ios.post(std::bind(handler, boost::system::error_code(), request));
+        }
+    }
+
+    void voidReceives (boost::system::error_code ec) {
+        while (mReceives.size()) {
+            auto op = mReceives.front();
+            auto& ios = op.first.get_io_service();
+            auto& handler = op.second;
+
+            mReceives.pop();
+
+            ios.post(std::bind(handler, ec, RequestPair()));
         }
     }
 
@@ -321,12 +345,12 @@ public:
     }
 
     void destroy (implementation_type& impl) {
-        boost::system::error_code ec;
-        impl->cancel(ec);
-        if (ec) {
-            BOOST_LOG(mLog) << "Error canceling TcpPolyServer implementation: " << ec.message();
-        }
+        impl->destroy();
         impl.reset();
+    }
+
+    void cancel (implementation_type& impl, boost::system::error_code& ec) {
+        impl->cancel(ec);
     }
 
     void init (implementation_type& impl, Tcp::endpoint endpoint) {
@@ -386,6 +410,18 @@ public:
         : boost::asio::basic_io_object<Service>(ioService)
     {
         this->get_service().init(this->get_implementation(), endpoint);
+    }
+
+    void cancel () {
+        boost::system::error_code ec;
+        cancel(ec);
+        if (ec) {
+            throw boost::system::system_error(ec);
+        }
+    }
+
+    void cancel (boost::system::error_code& ec) {
+        this->get_service().cancel(this->get_implementation(), ec);
     }
 
     Tcp::endpoint endpoint () const {

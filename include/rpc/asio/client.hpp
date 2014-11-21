@@ -33,6 +33,23 @@ public:
         : mImpl(std::make_shared<Impl>(std::forward<Args>(args)...))
     {}
 
+    ~Client () {
+        boost::system::error_code ec;
+        cancel(ec);
+    }
+
+    void cancel () {
+        boost::system::error_code ec;
+        cancel(ec);
+        if (ec) {
+            throw boost::system::system_error(ec);
+        }
+    }
+
+    void cancel (boost::system::error_code& ec) {
+        mImpl->cancel(ec);
+    }
+
     boost::asio::io_service& get_io_service () { return mImpl->mMessageQueue.get_io_service(); }
 
     MessageQueue& messageQueue () { return mImpl->mMessageQueue; }
@@ -113,6 +130,10 @@ private:
             , mIoService(mMessageQueue.get_io_service())
             , mStrand(mIoService)
         {}
+
+        void cancel (boost::system::error_code& ec) {
+            mMessageQueue.cancel(ec);
+        }
 
         void handleReply (RequestId requestId, boost::system::error_code ec, barobo_rpc_Reply reply) {
             auto handlerIter = mReplyHandlers.find(requestId);

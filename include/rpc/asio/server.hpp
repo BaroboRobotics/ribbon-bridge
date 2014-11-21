@@ -21,6 +21,18 @@ public:
 		: mMessageQueue(std::forward<Args>(args)...)
 	{}
 
+    void cancel () {
+        boost::system::error_code ec;
+        cancel(ec);
+        if (ec) {
+            throw boost::system::system_error(ec);
+        }
+    }
+
+    void cancel (boost::system::error_code& ec) {
+        mMessageQueue.cancel(ec);
+    }
+
     boost::asio::io_service& get_io_service () { return mMessageQueue.get_io_service(); }
 
 	MessageQueue& messageQueue () { return mMessageQueue; }
