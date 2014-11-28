@@ -16,10 +16,24 @@ public:
     using RequestId = uint32_t;
     using RequestPair = std::pair<RequestId, barobo_rpc_Request>;
 
-	template <class... Args>
-	explicit Server (Args&&... args)
-		: mMessageQueue(std::forward<Args>(args)...)
-	{}
+    using RequestHandlerSignature = void(boost::system::error_code, RequestPair);
+    using RequestHandler = std::function<RequestHandlerSignature>;
+
+	explicit Server (boost::asio::io_service& ios, boost::log::sources::logger log)
+		: mMessageQueue(ios, log)
+        , mLog(log)
+	{
+        mLog.add_attribute("Protocol", boost::log::attributes::constant<std::string>("RB-SV"));
+    }
+
+    Server (Server&& that)
+        : mMessageQueue(std::move(that.mMessageQueue))
+        , mLog(that.mLog)
+    {}
+
+    ~Server () {
+        BOOST_LOG(mLog) << "O FUX getting destructed; this is " << this;
+    }
 
     void cancel () {
         boost::system::error_code ec;
@@ -38,26 +52,31 @@ public:
 	MessageQueue& messageQueue () { return mMessageQueue; }
 	const MessageQueue& messageQueue () const { return mMessageQueue; }
 
+    boost::log::sources::logger log () { return mLog; }
+
     template <class Handler>
-    BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code, std::pair<RequestId, barobo_rpc_Request>))
+    BOOST_ASIO_INITFN_RESULT_TYPE(Handler, RequestHandlerSignature)
     asyncReceiveRequest (Handler&& handler) {
         boost::asio::detail::async_result_init<
-            Handler, void(boost::system::error_code, std::pair<RequestId, barobo_rpc_Request>)
+            Handler, RequestHandlerSignature
         > init { std::forward<Handler>(handler) };
         auto& realHandler = init.handler;
 
         auto buf = std::make_shared<std::vector<uint8_t>>(1024);
+        BOOST_LOG(mLog) << "O FUX calling asyncReceive; buf is " << buf.get();
         mMessageQueue.asyncReceive(boost::asio::buffer(*buf),
             [this, realHandler, buf] (boost::system::error_code ec, size_t size) mutable {
                 if (!ec) {
                     barobo_rpc_ClientMessage message;
                     Status status;
                     rpc::decode(message, buf->data(), size, status);
-                    BOOST_LOG(mLog) << "server received " << size << " bytes";
+                    BOOST_LOG(mLog) << "O FUX received " << size << " bytes; buf is " << buf.get();
                     mMessageQueue.get_io_service().post(
                         std::bind(realHandler, status, std::make_pair(message.id, message.request)));
                 }
                 else {
+                    BOOST_LOG(mLog) << "O FUX posting handler with " << ec.message()
+                                    << "; buf is " << buf.get();
                     mMessageQueue.get_io_service().post(
                         std::bind(realHandler, ec, RequestPair()));
                 }
@@ -94,7 +113,7 @@ public:
                 });
         }
         catch (boost::system::system_error& e) {
-            BOOST_LOG(mLog) << "server: posting error sending reply";
+            BOOST_LOG(mLog) << "error sending reply";
             mMessageQueue.get_io_service().post(std::bind(realHandler, e.code()));
         }
 
@@ -128,7 +147,7 @@ public:
                 });
         }
         catch (boost::system::system_error& e) {
-            BOOST_LOG(mLog) << "server: posting error sending broadcast";
+            BOOST_LOG(mLog) << "error sending broadcast";
             mMessageQueue.get_io_service().post(std::bind(realHandler, e.code()));
         }
 
@@ -136,9 +155,9 @@ public:
     }
 
 private:
-    mutable boost::log::sources::logger mLog;
+    MessageQueue mMessageQueue;
 
-	MessageQueue mMessageQueue;
+    boost::log::sources::logger mLog;
 };
 
 template <class S, class Broadcast, class Handler>
@@ -189,68 +208,242 @@ asyncReply (S& server, typename S::RequestId requestId, ServiceInfo info, Handle
     server.asyncSendReply(requestId, reply, std::forward<Handler>(handler));
 }
 
-template <class S, class ProcessorCoro>
-typename S::RequestPair processRequestsCoro (S& server, ProcessorCoro&& process, boost::asio::yield_context yield) {
-    auto rp = server.asyncReceiveRequest(yield);
-    while (std::forward<ProcessorCoro>(process)(rp.first, rp.second, yield)) {
-        rp = server.asyncReceiveRequest(yield);
+template <class S, class Handler>
+struct WaitForConnectionOperation : std::enable_shared_from_this<WaitForConnectionOperation<S, Handler>> {
+    using RequestPair = typename S::RequestPair;
+
+    WaitForConnectionOperation (S& server)
+        : mIos(server.get_io_service())
+        , mStrand(mIos)
+        , mServer(server)
+    {}
+
+    void start (Handler handler) {
+        mServer.asyncReceiveRequest(mStrand.wrap(
+            std::bind(&WaitForConnectionOperation::stepOne,
+                this->shared_from_this(), handler, _1, _2)));
     }
-    return rp;
-}
 
-template <class S>
-bool rejectIfNotConnectCoro (S& server,
-    typename S::RequestId requestId,
-    barobo_rpc_Request request,
-    boost::asio::yield_context yield)
-{
-    if (barobo_rpc_Request_Type_CONNECT != request.type) {
-        asyncReply(server, requestId, rpc::Status::NOT_CONNECTED, yield);
-        return true;
-    }
-    return false;
-}
-
-template <class S, class Interface, class Impl>
-bool serveIfNotDisconnectCoro (S& server,
-    Impl& impl,
-    typename S::RequestId requestId,
-    barobo_rpc_Request request,
-    boost::asio::yield_context yield)
-{
-    if (barobo_rpc_Request_Type_DISCONNECT != request.type) {
-        if (barobo_rpc_Request_Type_CONNECT == request.type) {
-            asyncReply(server, requestId, rpc::ServiceInfo::create<Interface>(), yield);
-        }
-        else if (barobo_rpc_Request_Type_FIRE == request.type) {
-            if (!request.has_fire) {
-                throw rpc::Error(rpc::Status::INCONSISTENT_REPLY);
-            }
-
-            rpc::ComponentInUnion<Interface> args;
-            barobo_rpc_Reply reply = decltype(reply)();
-
-            auto status = rpc::decodeFirePayload(args, request.fire.id, request.fire.payload);
-            if (!hasError(status)) {
-                status = rpc::invokeFire(impl, args, request.fire.id, reply.result.payload);
-            }
-
-            if (!rpc::hasError(status)) {
-                reply.type = barobo_rpc_Reply_Type_RESULT;
-                reply.has_result = true;
-                reply.result.id = request.fire.id;
-                server.asyncSendReply(requestId, reply, yield);
+    void stepOne (Handler handler, boost::system::error_code ec, RequestPair rp) {
+        if (!ec) {
+            auto& requestId = rp.first;
+            auto& request = rp.second;
+            if (barobo_rpc_Request_Type_CONNECT != request.type) {
+                asyncReply(mServer, requestId, rpc::Status::NOT_CONNECTED, mStrand.wrap(
+                    std::bind(&WaitForConnectionOperation::stepTwo,
+                        this->shared_from_this(), handler, _1)));
             }
             else {
-                asyncReply(server, requestId, status, yield);
+                mIos.post(std::bind(handler, ec, rp));
             }
         }
         else {
-            throw rpc::Error(rpc::Status::INCONSISTENT_REPLY);
+            mIos.post(std::bind(handler, ec, rp));
         }
-        return true;
     }
-    return false;
+
+    void stepTwo (Handler handler, boost::system::error_code ec) {
+        if (!ec) {
+            start(handler);
+        }
+        else {
+            mIos.post(std::bind(handler, ec, RequestPair()));
+        }
+    }
+
+    boost::asio::io_service& mIos;
+    boost::asio::io_service::strand mStrand;
+    S& mServer;
+};
+
+template <class S, class Handler>
+BOOST_ASIO_INITFN_RESULT_TYPE(Handler, typename S::RequestHandlerSignature)
+asyncWaitForConnection (S& server, Handler&& handler) {
+    boost::asio::detail::async_result_init<
+        Handler, typename S::RequestHandlerSignature
+    > init { std::forward<Handler>(handler) };
+
+    using Op = WaitForConnectionOperation<S, decltype(init.handler)>;
+    std::make_shared<Op>(server)->start(init.handler);
+
+    return init.result.get();
+}
+
+template <class S, class Impl, class Handler>
+struct ServeUntilDisconnectionOperation : std::enable_shared_from_this<ServeUntilDisconnectionOperation<S, Impl, Handler>> {
+    using RequestPair = typename S::RequestPair;
+    using Interface = typename Impl::Interface;
+
+    ServeUntilDisconnectionOperation (S& server, Impl& impl)
+        : mIos(server.get_io_service())
+        , mStrand(mIos)
+        , mServer(server)
+        , mImpl(impl)
+    {}
+
+    barobo_rpc_Reply serve (barobo_rpc_Request_Fire fire, Status& status) {
+        ComponentInUnion<Interface> args;
+        barobo_rpc_Reply reply = decltype(reply)();
+
+        status = decodeFirePayload(args, fire.id, fire.payload);
+        if (!hasError(status)) {
+            status = invokeFire(mImpl, args, fire.id, reply.result.payload);
+            if (!hasError(status)) {
+                reply.type = barobo_rpc_Reply_Type_RESULT;
+                reply.has_result = true;
+                reply.result.id = fire.id;
+            }
+        }
+        return reply;
+    }
+
+    void start (Handler handler) {
+        mServer.asyncReceiveRequest(mStrand.wrap(
+            std::bind(&ServeUntilDisconnectionOperation::stepOne,
+                this->shared_from_this(), handler, _1, _2)));
+    }
+
+    void stepOne (Handler handler, boost::system::error_code ec, RequestPair rp) {
+        if (!ec) {
+            auto& requestId = rp.first;
+            auto& request = rp.second;
+
+            if (barobo_rpc_Request_Type_DISCONNECT == request.type) {
+                mIos.post(std::bind(handler, ec, rp));
+            }
+            else if (barobo_rpc_Request_Type_CONNECT == request.type) {
+                asyncReply(mServer, requestId, ServiceInfo::create<Interface>(), mStrand.wrap(
+                    std::bind(&ServeUntilDisconnectionOperation::stepTwo,
+                        this->shared_from_this(), handler, _1)));
+            }
+            else if (barobo_rpc_Request_Type_FIRE == request.type) {
+                if (!request.has_fire) {
+                    mIos.post(std::bind(handler, Status::INCONSISTENT_REPLY, rp));
+                }
+                else {
+                    Status status;
+                    auto reply = serve(request.fire, status);
+                    if (hasError(status)) {
+                        mIos.post(std::bind(handler, status, rp));
+                    }
+                    else {
+                        mServer.asyncSendReply(requestId, reply, mStrand.wrap(
+                            std::bind(&ServeUntilDisconnectionOperation::stepTwo,
+                                this->shared_from_this(), handler, _1)));
+                    }
+                }
+            }
+            else {
+                mIos.post(std::bind(handler, Status::INCONSISTENT_REPLY, rp));
+            }
+        }
+        else {
+            mIos.post(std::bind(handler, ec, rp));
+        }
+    }
+
+    void stepTwo (Handler handler, boost::system::error_code ec) {
+        if (!ec) {
+            start(handler);
+        }
+        else {
+            mIos.post(std::bind(handler, ec, RequestPair()));
+        }
+    }
+
+    boost::asio::io_service& mIos;
+    boost::asio::io_service::strand mStrand;
+    S& mServer;
+    Impl& mImpl;
+};
+
+template <class S, class Impl, class Handler>
+BOOST_ASIO_INITFN_RESULT_TYPE(Handler, typename S::RequestHandlerSignature)
+asyncServeUntilDisconnection (S& server, Impl& impl, Handler&& handler) {
+    boost::asio::detail::async_result_init<
+        Handler, typename S::RequestHandlerSignature
+    > init { std::forward<Handler>(handler) };
+
+    using Op = ServeUntilDisconnectionOperation<S, Impl, decltype(init.handler)>;
+    std::make_shared<Op>(server, impl)->start(init.handler);
+
+    return init.result.get();
+}
+
+template <class S, class Impl, class Handler>
+struct RunServerOperation : std::enable_shared_from_this<RunServerOperation<S, Impl, Handler>> {
+    using RequestPair = typename S::RequestPair;
+    using Interface = typename Impl::Interface;
+
+    RunServerOperation (S& server, Impl& impl)
+        : mIos(server.get_io_service())
+        , mStrand(mIos)
+        , mServer(server)
+        , mImpl(impl)
+    {}
+
+    void start (Handler handler) {
+        asyncWaitForConnection(mServer, mStrand.wrap(
+            std::bind(&RunServerOperation::stepOne,
+                this->shared_from_this(), handler, _1, _2)));
+    }
+
+    void stepOne (Handler handler, boost::system::error_code ec, RequestPair rp) {
+        if (!ec) {
+            auto log = mServer.log();
+            BOOST_LOG(log) << "connection received";
+            auto& requestId = rp.first;
+            asyncReply(mServer, requestId, ServiceInfo::create<Interface>(), mStrand.wrap(
+                std::bind(&RunServerOperation::stepTwo,
+                    this->shared_from_this(), handler, _1)));
+        }
+        else {
+            mIos.post(std::bind(handler, ec));
+        }
+    }
+
+    void stepTwo (Handler handler, boost::system::error_code ec) {
+        if (!ec) {
+            auto log = mServer.log();
+            BOOST_LOG(log) << "now serving!";
+            asyncServeUntilDisconnection(mServer, mImpl, mStrand.wrap(
+                std::bind(&RunServerOperation::stepThree,
+                    this->shared_from_this(), handler, _1, _2)));
+        }
+        else {
+            mIos.post(std::bind(handler, ec));
+        }
+    }
+
+    void stepThree (Handler handler, boost::system::error_code ec, RequestPair rp) {
+        if (!ec) {
+            auto log = mServer.log();
+            BOOST_LOG(log) << "finished serving";
+            auto& requestId = rp.first;
+            asyncReply(mServer, requestId, Status::OK, handler);
+        }
+        else {
+            mIos.post(std::bind(handler, ec));
+        }
+    }
+
+    boost::asio::io_service& mIos;
+    boost::asio::io_service::strand mStrand;
+    S& mServer;
+    Impl& mImpl;
+};
+
+template <class S, class Impl, class Handler>
+BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
+asyncRunServer (S& server, Impl& impl, Handler&& handler) {
+    boost::asio::detail::async_result_init<
+        Handler, void(boost::system::error_code)
+    > init { std::forward<Handler>(handler) };
+
+    using Op = RunServerOperation<S, Impl, decltype(init.handler)>;
+    std::make_shared<Op>(server, impl)->start(init.handler);
+
+    return init.result.get();
 }
 
 } // namespace asio

@@ -2,13 +2,13 @@
 #define RPC_ASIO_TCPPOLYSERVER_HPP
 
 #include "rpc/asio/server.hpp"
+#include "rpc/asio/waitmultiplecompleter.hpp"
 
 #include "sfp/asio/messagequeue.hpp"
 
 #include <boost/optional.hpp>
 
 #include <boost/asio.hpp>
-#include <boost/asio/spawn.hpp>
 
 #include <boost/log/common.hpp>
 #include <boost/log/sources/logger.hpp>
@@ -22,47 +22,91 @@ namespace rpc {
 namespace asio {
 
 using IoService = boost::asio::io_service;
-namespace detail {
-
-// Create an object of this type, then copy it as much as you want, passing it
-// as a handler to multiple asynchronous operations producing an error_code.
-// When the last copy is destroyed, the original handler is posted with the
-// last erroneous error_code received, or success if no errors were reported.
-template <class Handler>
-struct WaitMultipleCompleter {
-    WaitMultipleCompleter (IoService& ios, Handler handler)
-        : mIos(ios)
-        , mHandler(std::make_shared<Handler>(handler))
-        , mErrorCode(std::make_shared<boost::system::error_code>())
-    {}
-
-    ~WaitMultipleCompleter () {
-        if (mHandler.unique()) {
-            mIos.post(std::bind(*mHandler, *mErrorCode));
-        }
-    }
-
-    void operator() (boost::system::error_code ec) {
-        if (ec) {
-            if (*mErrorCode) {
-                BOOST_LOG(mLog) << "multiple errors reported to a WaitMultipleCompleter, discarding "
-                                << '"' << mErrorCode->message() << '"';
-            }
-            *mErrorCode = ec;
-        }
-    }
-
-    mutable boost::log::sources::logger mLog;
-
-    IoService& mIos;
-    std::shared_ptr<Handler> mHandler;
-    std::shared_ptr<boost::system::error_code> mErrorCode;
-};
-
-} // namespace detail
-
 using namespace std::placeholders;
 using Tcp = boost::asio::ip::tcp;
+
+namespace detail {
+
+// TODO refactor to combine this with RunServerOperation in server.hpp?
+template <class S, class RequestFunc, class Handler>
+struct RunSubServerOperation : std::enable_shared_from_this<RunSubServerOperation<S, RequestFunc, Handler>> {
+    using RequestId = typename S::RequestId;
+    using RequestPair = typename S::RequestPair;
+
+    RunSubServerOperation (std::shared_ptr<S> subServer, RequestFunc requestFunc)
+        : mIos(subServer->get_io_service())
+        , mStrand(mIos)
+        , mSubServer(subServer)
+        , mRequestFunc(requestFunc)
+    {}
+
+    void start (Handler handler) {
+        mSubServer->messageQueue().asyncHandshake(mStrand.wrap(
+            std::bind(&RunSubServerOperation::stepOne,
+                this->shared_from_this(), handler, _1)));
+    }
+
+    void stepOne (Handler handler, boost::system::error_code ec) {
+        if (!ec) {
+            asyncWaitForConnection(*mSubServer, mStrand.wrap(
+                std::bind(&RunSubServerOperation::stepTwo,
+                    this->shared_from_this(), handler, _1, _2)));
+        }
+        else {
+            mIos.post(std::bind(handler, ec));
+        }
+    }
+
+    void stepTwo (Handler handler, boost::system::error_code ec, RequestPair rp) {
+        auto log = mSubServer->log();
+        if (!ec) {
+            auto& requestId = rp.first;
+            auto& request = rp.second;
+            if (barobo_rpc_Request_Type_DISCONNECT == request.type) {
+                BOOST_LOG(log) << "disconnecting";
+                // Don't forward the request to mRequestFunc, as we may not be
+                // the last subserver remaining. Our caller can figure out if
+                // we are the last one and emit any last DISCONNECT request as
+                // necessary.
+                asyncReply(*mSubServer, requestId, Status::OK, handler);
+            }
+            else {
+                if (barobo_rpc_Request_Type_CONNECT == request.type) {
+                    BOOST_LOG(log) << "connection received";
+                }
+                using boost::asio::asio_handler_invoke;
+                asio_handler_invoke(std::bind(mRequestFunc, requestId, request), &handler);
+                // recurse
+                mSubServer->asyncReceiveRequest(mStrand.wrap(
+                    std::bind(&RunSubServerOperation::stepTwo,
+                        this->shared_from_this(), handler, _1, _2)));
+            }
+        }
+        else {
+            mIos.post(std::bind(handler, ec));
+        }
+    }
+
+    boost::asio::io_service& mIos;
+    boost::asio::io_service::strand mStrand;
+    std::shared_ptr<S> mSubServer;
+    RequestFunc mRequestFunc;
+};
+
+template <class S, class RequestFunc, class Handler>
+BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
+asyncRunSubServer (std::shared_ptr<S> server, RequestFunc&& requestFunc, Handler&& handler) {
+    boost::asio::detail::async_result_init<
+        Handler, void(boost::system::error_code)
+    > init { std::forward<Handler>(handler) };
+
+    using Op = RunSubServerOperation<S, RequestFunc, decltype(init.handler)>;
+    std::make_shared<Op>(server, std::forward<RequestFunc>(requestFunc))->start(init.handler);
+
+    return init.result.get();
+}
+
+} // namespace detail
 
 class TcpPolyServerImpl : public std::enable_shared_from_this<TcpPolyServerImpl> {
 public:
@@ -96,7 +140,7 @@ public:
             BOOST_LOG(mLog) << "Error canceling acceptor: " << ec.message();
         }
         for (auto& kv : mSubServers) {
-            kv.second.cancel(ec);
+            kv.second->cancel(ec);
             if (ec) {
                 BOOST_LOG(mLog) << "Error canceling subserver "
                                 << kv.first << ": " << ec.message();
@@ -105,20 +149,26 @@ public:
         voidReceives(boost::asio::error::operation_aborted);
     }
 
-    void init (Tcp::endpoint endpoint) {
+    void init (boost::log::sources::logger log) {
+        mLogPrototype = mLog = log;
+        mLog.add_attribute("Protocol", boost::log::attributes::constant<std::string>("RB-PS"));
+    }
+
+    void listen (Tcp::endpoint endpoint) {
         // Replicate what the Tcp::acceptor(ioService, endpoint) ctor would do.
         mAcceptor.open(endpoint.protocol());
         mAcceptor.set_option(boost::asio::socket_base::reuse_address(true));
         mAcceptor.bind(endpoint);
         mAcceptor.listen();
-
-        boost::asio::spawn(mStrand,
-            std::bind(&TcpPolyServerImpl::acceptorCoroutine,
-                this->shared_from_this(), _1));
+        accept();
     }
 
     boost::asio::ip::tcp::endpoint endpoint () const {
         return mAcceptor.local_endpoint();
+    }
+
+    boost::log::sources::logger log () const {
+        return mLog;
     }
 
     template <class Handler>
@@ -128,9 +178,10 @@ public:
         boost::asio::detail::async_result_init<
             Handler, RequestHandlerSignature
         > init { std::forward<Handler>(handler) };
+        auto& realHandler = init.handler;
 
         mStrand.post(std::bind(&TcpPolyServerImpl::asyncReceiveRequestImpl,
-            this->shared_from_this(), work, init.handler));
+            this->shared_from_this(), work, realHandler));
 
         return init.result.get();
     }
@@ -164,79 +215,60 @@ public:
     }
 
 private:
-    void subServerCoroutine (Tcp::endpoint peer, boost::asio::yield_context yield) {
-        try {
-            auto& server = mSubServers.at(peer);
-            server.messageQueue().asyncHandshake(yield);
+    void accept () {
+        auto subServer = std::make_shared<SubServer>(mStrand.get_io_service(), mLogPrototype);
+        auto peer = std::make_shared<Tcp::endpoint>();
+        mAcceptor.async_accept(subServer->messageQueue().stream(), *peer, mStrand.wrap(
+            std::bind(&TcpPolyServerImpl::handleAccept,
+                this->shared_from_this(), peer, subServer, _1)));
+    }
 
-            SubServer::RequestId requestId;
-            barobo_rpc_Request request;
+    void handleAccept (std::shared_ptr<Tcp::endpoint> peer,
+                       std::shared_ptr<SubServer> subServer,
+                       boost::system::error_code ec) {
+        if (!ec) {
+            decltype(mSubServers)::iterator iter;
+            bool success;
+            std::tie(iter, success) = mSubServers.insert(std::make_pair(*peer, subServer));
+            assert(success);
 
-            std::tie(requestId, request) = processRequestsCoro(server,
-                std::bind(&rpc::asio::rejectIfNotConnectCoro<SubServer>, std::ref(server), _1, _2, _3), yield);
+            BOOST_LOG(mLog) << "emplaced subserver for " << *peer;
 
-            mInbox.push(std::make_pair(std::make_pair(peer, requestId), request));
-            postReceives();
+            detail::asyncRunSubServer(subServer,
+                std::bind(&TcpPolyServerImpl::pushRequest, this->shared_from_this(), *peer, _1, _2),
+                mStrand.wrap(std::bind(&TcpPolyServerImpl::handleSubServerFinished,
+                    this->shared_from_this(), *peer, _1)));
 
-            std::tie(requestId, request) = processRequestsCoro(server,
-                [peer, this] (SubServer::RequestId requestId, barobo_rpc_Request request, boost::asio::yield_context) {
-                    if (barobo_rpc_Request_Type_DISCONNECT != request.type) {
-                        mInbox.push(std::make_pair(std::make_pair(peer, requestId), request));
-                        postReceives();
-                        return true;
-                    }
-                    return false;
-                }, yield);
-
-            BOOST_LOG(mLog) << "disconnecting " << peer;
-            asyncReply(server, requestId, Status::OK, yield);
-
-            BOOST_LOG(mLog) << "shutting down " << peer << "'s message queue and stream";
-            server.messageQueue().asyncShutdown(yield);
-            server.messageQueue().stream().close();
+            accept();
         }
-        catch (boost::system::system_error) {
-            BOOST_LOG(mLog) << "Error communicating with " << peer;
+        else {
+            BOOST_LOG(mLog) << "Error accepting new connection: " << ec.message();
+            if (boost::asio::error::operation_aborted != ec) {
+                BOOST_LOG(mLog) << "This could be a serious problem...";
+                assert(false);
+            }
         }
+    }
 
-        BOOST_LOG(mLog) << peer << " disconnected";
+    void pushRequest (Tcp::endpoint peer, typename SubServer::RequestId requestId, barobo_rpc_Request request) {
+        mInbox.push(std::make_pair(std::make_pair(peer, requestId), request));
+        postReceives();
+    }
 
-        mSubServers.erase(peer);
-        BOOST_LOG(mLog) << peer << " erased";
+    void handleSubServerFinished (Tcp::endpoint peer, boost::system::error_code ec) {
+        BOOST_LOG(mLog) << "Subserver " << peer << " finished with " << ec.message();
+        auto iter = mSubServers.find(peer);
+        if (iter != mSubServers.end()) {
+            iter->second->messageQueue().stream().close();
+            mSubServers.erase(iter);
+            BOOST_LOG(mLog) << peer << " erased; " << mSubServers.size() << " subservers remaining";
+        }
         if (!mSubServers.size()) {
             BOOST_LOG(mLog) << "Emitting disconnect";
             barobo_rpc_Request request;
             request = decltype(request)();
             request.type = barobo_rpc_Request_Type_DISCONNECT;
-            mInbox.push(std::make_pair(std::make_pair(Tcp::endpoint(), nextRequestId()), request));
-            postReceives();
-        }
-
-        BOOST_LOG(mLog) << mSubServers.size() << " subservers remaining";
-    }
-
-    void acceptorCoroutine (boost::asio::yield_context yield) {
-        try {
-            do {
-                Tcp::socket socket { mStrand.get_io_service() };
-                Tcp::endpoint peer;
-                mAcceptor.async_accept(socket, peer, yield);
-
-                decltype(mSubServers)::iterator iter;
-                bool success;
-                std::tie(iter, success) = mSubServers.emplace(
-                    std::piecewise_construct,
-                    std::forward_as_tuple(peer),
-                    std::forward_as_tuple(std::move(socket)));
-                assert(success);
-
-                boost::asio::spawn(yield,
-                    std::bind(&TcpPolyServerImpl::subServerCoroutine,
-                        this->shared_from_this(), peer, _1));
-            } while (mSubServers.size());
-        }
-        catch (boost::system::system_error& e) {
-            BOOST_LOG(mLog) << "Error accepting new connection: " << e.what();
+            pushRequest(Tcp::endpoint(), nextRequestId(), request);
         }
     }
 
@@ -249,7 +281,7 @@ private:
     void asyncSendReplyImpl (IoService::work work, RequestId requestId, barobo_rpc_Reply reply, ReplyHandler handler) {
         auto iter = mSubServers.find(requestId.first);
         if (iter != mSubServers.end()) {
-            iter->second.asyncSendReply(requestId.second, reply,
+            iter->second->asyncSendReply(requestId.second, reply,
                 [work, handler] (boost::system::error_code ec) mutable {
                     auto& ios = work.get_io_service();
                     ios.post(std::bind(handler, ec));
@@ -268,10 +300,10 @@ private:
 
     void asyncSendBroadcastImpl (IoService::work work, barobo_rpc_Broadcast broadcast, BroadcastHandler handler) {
         auto& ios = work.get_io_service();
-        detail::WaitMultipleCompleter<BroadcastHandler> completer { ios, handler };
+        WaitMultipleCompleter<BroadcastHandler> completer { ios, handler };
         for (auto& kv : mSubServers) {
             BOOST_LOG(mLog) << "Broadcasting to " << kv.first;
-            kv.second.asyncSendBroadcast(broadcast, completer);
+            kv.second->asyncSendBroadcast(broadcast, completer);
         }
     }
 
@@ -305,17 +337,18 @@ private:
         return mNextRequestId++;
     }
 
-    mutable boost::log::sources::logger mLog;
-
     IoService::strand mStrand;
     Tcp::acceptor mAcceptor;
 
     SubServer::RequestId mNextRequestId = 0;
 
-    std::map<Tcp::endpoint, SubServer> mSubServers;
+    std::map<Tcp::endpoint, std::shared_ptr<SubServer>> mSubServers;
 
     std::queue<std::pair<RequestId, barobo_rpc_Request>> mInbox;
     std::queue<std::pair<IoService::work, RequestHandler>> mReceives;
+
+    boost::log::sources::logger mLogPrototype;
+    mutable boost::log::sources::logger mLog;
 };
 
 template <class Impl = TcpPolyServerImpl>
@@ -325,6 +358,9 @@ public:
 
     using RequestId = typename Impl::RequestId;
     using RequestPair = typename Impl::RequestPair;
+
+    using RequestHandlerSignature = typename Impl::RequestHandlerSignature;
+    using RequestHandler = typename Impl::RequestHandler;
 
     explicit TcpPolyServerService (IoService& ioService)
         : IoService::service(ioService)
@@ -353,12 +389,20 @@ public:
         impl->cancel(ec);
     }
 
-    void init (implementation_type& impl, Tcp::endpoint endpoint) {
-        impl->init(endpoint);
+    void init (implementation_type& impl, boost::log::sources::logger log) {
+        impl->init(log);
+    }
+
+    void listen (implementation_type& impl, boost::asio::ip::tcp::endpoint endpoint) {
+        impl->listen(endpoint);
     }
 
     Tcp::endpoint endpoint (const implementation_type& impl) const {
         return impl->endpoint();
+    }
+
+    boost::log::sources::logger log (const implementation_type& impl) const {
+        return impl->log();
     }
 
     template <class Handler>
@@ -390,8 +434,6 @@ public:
 private:
     void shutdown_service () {}
 
-    mutable boost::log::sources::logger mLog;
-
     IoService mAsyncIoService;
     boost::optional<IoService::work> mAsyncWork;
     std::thread mAsyncThread;
@@ -406,10 +448,13 @@ public:
     using RequestId = typename Service::RequestId;
     using RequestPair = typename Service::RequestPair;
 
-    BasicTcpPolyServer (IoService& ioService, Tcp::endpoint endpoint)
+    using RequestHandlerSignature = typename Service::RequestHandlerSignature;
+    using RequestHandler = typename Service::RequestHandler;
+
+    BasicTcpPolyServer (IoService& ioService, boost::log::sources::logger log)
         : boost::asio::basic_io_object<Service>(ioService)
     {
-        this->get_service().init(this->get_implementation(), endpoint);
+        this->get_service().init(this->get_implementation(), log);
     }
 
     void cancel () {
@@ -424,8 +469,16 @@ public:
         this->get_service().cancel(this->get_implementation(), ec);
     }
 
+    void listen (Tcp::endpoint endpoint) {
+        this->get_service().listen(this->get_implementation(), endpoint);
+    }
+
     Tcp::endpoint endpoint () const {
         return this->get_service().endpoint(this->get_implementation());
+    }
+
+    boost::log::sources::logger log () const {
+        return this->get_service().log(this->get_implementation());
     }
 
     template <class Handler>

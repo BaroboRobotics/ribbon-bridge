@@ -6,13 +6,13 @@
 
 #include <boost/asio.hpp>
 #include <boost/asio/async_result.hpp>
-#include <boost/asio/spawn.hpp>
 #include <boost/asio/steady_timer.hpp>
 
 #include <boost/unordered_map.hpp>
 
 #include <boost/log/common.hpp>
 #include <boost/log/sources/logger.hpp>
+#include <boost/log/utility/manipulators/add_value.hpp>
 
 #include <memory>
 #include <queue>
@@ -50,6 +50,8 @@ public:
         mImpl->cancel(ec);
     }
 
+    boost::log::sources::logger log () { return mImpl->mLog; }
+
     boost::asio::io_service& get_io_service () { return mImpl->mMessageQueue.get_io_service(); }
 
     MessageQueue& messageQueue () { return mImpl->mMessageQueue; }
@@ -81,6 +83,9 @@ public:
             buf->resize(bytesWritten);
 
             m->mStrand.post([m, buf, requestId, realHandler, timeout] () {
+                using boost::log::add_value;
+                using std::to_string;
+                BOOST_LOG(m->mLog) << add_value("RequestId", to_string(requestId)) << "beginning transaction";
                 m->emplaceReplyHandler(requestId, realHandler);
                 m->emplaceReplyTimeout(requestId, timeout);
 
@@ -124,12 +129,14 @@ private:
 
     // Impl's raison d'etre is the same as that detailed in sfp::asio::MessageQueue.
     struct Impl : std::enable_shared_from_this<Impl> {
-        template <class... Args>
-        explicit Impl (Args&&... args)
-            : mMessageQueue(std::forward<Args>(args)...)
+        explicit Impl (boost::asio::io_service& ios, boost::log::sources::logger log)
+            : mMessageQueue(ios, log)
             , mIoService(mMessageQueue.get_io_service())
             , mStrand(mIoService)
-        {}
+            , mLog(log)
+        {
+            mLog.add_attribute("Protocol", boost::log::attributes::constant<std::string>("RB-CL"));
+        }
 
         void cancel (boost::system::error_code& ec) {
             mMessageQueue.cancel(ec);
@@ -142,7 +149,7 @@ private:
                 mReplyHandlers.erase(handlerIter);
             }
             else {
-                BOOST_LOG(mLog) << "client: Unsolicited reply to request " << requestId;
+                BOOST_LOG(mLog) << "unsolicited reply to request " << requestId;
             }
 
             auto timeoutIter = mReplyTimeouts.find(requestId);
@@ -152,11 +159,14 @@ private:
             }
         }
 
-        void emplaceReplyHandler (RequestId key, ReplyHandler replyHandler) {
+        void emplaceReplyHandler (RequestId requestId, ReplyHandler replyHandler) {
             mReplyHandlers.emplace(std::piecewise_construct,
-                std::forward_as_tuple(key),
+                std::forward_as_tuple(requestId),
                 std::forward_as_tuple(replyHandler));
             startReceiveCoroutine();
+            using boost::log::add_value;
+            using std::to_string;
+            BOOST_LOG(mLog) << add_value("RequestId", to_string(requestId)) << "emplaced reply handler";
         }
 
         template <class Duration>
@@ -166,11 +176,15 @@ private:
                 std::forward_as_tuple(mIoService)).first->second;
             timer.expires_from_now(timeout);
             auto m = this->shared_from_this();
+            using boost::log::add_value;
+            using std::to_string;
             timer.async_wait(mStrand.wrap([m, requestId] (boost::system::error_code ec) {
                 if (!ec) {
+                    BOOST_LOG(m->mLog) << add_value("RequestId", to_string(requestId)) << "timed out";
                     m->handleReply(requestId, boost::asio::error::timed_out, barobo_rpc_Reply());
                 }
             }));
+            BOOST_LOG(mLog) << add_value("RequestId", to_string(requestId)) << "emplaced reply timeout";
         }
 
         void postReplies () {
@@ -192,55 +206,64 @@ private:
         }
 
         void startReceiveCoroutine () {
-            if (mReceiveCoroutineRunning) {
-                return;
+            if (1 == (mReplyHandlers.size() + mBroadcastHandlers.size())) {
+                receive();
             }
-            mReceiveCoroutineRunning = true;
-            boost::asio::spawn(mStrand, std::bind(&Impl::receiveCoroutine, this->shared_from_this(), _1));
         }
 
-        void receiveCoroutine (boost::asio::yield_context yield) {
+        void receive () {
+            if (mReplyHandlers.size() || mBroadcastHandlers.size()) {
+                auto buf = std::make_shared<std::vector<uint8_t>>(1024);
+                BOOST_LOG(mLog) << "calling asyncReceive";
+                mMessageQueue.asyncReceive(boost::asio::buffer(*buf), mStrand.wrap(
+                    std::bind(&Client::Impl::handleReceive,
+                        this->shared_from_this(), buf, _1, _2)));
+            }
+        }
+
+        void handleReceive (std::shared_ptr<std::vector<uint8_t>> buf,
+                            boost::system::error_code ec,
+                            size_t nBytesTransferred) {
             try {
-                std::vector<uint8_t> buf(1024);
-                while (mReplyHandlers.size() || mBroadcastHandlers.size()) {
-                    auto size = mMessageQueue.asyncReceive(boost::asio::buffer(buf), yield);
-                    BOOST_LOG(mLog) << "client received " << size << " bytes";
-                    barobo_rpc_ServerMessage message;
-                    decode(message, buf.data(), size);
-
-                    switch (message.type) {
-                        case barobo_rpc_ServerMessage_Type_REPLY:
-                            if (!message.has_inReplyTo || !message.has_reply) {
-                                // FIXME INCONSISTENT_REPLY should be INCONSISTENT_MESSAGE
-                                throw Error(Status::INCONSISTENT_REPLY);
-                            }
-                            mReplyInbox.push(std::make_pair(message.inReplyTo, message.reply));
-                            break;
-                        case barobo_rpc_ServerMessage_Type_BROADCAST:
-                            if (message.has_inReplyTo || !message.has_broadcast) {
-                                throw Error(Status::INCONSISTENT_REPLY);
-                            }
-                            mBroadcastInbox.push(message.broadcast);
-                            break;
-                        default:
-                            throw Error(Status::INCONSISTENT_REPLY);
-                            break;
-                    }
-
-                    postReplies();
-                    postBroadcasts();
+                if (ec) {
+                    throw boost::system::system_error(ec);
                 }
+                BOOST_LOG(mLog) << "received " << nBytesTransferred << " bytes";
+                barobo_rpc_ServerMessage message;
+                decode(message, buf->data(), nBytesTransferred);
+
+                switch (message.type) {
+                    case barobo_rpc_ServerMessage_Type_REPLY:
+                        if (!message.has_inReplyTo || !message.has_reply) {
+                            // FIXME INCONSISTENT_REPLY should be INCONSISTENT_MESSAGE
+                            throw Error(Status::INCONSISTENT_REPLY);
+                        }
+                        mReplyInbox.push(std::make_pair(message.inReplyTo, message.reply));
+                        break;
+                    case barobo_rpc_ServerMessage_Type_BROADCAST:
+                        if (message.has_inReplyTo || !message.has_broadcast) {
+                            throw Error(Status::INCONSISTENT_REPLY);
+                        }
+                        mBroadcastInbox.push(message.broadcast);
+                        break;
+                    default:
+                        throw Error(Status::INCONSISTENT_REPLY);
+                        break;
+                }
+
+                postReplies();
+                postBroadcasts();
+
+                receive();
             }
             catch (boost::system::system_error& e) {
                 voidHandlers(e.code());
             }
-            mReceiveCoroutineRunning = false;
         }
 
         void voidHandlers (boost::system::error_code ec) {
-            BOOST_LOG(mLog) << "client: voiding all handlers with " << ec.message();
+            BOOST_LOG(mLog) << "voiding all handlers with " << ec.message();
             for (auto& pair : mReplyHandlers) {
-                BOOST_LOG(mLog) << "client: voiding request " << pair.first << " with " << ec.message();
                 mIoService.post(std::bind(pair.second, ec, barobo_rpc_Reply()));
             }
             mReplyHandlers.clear();
@@ -249,7 +272,6 @@ private:
             }
             mReplyTimeouts.clear();
             while (mBroadcastHandlers.size()) {
-                BOOST_LOG(mLog) << "client: voiding broadcast handler with " << ec.message();
                 mIoService.post(std::bind(mBroadcastHandlers.front(), ec, barobo_rpc_Broadcast()));
                 mBroadcastHandlers.pop();
             }
@@ -257,13 +279,9 @@ private:
 
         RequestId nextRequestId () { return mNextRequestId++; }
 
-        mutable boost::log::sources::logger mLog;
-
         MessageQueue mMessageQueue;
         boost::asio::io_service& mIoService;
         boost::asio::io_service::strand mStrand;
-
-        bool mReceiveCoroutineRunning = false;
 
         std::atomic<RequestId> mNextRequestId = { 0 };
 
@@ -273,6 +291,8 @@ private:
 
         std::queue<barobo_rpc_Broadcast> mBroadcastInbox;
         std::queue<BroadcastHandler> mBroadcastHandlers;
+
+        mutable boost::log::sources::logger mLog;
     };
 
 
@@ -289,36 +309,47 @@ asyncConnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
     > init { std::forward<Handler>(handler) };
     auto& realHandler = init.handler;
 
+    auto log = client.log();
+
     barobo_rpc_Request request;
     memset(&request, 0, sizeof(request));
     request.type = barobo_rpc_Request_Type_CONNECT;
+    BOOST_LOG(log) << "sending CONNECT request";
     client.asyncRequest(request, std::forward<Duration>(timeout),
-        [realHandler] (boost::system::error_code ec, barobo_rpc_Reply reply) mutable {
+        [realHandler, log] (boost::system::error_code ec, barobo_rpc_Reply reply) mutable {
             if (ec) {
+                BOOST_LOG(log) << "CONNECT request completed with error: " << ec.message();
                 realHandler(ec, ServiceInfo());
                 return;
             }
             switch (reply.type) {
                 case barobo_rpc_Reply_Type_SERVICEINFO:
                     if (!reply.has_serviceInfo) {
+                        BOOST_LOG(log) << "CONNECT request completed with inconsistent SERVICEINFO reply";
                         realHandler(Status::INCONSISTENT_REPLY, ServiceInfo());
                     }
                     else {
+                        BOOST_LOG(log) << "CONNECT request completed with SERVICEINFO (success)";
                         realHandler(boost::system::error_code(), reply.serviceInfo);
                     }
                     break;
                 case barobo_rpc_Reply_Type_STATUS:
                     if (!reply.has_status || barobo_rpc_Status_OK == reply.status.value) {
+                        BOOST_LOG(log) << "CONNECT request completed with inconsistent STATUS reply";
                         realHandler(Status::INCONSISTENT_REPLY, ServiceInfo());
                     }
                     else {
-                        realHandler(make_error_code(RemoteStatus(reply.status.value)), ServiceInfo());
+                        auto remoteEc = make_error_code(RemoteStatus(reply.status.value));
+                        BOOST_LOG(log) << "CONNECT request completed with STATUS: " << remoteEc.message();
+                        realHandler(remoteEc, ServiceInfo());
                     }
                     break;
                 case barobo_rpc_Reply_Type_RESULT:
+                    BOOST_LOG(log) << "CONNECT request completed with RESULT (inconsistent reply)";
                     realHandler(Status::INCONSISTENT_REPLY, ServiceInfo());
                     break;
                 default:
+                    BOOST_LOG(log) << "CONNECT request completed with unrecognized reply type";
                     realHandler(Status::INCONSISTENT_REPLY, ServiceInfo());
                     break;
             }
@@ -336,31 +367,41 @@ asyncDisconnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
     > init { std::forward<Handler>(handler) };
     auto& realHandler = init.handler;
 
+    auto log = client.log();
+
     barobo_rpc_Request request;
     memset(&request, 0, sizeof(request));
     request.type = barobo_rpc_Request_Type_DISCONNECT;
+    BOOST_LOG(log) << "sending DISCONNECT request";
     client.asyncRequest(request, std::forward<Duration>(timeout),
-        [realHandler] (boost::system::error_code ec, barobo_rpc_Reply reply) mutable {
+        [realHandler, log] (boost::system::error_code ec, barobo_rpc_Reply reply) mutable {
             if (ec) {
+                BOOST_LOG(log) << "DISCONNECT request completed with error: " << ec.message();
                 realHandler(ec);
                 return;
             }
             switch (reply.type) {
                 case barobo_rpc_Reply_Type_SERVICEINFO:
+                    BOOST_LOG(log) << "DISCONNECT request completed with SERVICEINFO (inconsistent reply)";
                     realHandler(Status::INCONSISTENT_REPLY);
                     break;
                 case barobo_rpc_Reply_Type_STATUS:
                     if (!reply.has_status) {
+                        BOOST_LOG(log) << "DISCONNECT request completed with inconsistent STATUS reply";
                         realHandler(Status::INCONSISTENT_REPLY);
                     }
                     else {
-                        realHandler(make_error_code(RemoteStatus(reply.status.value)));
+                        auto remoteEc = make_error_code(RemoteStatus(reply.status.value));
+                        BOOST_LOG(log) << "DISCONNECT request completed with STATUS: " << remoteEc.message();
+                        realHandler(remoteEc);
                     }
                     break;
                 case barobo_rpc_Reply_Type_RESULT:
+                    BOOST_LOG(log) << "DISCONNECT request completed with RESULT (inconsistent reply)";
                     realHandler(Status::INCONSISTENT_REPLY);
                     break;
                 default:
+                    BOOST_LOG(log) << "DISCONNECT request completed with unrecognized reply type";
                     realHandler(Status::INCONSISTENT_REPLY);
                     break;
             }
@@ -378,6 +419,8 @@ asyncFire (RpcClient& client, Method args, Duration&& timeout, Handler&& handler
     > init { std::forward<Handler>(handler) };
     auto& realHandler = init.handler;
 
+    auto log = client.log();
+
     barobo_rpc_Request request;
     memset(&request, 0, sizeof(request));
     request.type = barobo_rpc_Request_Type_FIRE;
@@ -389,29 +432,38 @@ asyncFire (RpcClient& client, Method args, Duration&& timeout, Handler&& handler
         sizeof(request.fire.payload.bytes),
         request.fire.payload.size, status);
     if (hasError(status)) {
-        client.get_io_service().post(std::bind(realHandler, status, Result()));
+        auto encodingEc = make_error_code(status);
+        BOOST_LOG(log) << "FIRE request failed to encode: " << encodingEc.message();
+        client.get_io_service().post(std::bind(realHandler, encodingEc, Result()));
     }
     else {
+        BOOST_LOG(log) << "sending FIRE request";
         client.asyncRequest(request, std::forward<Duration>(timeout),
-            [realHandler] (boost::system::error_code ec, barobo_rpc_Reply reply) mutable {
+            [realHandler, log] (boost::system::error_code ec, barobo_rpc_Reply reply) mutable {
                 if (ec) {
+                    BOOST_LOG(log) << "FIRE request completed with error: " << ec.message();
                     realHandler(ec, Result());
                     return;
                 }
                 switch (reply.type) {
                     case barobo_rpc_Reply_Type_SERVICEINFO:
+                        BOOST_LOG(log) << "FIRE request completed with SERVICEINFO (inconsistent reply)";
                         realHandler(Status::INCONSISTENT_REPLY, Result());
                         break;
                     case barobo_rpc_Reply_Type_STATUS:
                         if (!reply.has_status) {
+                            BOOST_LOG(log) << "FIRE request completed with inconsistent STATUS reply";
                             realHandler(Status::INCONSISTENT_REPLY, Result());
                         }
                         else {
-                            realHandler(make_error_code(RemoteStatus(reply.status.value)), Result());
+                            auto remoteEc = make_error_code(RemoteStatus(reply.status.value));
+                            BOOST_LOG(log) << "FIRE request completed with STATUS: " << remoteEc.message();
+                            realHandler(remoteEc, Result());
                         }
                         break;
                     case barobo_rpc_Reply_Type_RESULT:
                         if (!reply.has_result) {
+                            BOOST_LOG(log) << "FIRE request completed with inconsistent RESULT reply";
                             realHandler(Status::INCONSISTENT_REPLY, Result());
                         }
                         else {
@@ -419,10 +471,14 @@ asyncFire (RpcClient& client, Method args, Duration&& timeout, Handler&& handler
                             Result result;
                             memset(&result, 0, sizeof(result));
                             rpc::decode(result, reply.result.payload.bytes, reply.result.payload.size, status);
-                            realHandler(status, result);
+                            auto decodingEc = make_error_code(status);
+                            BOOST_LOG(log) << "FIRE request completed with RESULT (decoding status: "
+                                           << decodingEc.message() << ")";
+                            realHandler(decodingEc, result);
                         }
                         break;
                     default:
+                        BOOST_LOG(log) << "FIRE request completed with unrecognized reply type";
                         realHandler(Status::INCONSISTENT_REPLY, Result());
                         break;
                 }
