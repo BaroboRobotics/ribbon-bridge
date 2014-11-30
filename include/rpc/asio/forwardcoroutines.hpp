@@ -49,6 +49,7 @@ struct ForwardRequestsOperation : std::enable_shared_from_this<ForwardRequestsOp
     }
 
     void stepOne (MultiHandler handler, boost::system::error_code ec, RequestPair rp) {
+        auto log = mServer.log();
         if (!ec) {
             auto& requestId = rp.first;
             auto& request = rp.second;
@@ -58,26 +59,31 @@ struct ForwardRequestsOperation : std::enable_shared_from_this<ForwardRequestsOp
             startImpl(handler);
         }
         else {
+            BOOST_LOG(log) << "ForwardRequestsOperation: Error receiving request: " << ec.message();
             mIos.post(std::bind(handler, ec));
             mClient.cancel();
         }
     }
 
     void stepTwo (MultiHandler handler, RequestId requestId, boost::system::error_code ec, barobo_rpc_Reply reply) {
+        auto log = mServer.log();
         if (!ec) {
             mServer.asyncSendReply(requestId, reply, mStrand.wrap(
                 std::bind(&ForwardRequestsOperation::stepThree,
                     this->shared_from_this(), handler, _1)));
         }
         else {
+            BOOST_LOG(log) << "ForwardRequestsOperation: Error forwarding request: " << ec.message();
             mIos.post(std::bind(handler, ec));
             mServer.cancel();
         }
     }
 
     void stepThree (MultiHandler handler, boost::system::error_code ec) {
+        auto log = mServer.log();
         mIos.post(std::bind(handler, ec));
         if (ec) {
+            BOOST_LOG(log) << "ForwardRequestsOperation: Error replying to request: " << ec.message();
             mClient.cancel();
         }
     }

@@ -420,7 +420,10 @@ struct RunServerOperation : std::enable_shared_from_this<RunServerOperation<S, I
             auto log = mServer.log();
             BOOST_LOG(log) << "finished serving";
             auto& requestId = rp.first;
-            asyncReply(mServer, requestId, Status::OK, handler);
+            asyncReply(mServer, requestId, Status::OK, [handler, log] (boost::system::error_code ec2) mutable {
+                BOOST_LOG(log) << "FUX";
+                handler(ec2);
+            });
         }
         else {
             mIos.post(std::bind(handler, ec));

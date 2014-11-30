@@ -82,76 +82,111 @@ struct WidgetImpl {
     std::shared_ptr<UdsServer> mServer;
 };
 
-void proxyCoroutine (std::shared_ptr<UdsClient> client,
-    std::shared_ptr<rpc::asio::TcpPolyServer> server,
-    boost::asio::yield_context yield) {
-    boost::log::sources::logger log;
-    try {
-        client->messageQueue().asyncHandshake(yield);
+void startProxyCoroutine (std::shared_ptr<UdsClient> client, std::shared_ptr<rpc::asio::TcpPolyServer> server) {
+    client->messageQueue().asyncHandshake([client, server] (boost::system::error_code ec) {
+        if (!ec) {
+            rpc::asio::asyncRunProxy(*client, *server, [client, server] (boost::system::error_code ec) {
+                if (!ec) {
+                    client->messageQueue().stream().close();
+                }
+                else {
+                    auto log = client->log();
+                    BOOST_LOG(log) << "Proxy run error: " << ec.message();
+                }
+            });
+        }
+        else {
+            auto log = client->log();
+            BOOST_LOG(log) << "Proxy handshake error: " << ec.message();
+        }
+    });
+}
 
-        rpc::asio::asyncRunProxy(*client, *server, yield);
+void startServerCoroutine (std::shared_ptr<UdsServer> server) {
+    server->messageQueue().asyncHandshake([server] (boost::system::error_code ec) {
+        auto log = server->log();
+        if (!ec) {
+            BOOST_LOG(log) << "awaiting connection";
+            auto widgetImpl = std::make_shared<WidgetImpl>(server);
+            asyncRunServer(*server, *widgetImpl, [server, widgetImpl] (boost::system::error_code ec) {
+                auto log = server->log();
+                if (!ec) {
+                    BOOST_LOG(log) << "server " << server.get() << " received disconnection request";
+                }
+                else {
+                    BOOST_LOG(log) << "server " << server.get() << " run error: " << ec.message();
+                }
+            });
+        }
+        else {
+            BOOST_LOG(log) << "server " << server.get() << " handshake error: " << ec.message();
+        }
+    });
+}
 
-        client->messageQueue().asyncShutdown(yield);
-        client->messageQueue().stream().close();
+
+
+void clientCoroutineStepOne (std::shared_ptr<TcpClient> client, boost::system::error_code ec);
+
+void startClientCoroutine (std::shared_ptr<TcpClient> client) {
+    //auto f = std::bind(clientCoroutineStepOne, client, _1);
+    client->messageQueue().asyncHandshake([client] (boost::system::error_code ec) {
+        clientCoroutineStepOne(client, ec);
+    });
+}
+
+void clientCoroutineStepTwo (std::shared_ptr<TcpClient>, boost::system::error_code, rpc::ServiceInfo);
+void clientCoroutineStepOne (std::shared_ptr<TcpClient> client, boost::system::error_code ec) {
+    auto log = client->log();
+    if (!ec) {
+        asyncConnect(*client, std::chrono::milliseconds(500),
+            std::bind(&clientCoroutineStepTwo, client, _1, _2));
     }
-    catch (boost::system::system_error& e) {
-        BOOST_LOG(log) << "Error in proxy code " << e.what();
+    else {
+        BOOST_LOG(log) << "Client handshake error: " << ec.message();
     }
 }
 
-void serverCoroutine (std::shared_ptr<UdsServer> server,
-    boost::asio::yield_context yield) {
-    boost::log::sources::logger log;
-    try {
-        server->messageQueue().asyncHandshake(yield);
-
-        BOOST_LOG(log) << "awaiting connection";
-        WidgetImpl widgetImpl { server };
-        asyncRunServer(*server, widgetImpl, yield);
-        BOOST_LOG(log) << "server " << server.get() << " received disconnection request";
-    }
-    catch (std::exception& e) {
-        BOOST_LOG(log) << "server code threw " << e.what();
-    }
-    BOOST_LOG(log) << "serverCoroutine exiting";
-}
-
-
-
-void clientCoroutine (std::shared_ptr<TcpClient> client,
-    Tcp::resolver::iterator iter,
-    boost::asio::yield_context yield) {
-    boost::log::sources::logger log;
-    try {
-        auto& messageQueue = client->messageQueue();
-        auto& stream = messageQueue.stream();
-
-        auto endpoint = boost::asio::async_connect(stream, iter, yield);
-        BOOST_LOG(log) << "Connected to " << Tcp::endpoint(*endpoint);
-        messageQueue.asyncHandshake(yield);
-
-        auto info = rpc::asio::asyncConnect(*client, std::chrono::milliseconds(500), yield);
+void clientCoroutineStepThree (std::shared_ptr<TcpClient>, boost::system::error_code, MethodResult::unaryWithResult);
+void clientCoroutineStepTwo (std::shared_ptr<TcpClient> client, boost::system::error_code ec, rpc::ServiceInfo info) {
+    auto log = client->log();
+    if (!ec) {
         BOOST_LOG(log) << "client connected to server with RPC version "
                        << info.rpcVersion() << ", Interface version "
                        << info.interfaceVersion();
-
-        auto result = rpc::asio::asyncFire(*client, MethodIn::unaryWithResult{2.71828}, std::chrono::milliseconds(500), yield);
-        BOOST_LOG(log) << "client fired unaryWithResult(2.71828) -> " << result.value;
-
-        rpc::asio::asyncDisconnect(*client, std::chrono::milliseconds(500), yield);
-        BOOST_LOG(log) << "client disconnected";
-
-        messageQueue.asyncShutdown(yield);
-        stream.close();
+        auto arg = MethodIn::unaryWithResult{2.71828};
+        auto timeout = std::chrono::milliseconds(500);
+        asyncFire(*client, arg, timeout,
+            std::bind(&clientCoroutineStepThree, client, _1, _2));
     }
-    catch (boost::system::system_error& e) {
-        BOOST_LOG(log) << "client code threw " << e.what();
-        client->messageQueue().cancel();
+    else {
+        BOOST_LOG(log) << "Client connect error: " << ec.message();
     }
-    BOOST_LOG(log) << "clientCoroutine exiting";
 }
 
+void clientCoroutineStepFour (std::shared_ptr<TcpClient>, boost::system::error_code);
+void clientCoroutineStepThree (std::shared_ptr<TcpClient> client, boost::system::error_code ec, MethodResult::unaryWithResult result) {
+    auto log = client->log();
+    if (!ec) {
+        BOOST_LOG(log) << "client fired unaryWithResult(2.71828) -> " << result.value;
+        asyncDisconnect(*client, std::chrono::milliseconds(500),
+            std::bind(&clientCoroutineStepFour, client, _1));
+    }
+    else {
+        BOOST_LOG(log) << "Client fire error: " << ec.message();
+    }
+}
 
+void clientCoroutineStepFour (std::shared_ptr<TcpClient> client, boost::system::error_code ec) {
+    auto log = client->log();
+    if (!ec) {
+        BOOST_LOG(log) << "Client disconnected";
+        client->messageQueue().stream().close();
+    }
+    else {
+        BOOST_LOG(log) << "Client disconnect error: " << ec.message();
+    }
+}
 
 
 int main (int argc, char** argv) try {
@@ -183,8 +218,8 @@ int main (int argc, char** argv) try {
     boost::asio::local::connect_pair(
         server->messageQueue().stream(),
         proxyClient->messageQueue().stream());
-    boost::asio::spawn(ioService, std::bind(serverCoroutine, server, _1));
-    boost::asio::spawn(ioService, std::bind(proxyCoroutine, proxyClient, proxyServer, _1));
+    startServerCoroutine(server);
+    startProxyCoroutine(proxyClient, proxyServer);
 
     auto nClients = 10;
     if (argc > 1) {
@@ -193,7 +228,12 @@ int main (int argc, char** argv) try {
 
     for (int i = 0; i < nClients; ++i) {
         auto client = std::make_shared<TcpClient>(ioService, log);
-        boost::asio::spawn(ioService, std::bind(clientCoroutine, client, iter, _1));
+        auto& messageQueue = client->messageQueue();
+        auto& stream = messageQueue.stream();
+
+        auto endpoint = boost::asio::connect(stream, iter);
+        BOOST_LOG(log) << "Connected to " << Tcp::endpoint(*endpoint);
+        startClientCoroutine(client);
     }
 
     boost::system::error_code ec;

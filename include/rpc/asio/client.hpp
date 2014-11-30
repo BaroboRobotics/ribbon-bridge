@@ -128,6 +128,15 @@ private:
     using BroadcastHandler = std::function<void(boost::system::error_code,barobo_rpc_Broadcast)>;
 
     // Impl's raison d'etre is the same as that detailed in sfp::asio::MessageQueue.
+    // Whose comment I just removed. Here it is:
+    // Since a MessageQueue can post handlers which might run after the
+    // MessageQueue is destroyed, all data members must be wrapped in a struct
+    // to be managed by a std::shared_ptr. All handlers must then have copy of
+    // this shared_ptr, either in their lambda capture list (as in the 'm' in
+    // MessageQueue's async* operations) or stored in their std::bind-created
+    // function object (as in the calls to this->shared_from_this() in
+    // handshakeCoroutine). This guarantees that all handlers/coroutines run
+    // with access to a valid this pointer.
     struct Impl : std::enable_shared_from_this<Impl> {
         explicit Impl (boost::asio::io_service& ios, boost::log::sources::logger log)
             : mMessageQueue(ios, log)
@@ -228,7 +237,7 @@ private:
                 if (ec) {
                     throw boost::system::system_error(ec);
                 }
-                BOOST_LOG(mLog) << "received " << nBytesTransferred << " bytes";
+                BOOST_LOG(mLog) << "handleReceive: received " << nBytesTransferred << " bytes";
                 barobo_rpc_ServerMessage message;
                 decode(message, buf->data(), nBytesTransferred);
 
@@ -257,6 +266,7 @@ private:
                 receive();
             }
             catch (boost::system::system_error& e) {
+                BOOST_LOG(mLog) << "handleReceive: " << e.what();
                 voidHandlers(e.code());
             }
         }

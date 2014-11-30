@@ -15,6 +15,7 @@
 
 #include <map>
 #include <memory>
+#include <mutex>
 #include <thread>
 #include <utility>
 
@@ -83,6 +84,7 @@ struct RunSubServerOperation : std::enable_shared_from_this<RunSubServerOperatio
             }
         }
         else {
+            BOOST_LOG(log) << "subserver run interrupted: " << ec.message();
             mIos.post(std::bind(handler, ec));
         }
     }
@@ -124,7 +126,7 @@ public:
     using BroadcastHandlerSignature = void(boost::system::error_code);
     using BroadcastHandler = std::function<BroadcastHandlerSignature>;
 
-    TcpPolyServerImpl (IoService& ioService)
+    explicit TcpPolyServerImpl (IoService& ioService)
         : mStrand(ioService)
         , mAcceptor(ioService)
     {}
@@ -139,11 +141,14 @@ public:
         if (ec) {
             BOOST_LOG(mLog) << "Error canceling acceptor: " << ec.message();
         }
-        for (auto& kv : mSubServers) {
-            kv.second->cancel(ec);
-            if (ec) {
-                BOOST_LOG(mLog) << "Error canceling subserver "
-                                << kv.first << ": " << ec.message();
+        {
+            std::lock_guard<std::mutex> lock { mSubServersMutex };
+            for (auto& kv : mSubServers) {
+                kv.second->cancel(ec);
+                if (ec) {
+                    BOOST_LOG(mLog) << "Error canceling subserver "
+                                    << kv.first << ": " << ec.message();
+                }
             }
         }
         voidReceives(boost::asio::error::operation_aborted);
@@ -229,10 +234,13 @@ private:
         if (!ec) {
             decltype(mSubServers)::iterator iter;
             bool success;
-            std::tie(iter, success) = mSubServers.insert(std::make_pair(*peer, subServer));
+            {
+                std::lock_guard<std::mutex> lock { mSubServersMutex };
+                std::tie(iter, success) = mSubServers.insert(std::make_pair(*peer, subServer));
+            }
             assert(success);
 
-            BOOST_LOG(mLog) << "emplaced subserver for " << *peer;
+            BOOST_LOG(mLog) << "inserted subserver for " << *peer;
 
             detail::asyncRunSubServer(subServer,
                 std::bind(&TcpPolyServerImpl::pushRequest, this->shared_from_this(), *peer, _1, _2),
@@ -257,6 +265,7 @@ private:
 
     void handleSubServerFinished (Tcp::endpoint peer, boost::system::error_code ec) {
         BOOST_LOG(mLog) << "Subserver " << peer << " finished with " << ec.message();
+        std::lock_guard<std::mutex> lock { mSubServersMutex };
         auto iter = mSubServers.find(peer);
         if (iter != mSubServers.end()) {
             iter->second->messageQueue().stream().close();
@@ -279,6 +288,7 @@ private:
     }
 
     void asyncSendReplyImpl (IoService::work work, RequestId requestId, barobo_rpc_Reply reply, ReplyHandler handler) {
+        std::lock_guard<std::mutex> lock { mSubServersMutex };
         auto iter = mSubServers.find(requestId.first);
         if (iter != mSubServers.end()) {
             iter->second->asyncSendReply(requestId.second, reply,
@@ -293,14 +303,19 @@ private:
             ios.post(std::bind(handler, boost::system::error_code()));
         }
         else {
+            // If no subserver exists for this request ID, ignore this attempt
+            // at a reply. We don't want to post an error, because the
+            // situation is similar to a remote client ignoring spurious, or
+            // expired, replies. The TcpPolyServer is still functional.
             auto& ios = work.get_io_service();
-            ios.post(std::bind(handler, Status::NOT_CONNECTED));
+            ios.post(std::bind(handler, boost::system::error_code()));
         }
     }
 
     void asyncSendBroadcastImpl (IoService::work work, barobo_rpc_Broadcast broadcast, BroadcastHandler handler) {
         auto& ios = work.get_io_service();
         WaitMultipleCompleter<BroadcastHandler> completer { ios, handler };
+        std::lock_guard<std::mutex> lock { mSubServersMutex };
         for (auto& kv : mSubServers) {
             BOOST_LOG(mLog) << "Broadcasting to " << kv.first;
             kv.second->asyncSendBroadcast(broadcast, completer);
@@ -343,6 +358,7 @@ private:
     SubServer::RequestId mNextRequestId = 0;
 
     std::map<Tcp::endpoint, std::shared_ptr<SubServer>> mSubServers;
+    std::mutex mSubServersMutex;
 
     std::queue<std::pair<RequestId, barobo_rpc_Request>> mInbox;
     std::queue<std::pair<IoService::work, RequestHandler>> mReceives;
