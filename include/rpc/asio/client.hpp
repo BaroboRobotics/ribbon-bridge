@@ -14,6 +14,7 @@
 #include <boost/log/sources/logger.hpp>
 #include <boost/log/utility/manipulators/add_value.hpp>
 
+#include <atomic>
 #include <memory>
 #include <queue>
 #include <utility>
@@ -494,6 +495,64 @@ asyncFire (RpcClient& client, Method args, Duration&& timeout, Handler&& handler
                 }
             });
     }
+
+    return init.result.get();
+}
+
+template <class C, class Impl, class Handler>
+struct RunClientOperation : std::enable_shared_from_this<RunClientOperation<C, Impl, Handler>> {
+    using Interface = typename Impl::Interface;
+
+    RunClientOperation (C& client, Impl& impl)
+        : mIos(client.get_io_service())
+        , mStrand(mIos)
+        , mClient(client)
+        , mImpl(impl)
+    {}
+
+    void start (Handler handler) {
+        mClient.asyncReceiveBroadcast(mStrand.wrap(
+            std::bind(&RunClientOperation::stepOne,
+                this->shared_from_this(), handler, _1, _2)));
+    }
+
+    void stepOne (Handler handler, boost::system::error_code ec, barobo_rpc_Broadcast broadcast) {
+        if (!ec) {
+            auto log = mClient.log();
+            BOOST_LOG(log) << "broadcast received";
+            rpc::ComponentBroadcastUnion<Interface> argument;
+            auto status = decodeBroadcastPayload(argument, broadcast.id, broadcast.payload);
+            if (!hasError(status)) {
+                BOOST_LOG(log) << "RunClientOperation: received broadcast";
+                status = invokeBroadcast(mImpl, argument, broadcast.id);
+                start(handler);
+            }
+            if (hasError(status)) {
+                ec = status;
+                BOOST_LOG(log) << "RunClientOperation: broadcast invocation error: " << ec.message();
+                mIos.post(std::bind(handler, ec));
+            }
+        }
+        else {
+            mIos.post(std::bind(handler, ec));
+        }
+    }
+
+    boost::asio::io_service& mIos;
+    boost::asio::io_service::strand mStrand;
+    C& mClient;
+    Impl& mImpl;
+};
+
+template <class C, class Impl, class Handler>
+BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
+asyncRunClient (C& client, Impl& impl, Handler&& handler) {
+    boost::asio::detail::async_result_init<
+        Handler, void(boost::system::error_code)
+    > init { std::forward<Handler>(handler) };
+
+    using Op = RunClientOperation<C, Impl, decltype(init.handler)>;
+    std::make_shared<Op>(client, impl)->start(init.handler);
 
     return init.result.get();
 }
