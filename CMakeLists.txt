@@ -33,6 +33,11 @@ configure_file(config.hpp.in include/rpc/config.hpp)
 ##############################################################################
 # Boost
 
+if(CMAKE_CROSSCOMPILING)
+    find_library(PTHREAD pthread ${CMAKE_PREFIX_PATH})
+    set(Boost_COMPILER -gcc)
+endif(CMAKE_CROSSCOMPILING)
+
 # FindBoost.cmake uses BOOST_ROOT as a hint for where to look.
 if(NOT DEFINED BOOST_ROOT)
     if(DEFINED ENV{BOOST_ROOT})
@@ -51,7 +56,7 @@ set(Boost_USE_STATIC_LIBS ON)
 
 # Boost.Log was introduced in Boost version 1.54.0.
 # system is required for asio
-find_package(Boost 1.54.0 REQUIRED COMPONENTS system filesystem log thread coroutine context)
+find_package(Boost 1.54.0 REQUIRED COMPONENTS system filesystem log thread coroutine)
 
 
 ##############################################################################
