@@ -217,13 +217,13 @@ private:
 
         void startReceiveCoroutine () {
             if (1 == (mReplyHandlers.size() + mBroadcastHandlers.size())) {
-                receive();
+                auto buf = std::make_shared<std::vector<uint8_t>>(1024);
+                receive(buf);
             }
         }
 
-        void receive () {
+        void receive (std::shared_ptr<std::vector<uint8_t>> buf) {
             if (mReplyHandlers.size() || mBroadcastHandlers.size()) {
-                auto buf = std::make_shared<std::vector<uint8_t>>(1024);
                 BOOST_LOG(mLog) << "calling asyncReceive";
                 mMessageQueue.asyncReceive(boost::asio::buffer(*buf), mStrand.wrap(
                     std::bind(&Client::Impl::handleReceive,
@@ -238,33 +238,38 @@ private:
                 if (ec) {
                     throw boost::system::system_error(ec);
                 }
-                BOOST_LOG(mLog) << "handleReceive: received " << nBytesTransferred << " bytes";
-                barobo_rpc_ServerMessage message;
-                decode(message, buf->data(), nBytesTransferred);
 
-                switch (message.type) {
-                    case barobo_rpc_ServerMessage_Type_REPLY:
-                        if (!message.has_inReplyTo || !message.has_reply) {
-                            // FIXME INCONSISTENT_REPLY should be INCONSISTENT_MESSAGE
+                if (nBytesTransferred) {
+                    BOOST_LOG(mLog) << "handleReceive: received " << nBytesTransferred << " bytes";
+                    barobo_rpc_ServerMessage message;
+                    decode(message, buf->data(), nBytesTransferred);
+
+                    switch (message.type) {
+                        case barobo_rpc_ServerMessage_Type_REPLY:
+                            if (!message.has_inReplyTo || !message.has_reply) {
+                                // FIXME INCONSISTENT_REPLY should be INCONSISTENT_MESSAGE
+                                throw Error(Status::INCONSISTENT_REPLY);
+                            }
+                            mReplyInbox.push(std::make_pair(message.inReplyTo, message.reply));
+                            break;
+                        case barobo_rpc_ServerMessage_Type_BROADCAST:
+                            if (message.has_inReplyTo || !message.has_broadcast) {
+                                throw Error(Status::INCONSISTENT_REPLY);
+                            }
+                            mBroadcastInbox.push(message.broadcast);
+                            break;
+                        default:
                             throw Error(Status::INCONSISTENT_REPLY);
-                        }
-                        mReplyInbox.push(std::make_pair(message.inReplyTo, message.reply));
-                        break;
-                    case barobo_rpc_ServerMessage_Type_BROADCAST:
-                        if (message.has_inReplyTo || !message.has_broadcast) {
-                            throw Error(Status::INCONSISTENT_REPLY);
-                        }
-                        mBroadcastInbox.push(message.broadcast);
-                        break;
-                    default:
-                        throw Error(Status::INCONSISTENT_REPLY);
-                        break;
+                            break;
+                    }
+
+                    postReplies();
+                    postBroadcasts();
                 }
-
-                postReplies();
-                postBroadcasts();
-
-                receive();
+                else {
+                    // It's cool, just a keepalive
+                }
+                receive(buf);
             }
             catch (boost::system::system_error& e) {
                 BOOST_LOG(mLog) << "handleReceive: " << e.what();
