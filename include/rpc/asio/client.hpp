@@ -36,19 +36,19 @@ public:
 
     ~Client () {
         boost::system::error_code ec;
-        cancel(ec);
+        close(ec);
     }
 
-    void cancel () {
+    void close () {
         boost::system::error_code ec;
-        cancel(ec);
+        close(ec);
         if (ec) {
             throw boost::system::system_error(ec);
         }
     }
 
-    void cancel (boost::system::error_code& ec) {
-        mImpl->cancel(ec);
+    void close (boost::system::error_code& ec) {
+        mImpl->close(ec);
     }
 
     boost::log::sources::logger log () { return mImpl->mLog; }
@@ -148,8 +148,8 @@ private:
             mLog.add_attribute("Protocol", boost::log::attributes::constant<std::string>("RB-CL"));
         }
 
-        void cancel (boost::system::error_code& ec) {
-            mMessageQueue.cancel(ec);
+        void close (boost::system::error_code& ec) {
+            mMessageQueue.close(ec);
         }
 
         void handleReply (RequestId requestId, boost::system::error_code ec, barobo_rpc_Reply reply) {

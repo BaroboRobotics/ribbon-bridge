@@ -133,20 +133,20 @@ public:
 
     void destroy () {
         boost::system::error_code ec;
-        cancel(ec);
+        close(ec);
     }
 
-    void cancel (boost::system::error_code& ec) {
-        mAcceptor.cancel(ec);
+    void close (boost::system::error_code& ec) {
+        mAcceptor.close(ec);
         if (ec) {
-            BOOST_LOG(mLog) << "Error canceling acceptor: " << ec.message();
+            BOOST_LOG(mLog) << "Error closing acceptor: " << ec.message();
         }
         {
             std::lock_guard<std::mutex> lock { mSubServersMutex };
             for (auto& kv : mSubServers) {
-                kv.second->cancel(ec);
+                kv.second->close(ec);
                 if (ec) {
-                    BOOST_LOG(mLog) << "Error canceling subserver "
+                    BOOST_LOG(mLog) << "Error closing subserver "
                                     << kv.first << ": " << ec.message();
                 }
             }
@@ -401,8 +401,8 @@ public:
         impl.reset();
     }
 
-    void cancel (implementation_type& impl, boost::system::error_code& ec) {
-        impl->cancel(ec);
+    void close (implementation_type& impl, boost::system::error_code& ec) {
+        impl->close(ec);
     }
 
     void init (implementation_type& impl, boost::log::sources::logger log) {
@@ -473,16 +473,16 @@ public:
         this->get_service().init(this->get_implementation(), log);
     }
 
-    void cancel () {
+    void close () {
         boost::system::error_code ec;
-        cancel(ec);
+        close(ec);
         if (ec) {
             throw boost::system::system_error(ec);
         }
     }
 
-    void cancel (boost::system::error_code& ec) {
-        this->get_service().cancel(this->get_implementation(), ec);
+    void close (boost::system::error_code& ec) {
+        this->get_service().close(this->get_implementation(), ec);
     }
 
     void listen (Tcp::endpoint endpoint) {

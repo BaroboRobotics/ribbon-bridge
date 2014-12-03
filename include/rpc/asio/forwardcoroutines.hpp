@@ -61,7 +61,7 @@ struct ForwardRequestsOperation : std::enable_shared_from_this<ForwardRequestsOp
         else {
             BOOST_LOG(log) << "ForwardRequestsOperation: Error receiving request: " << ec.message();
             mIos.post(std::bind(handler, ec));
-            mClient.cancel();
+            mClient.close();
         }
     }
 
@@ -75,7 +75,7 @@ struct ForwardRequestsOperation : std::enable_shared_from_this<ForwardRequestsOp
         else {
             BOOST_LOG(log) << "ForwardRequestsOperation: Error forwarding request: " << ec.message();
             mIos.post(std::bind(handler, ec));
-            mServer.cancel();
+            mServer.close();
         }
     }
 
@@ -84,7 +84,7 @@ struct ForwardRequestsOperation : std::enable_shared_from_this<ForwardRequestsOp
         mIos.post(std::bind(handler, ec));
         if (ec) {
             BOOST_LOG(log) << "ForwardRequestsOperation: Error replying to request: " << ec.message();
-            mClient.cancel();
+            mClient.close();
         }
     }
 
