@@ -59,20 +59,17 @@ public:
         auto& realHandler = init.handler;
 
         auto buf = std::make_shared<std::vector<uint8_t>>(1024);
-        BOOST_LOG(mLog) << "O FUX calling asyncReceive; buf is " << buf.get();
         mMessageQueue.asyncReceive(boost::asio::buffer(*buf),
             [this, realHandler, buf] (boost::system::error_code ec, size_t size) mutable {
                 if (!ec) {
+                    // FIXME handle zero-length message gracefully
                     barobo_rpc_ClientMessage message;
                     Status status;
                     rpc::decode(message, buf->data(), size, status);
-                    BOOST_LOG(mLog) << "O FUX received " << size << " bytes; buf is " << buf.get();
                     mMessageQueue.get_io_service().post(
                         std::bind(realHandler, status, std::make_pair(message.id, message.request)));
                 }
                 else {
-                    BOOST_LOG(mLog) << "O FUX posting handler with " << ec.message()
-                                    << "; buf is " << buf.get();
                     mMessageQueue.get_io_service().post(
                         std::bind(realHandler, ec, RequestPair()));
                 }
@@ -417,7 +414,6 @@ struct RunServerOperation : std::enable_shared_from_this<RunServerOperation<S, I
             BOOST_LOG(log) << "finished serving";
             auto& requestId = rp.first;
             asyncReply(mServer, requestId, Status::OK, [handler, log] (boost::system::error_code ec2) mutable {
-                BOOST_LOG(log) << "FUX";
                 handler(ec2);
             });
         }
