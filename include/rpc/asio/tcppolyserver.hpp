@@ -19,6 +19,8 @@
 #include <thread>
 #include <utility>
 
+static const std::chrono::milliseconds kSfpKeepaliveTimeout { 500 };
+
 namespace rpc {
 namespace asio {
 
@@ -247,6 +249,12 @@ private:
                 mStrand.wrap(std::bind(&TcpPolyServerImpl::handleSubServerFinished,
                     this->shared_from_this(), *peer, _1)));
 
+            auto self = this->shared_from_this();
+            asyncKeepalive(subServer->messageQueue(), kSfpKeepaliveTimeout,
+                [self, this, subServer] (boost::system::error_code ec) {
+                    BOOST_LOG(mLog) << "Subserver died with " << ec.message();
+                    subServer->close();
+                });
             accept();
         }
         else {
