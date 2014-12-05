@@ -389,7 +389,20 @@ public:
     explicit TcpPolyServerService (IoService& ioService)
         : IoService::service(ioService)
         , mAsyncWork(boost::in_place(std::ref(mAsyncIoService)))
-        , mAsyncThread(static_cast<size_t(IoService::*)()>(&IoService::run), &mAsyncIoService)
+        , mAsyncThread([this] () mutable {
+            boost::log::sources::logger log;
+            try {
+                boost::system::error_code ec;
+                auto nHandlers = mAsyncIoService.run(ec);
+                BOOST_LOG(log) << "TcpPolyServerService: " << nHandlers << " completed with " << ec.message();
+            }
+            catch (std::exception& e) {
+                BOOST_LOG(log) << "TcpPolyServerService died with " << e.what();
+            }
+            catch (...) {
+                BOOST_LOG(log) << "SFP MessageQueueService died by unknown cause";
+            }
+        })
     {}
 
     ~TcpPolyServerService () {
