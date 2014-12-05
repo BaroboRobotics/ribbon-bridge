@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 2.8.12)
 project(rpc C CXX)
 
+set(VERSION_MAJOR 0)
+set(VERSION_MINOR 0)
+set(VERSION_PATCH 4)
+set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
+
 set(AVR OFF)
 if(CMAKE_SYSTEM_NAME MATCHES "AVR")
     set(AVR ON)
@@ -169,7 +174,12 @@ target_link_libraries(rpc PRIVATE rpc-proto INTERFACE ${Boost_LIBRARIES})
 if(WIN32)
     target_link_libraries(rpc INTERFACE ws2_32)
 endif()
-set_target_properties(rpc PROPERTIES POSITION_INDEPENDENT_CODE ON)
+set_target_properties(rpc PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+    VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+    SOVERSION ${VERSION_MAJOR}
+    MACOSX_RPATH ON
+)
 
 ##############################################################################
 

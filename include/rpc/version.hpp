@@ -60,9 +60,9 @@ struct Version;
 // Define the RPC library version.
 template <>
 struct Version<void> {
-	constexpr static const uint32_t major = 0;
-	constexpr static const uint32_t minor = 0;
-	constexpr static const uint32_t patch = 4;
+	constexpr static const uint32_t major = RPC_VERSION_MAJOR;
+	constexpr static const uint32_t minor = RPC_VERSION_MINOR;
+	constexpr static const uint32_t patch = RPC_VERSION_PATCH;
 	constexpr static VersionTriplet triplet () { return { major, minor, patch }; }
 };
 
