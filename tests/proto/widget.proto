@@ -1,0 +1,83 @@
+//import "rpc-options.proto";
+package barobo.Widget;
+
+//option (version).major = 0;
+//option (version).minor = 0;
+//option (version).patch = 0;
+
+/* The three basic types of interface component are attributes, methods, and
+ * broadcasts. Each component is defined by a unique message. Each component
+ * will thus have a unique type when compiled into C/C++, which enables us to
+ * use the messages as arguments to an overloaded handler function. By using an
+ * overloaded function accepting a reference to one of these generated
+ * structures, we eliminate a significant amount of boilerplate that would
+ * otherwise have to be maintained in the implementation of an object with this
+ * interface. */
+
+//////////////////////////////////////////////////////////////////////////////
+// Methods
+
+/* Although message identifiers would typically begin with a capital letter, it
+ * ultimately makes things more readable in the C++ implementation if we follow
+ * conventional method identifier capitalization. That is why this is a 'move'
+ * message instead of a 'Move' message, and likewise above with 'motorPower'
+ * versus 'MotorPower'. Additionally, this allows the initial capital style to
+ * be reserved for types unique to the com.barobo.Robot interface. */
+message nullaryNoResult {
+    //option (method).fireAndForget = false;
+    /* Methods have three different payload messages: one each for the input
+     * parameters, output parameters, and error. The method component message
+     * ('move' itself) will never be used as a payload, only its nested
+     * messages. */
+
+    /* The In message contains the input parameters, and is used as the payload
+     * for a ToObject FIRE message. This message would only exist if the method
+     * has input parameters. */
+    message In {
+    }
+
+    /* The Result message contains the output parameters, and is used as the
+     * payload for a Reply RESULT message in response to a ToObject FIRE. This
+     * message would only exist if the method has output parameters. */
+    message Result {
+    }
+}
+
+message nullaryWithResult {
+    //option (method).fireAndForget = false;
+    message In {
+    }
+    message Result {
+        required float value = 1;
+    }
+}
+
+message unaryNoResult {
+    //option (method).fireAndForget = false;
+    message In {
+        required float value = 1;
+    }
+    message Result {
+    }
+}
+
+message unaryWithResult {
+    //option (method).fireAndForget = false;
+    message In {
+        required float value = 1;
+    }
+    message Result {
+        required float value = 1;
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Broadcasts
+
+/* Broadcast component messages contain the output parameters of the broadcast.
+ * They can be used as the payload for a FromObject BROADCAST, and that is it.
+ */
+message broadcast {
+    //option (broadcast).selective = true;
+    required float value = 1;
+}

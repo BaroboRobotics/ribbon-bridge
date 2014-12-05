@@ -1,57 +1,31 @@
 #ifndef RPC_PROXY_HPP
 #define RPC_PROXY_HPP
 
-#include "rpc/stdlibheaders.hpp"
+#include <boost/log/common.hpp>
+#include <boost/log/sources/logger.hpp>
+
 #include "rpc/buffer.hpp"
 #include "rpc/componenttraits.hpp"
 #include "rpc/message.hpp"
 #include "rpc/enableif.hpp"
-#include "rpc/checkversion.hpp"
+#include "rpc/version.hpp"
 #include "rpc.pb.h"
 
 namespace rpc {
 
-template <class T, class Interface, template <class> class Future>
+template <class T, class Interface, template <class> class RequestManager>
 class Proxy {
-    /* TODO: static_assert that T implements Is.... */
 public:
     using BufferType = Buffer<256>;
 
-    template <class Attribute>
-    Future<Attribute> get (Attribute args, ONLY_IF(IsAttribute<Attribute>::value)) {
-        BufferType buffer;
-        buffer.size = sizeof(buffer.bytes);
-        auto requestId = nextRequestId();
-        auto status = makeGet(
-                buffer.bytes, buffer.size,
-                requestId,
-                componentId(args));
-        if (hasError(status)) {
-            return static_cast<T*>(this)->template finalize<Attribute>(requestId, status);
-        }
-        return static_cast<T*>(this)->template finalize<Attribute>(requestId, buffer);
-    }
+    Proxy () { (void)AssertProxyImplementsInterface<T, Interface>(); }
 
-    template <class Attribute>
-    Future<void> set (Attribute args, ONLY_IF(IsAttribute<Attribute>::value)) {
-        BufferType buffer;
-        buffer.size = sizeof(buffer.bytes);
-        auto requestId = nextRequestId();
-        auto status = makeSet(
-                buffer.bytes, buffer.size,
-                requestId,
-                componentId(args),
-                pbFields(args),
-                &args);
-        if (hasError(status)) {
-            return static_cast<T*>(this)->template finalize<void>(requestId, status);
-        }
-        return static_cast<T*>(this)->template finalize<void>(requestId, buffer);
-    }
+    template <class U>
+    using Future = typename RequestManager<Interface>::template Future<U>;
 
     template <class C>
-    void broadcast (C args, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
-        static_cast<T*>(this)->broadcast(args);
+    void broadcast (C args, ONLY_IF(IsBroadcast<C>::value)) {
+        static_cast<T*>(this)->onBroadcast(args);
     }
 
     template <class MethodIn>
@@ -59,91 +33,124 @@ public:
         using Result = typename ResultOf<MethodIn>::type;
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
-        auto requestId = nextRequestId();
+        auto requestId = mRequestManager.template nextRequestId();
         auto status = makeFire(
                 buffer.bytes, buffer.size,
                 requestId,
-                componentId(args),
+                componentId(MethodIn()),
                 pbFields(args),
                 &args);
         if (hasError(status)) {
-            return static_cast<T*>(this)->template finalize<Result>(requestId, status);
+            return mRequestManager.template finalize<Result>(requestId, status);
         }
-        return static_cast<T*>(this)->template finalize<Result>(requestId, buffer);
+
+        /* We must call finalize() before bufferToService(). If the opposite order were
+         * used, we could potentially end up with an encoded message on the wire
+         * with no promise or future generated for it yet. */
+        auto future = mRequestManager.template finalize<Result>(requestId);
+        static_cast<T*>(this)->bufferToService(buffer);
+        return future;
     }
 
-    template <class C>
-    Future<void> subscribe (C, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
+    Future<ServiceInfo> connect () {
+        BOOST_LOG_NAMED_SCOPE("rpc::Proxy::connect");
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
-        auto requestId = nextRequestId();
-        auto status = makeSubscribe(
+        auto requestId = mRequestManager.template nextRequestId();
+        auto status = makeConnect(
                     buffer.bytes, buffer.size,
-                    requestId,
-                    componentId(C()));
+                    requestId);
         if (hasError(status)) {
-            return static_cast<T*>(this)->template finalize<void>(requestId, status);
+            return mRequestManager.template finalize<ServiceInfo>(requestId, status);
         }
-        return static_cast<T*>(this)->template finalize<void>(requestId, buffer);
+        auto future = mRequestManager.template finalize<ServiceInfo>(requestId);
+        BOOST_LOG(mLog) << "created connection request, sending to service";
+        static_cast<T*>(this)->bufferToService(buffer);
+        return future;
     }
 
-    template <class C>
-    Future<void> unsubscribe (C, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
+    Future<void> disconnect () {
         BufferType buffer;
         buffer.size = sizeof(buffer.bytes);
-        auto requestId = nextRequestId();
-        auto status = makeUnsubscribe(
+        auto requestId = mRequestManager.template nextRequestId();
+        auto status = makeDisconnect(
                     buffer.bytes, buffer.size,
-                    requestId,
-                    componentId(C()));
+                    requestId);
         if (hasError(status)) {
-            return static_cast<T*>(this)->template finalize<void>(requestId, status);
+            return mRequestManager.template finalize<void>(requestId, status);
         }
-        return static_cast<T*>(this)->template finalize<void>(requestId, buffer);
+        auto future = mRequestManager.template finalize<void>(requestId);
+        static_cast<T*>(this)->bufferToService(buffer);
+        return future;
     }
 
-    Status deliver (BufferType buffer) {
-        com_barobo_rpc_Reply reply;
+#if 0
+    // TODO
+    Future<void> disconnect () {
+        BufferType buffer;
+        buffer.size = sizeof(buffer.bytes);
+        auto requestId = mRequestManager.template nextRequestId();
+        auto status = makeDisconnect(
+                    buffer.bytes, buffer.size);
+        if (hasError(status)) {
+            return mRequestManager.template finalize<void>(requestId, status);
+        }
+        auto future = mRequestManager.template finalize<void>(requestId);
+        static_cast<T*>(this)->bufferToService(buffer);
+        return future;
+    }
+#endif
 
-        auto err = decode(reply, buffer.bytes, buffer.size);
-        if (hasError(err)) {
-            return err;
+    Status receiveServiceBuffer (BufferType buffer) {
+        barobo_rpc_ServerMessage message;
+
+        Status status;
+        decode(message, buffer.bytes, buffer.size, status);
+        if (hasError(status)) {
+            return status;
         }
 
-        switch (reply.type) {
-            ComponentResultUnion<Interface> argument;
+        switch (message.type) {
+            ComponentResultUnion<Interface> resultArg;
+            ComponentBroadcastUnion<Interface> broadcastArg;
 
-            case com_barobo_rpc_Reply_Type_STATUS:
-                if (!reply.has_status) {
+            case barobo_rpc_ServerMessage_Type_REPLY:
+                if (!message.has_reply || !message.has_inReplyTo) {
                     return Status::INCONSISTENT_REPLY;
                 }
-                return static_cast<T*>(this)->template fulfill(reply.inReplyTo, static_cast<Status>(reply.status.value));
-            case com_barobo_rpc_Reply_Type_RESULT:
-                if (!reply.has_result) {
+                switch (message.reply.type) {
+                    case barobo_rpc_Reply_Type_STATUS:
+                        if (!message.reply.has_status) {
+                            return Status::INCONSISTENT_REPLY;
+                        }
+                        return mRequestManager.fulfill(message.inReplyTo, static_cast<Status>(message.reply.status.value));
+                    case barobo_rpc_Reply_Type_RESULT:
+                        if (!message.reply.has_result) {
+                            return Status::INCONSISTENT_REPLY;
+                        }
+                        status = decodeResultPayload(resultArg, message.reply.result.id, message.reply.result.payload);
+                        if (!hasError(status)) {
+                            status = invokeFulfill(mRequestManager, resultArg, message.reply.result.id, message.inReplyTo);
+                        }
+                        return status;
+                    case barobo_rpc_Reply_Type_SERVICEINFO:
+                        if (!message.reply.has_serviceInfo) {
+                            return Status::INCONSISTENT_REPLY;
+                        }
+                        return mRequestManager.fulfill(message.inReplyTo, ServiceInfo(message.reply.serviceInfo));
+                    default:
+                        return Status::INCONSISTENT_REPLY;
+                }
+                break;
+            case barobo_rpc_ServerMessage_Type_BROADCAST:
+                if (!message.has_broadcast) {
                     return Status::INCONSISTENT_REPLY;
                 }
-                err = decodeResultPayload(argument, reply.result.id, reply.result.payload);
-                if (!hasError(err)) {
-                    err = invokeFulfill(*this, argument, reply.result.id, reply.inReplyTo);
+                status = decodeBroadcastPayload(broadcastArg, message.broadcast.id, message.broadcast.payload);
+                if (!hasError(status)) {
+                    status = invokeBroadcast(*this, broadcastArg, message.broadcast.id);
                 }
-                return err;
-            case com_barobo_rpc_Reply_Type_VERSION:
-                if (!reply.has_version) {
-                    return Status::INCONSISTENT_REPLY;
-                }
-                return checkRpcVersion(reply.version.rpc) &&
-                    checkInterfaceVersion<Interface>(reply.version.interface) ?
-                        Status::OK :
-                        Status::VERSION_MISMATCH;
-            case com_barobo_rpc_Reply_Type_BROADCAST:
-                if (!reply.has_broadcast) {
-                    return Status::INCONSISTENT_REPLY;
-                }
-                err = decodeBroadcastPayload(argument, reply.broadcast.id, reply.broadcast.payload);
-                if (!hasError(err)) {
-                    err = invokeBroadcast(*this, argument, reply.broadcast.id);
-                }
-                return err;
+                return status;
             default:
                 return Status::INCONSISTENT_REPLY;
         }
@@ -151,18 +158,10 @@ public:
         return Status::OK;
     }
 
-    template <class C>
-    Status fulfill (uint32_t requestId, C& result) {
-        return static_cast<T*>(this)->fulfill(requestId, result);
-    }
-
 private:
-    /* not thread safe */
-    uint32_t nextRequestId () {
-        return mNextRequestId++;
-    }
+    boost::log::sources::logger_mt mLog;
 
-    uint32_t mNextRequestId = 0;
+    RequestManager<Interface> mRequestManager;
 };
 
 } // namespace rpc

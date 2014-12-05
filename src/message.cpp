@@ -1,6 +1,5 @@
 #include "rpc/stdlibheaders.hpp"
 #include "rpc/message.hpp"
-#include "rpc/proxy.hpp"
 
 #include "pb_encode.h"
 #include "pb_decode.h"
@@ -8,13 +7,13 @@
 namespace rpc {
 
 template <>
-const pb_field_t* pbFields (com_barobo_rpc_Request) {
-    return com_barobo_rpc_Request_fields;
+const pb_field_t* pbFields (barobo_rpc_ClientMessage) {
+    return barobo_rpc_ClientMessage_fields;
 }
 
 template <>
-const pb_field_t* pbFields (com_barobo_rpc_Reply) {
-    return com_barobo_rpc_Reply_fields;
+const pb_field_t* pbFields (barobo_rpc_ServerMessage) {
+    return barobo_rpc_ServerMessage_fields;
 }
 
 Status encodeProtobuf (const void* pbStruct, const pb_field_t* pbFields, uint8_t* bytes, size_t size, size_t& bytesWritten) {
@@ -40,93 +39,25 @@ Status decodeProtobuf (void* pbStruct, const pb_field_t* pbFields, uint8_t* byte
         Status::DECODING_FAILURE;
 }
 
-Status makeGet (uint8_t* bytes, size_t size, uint32_t requestId,
-        uint32_t componentId) {
-    assert(bytes);
-
-    com_barobo_rpc_Request request;
-    memset(&request, 0, sizeof(request));
-
-    request.type = com_barobo_rpc_Request_Type_GET;
-    request.id = requestId;
-    request.has_get = true;
-    request.get.id = componentId;
-
-    return rpc::encode(request, bytes, size, size);
-}
-
-Status makeSet (uint8_t* bytes, size_t& size, uint32_t requestId,
-        uint32_t componentId, const pb_field_t* fields, void* payload) {
-    assert(bytes && fields && payload);
-
-    com_barobo_rpc_Request request;
-    memset(&request, 0, sizeof(request));
-
-    request.type = com_barobo_rpc_Request_Type_SET;
-    request.id = requestId;
-    request.has_set = true;
-    request.set.id = componentId;
-
-    auto err = encodeProtobuf(
-            payload, fields,
-            request.set.payload.bytes,
-            sizeof(request.set.payload.bytes),
-            request.set.payload.size);
-    if (!hasError(err)) {
-        err = rpc::encode(request, bytes, size, size);
-    }
-    return err;
-}
-
-Status makeSubscribe (uint8_t* bytes, size_t& size, uint32_t requestId,
-        uint32_t componentId) {
-    assert(bytes);
-
-    com_barobo_rpc_Request request;
-    memset(&request, 0, sizeof(request));
-
-    request.type = com_barobo_rpc_Request_Type_SUBSCRIBE;
-    request.id = requestId;
-    request.has_subscribe = true;
-    request.subscribe.id = componentId;
-
-    return rpc::encode(request, bytes, size, size);
-}
-
-Status makeUnsubscribe (uint8_t* bytes, size_t& size, uint32_t requestId,
-        uint32_t componentId) {
-    assert(bytes);
-
-    com_barobo_rpc_Request request;
-    memset(&request, 0, sizeof(request));
-
-    request.type = com_barobo_rpc_Request_Type_UNSUBSCRIBE;
-    request.id = requestId;
-    request.has_unsubscribe = true;
-    request.unsubscribe.id = componentId;
-
-    return rpc::encode(request, bytes, size, size);
-}
-
 Status makeFire (uint8_t* bytes, size_t& size, uint32_t requestId, uint32_t componentId, const pb_field_t* fields, void* payload) {
     assert(bytes && fields && payload);
 
-    com_barobo_rpc_Request request;
-    memset(&request, 0, sizeof(request));
+    barobo_rpc_ClientMessage message;
+    memset(&message, 0, sizeof(message));
 
-    request.type = com_barobo_rpc_Request_Type_FIRE;
-    request.id = requestId;
-    request.has_fire = true;
-    request.fire.id = componentId;
+    message.id = requestId;
+    message.request.type = barobo_rpc_Request_Type_FIRE;
+    message.request.has_fire = true;
+    message.request.fire.id = componentId;
 
     auto err = encodeProtobuf(
             payload, fields,
-            request.fire.payload.bytes,
-            sizeof(request.fire.payload.bytes),
-            request.fire.payload.size);
+            message.request.fire.payload.bytes,
+            sizeof(message.request.fire.payload.bytes),
+            message.request.fire.payload.size);
 
     if (!hasError(err)) {
-        err = rpc::encode(request, bytes, size, size);
+        rpc::encode(message, bytes, size, size, err);
     }
     return err;
 }
@@ -134,24 +65,54 @@ Status makeFire (uint8_t* bytes, size_t& size, uint32_t requestId, uint32_t comp
 Status makeBroadcast (uint8_t* bytes, size_t& size, uint32_t componentId, const pb_field_t* fields, void* payload) {
     assert(bytes && fields && payload);
 
-    com_barobo_rpc_Reply reply;
-    memset(&reply, 0, sizeof(reply));
+    barobo_rpc_ServerMessage message;
+    memset(&message, 0, sizeof(message));
 
-    reply.type = com_barobo_rpc_Reply_Type_BROADCAST;
-    reply.has_inReplyTo = false;
-    reply.has_broadcast = true;
-    reply.broadcast.id = componentId;
+    message.type = barobo_rpc_ServerMessage_Type_BROADCAST;
+    message.has_inReplyTo = false;
+    message.has_broadcast = true;
+    message.broadcast.id = componentId;
 
     auto err = encodeProtobuf(
             payload, fields,
-            reply.broadcast.payload.bytes,
-            sizeof(reply.broadcast.payload.bytes),
-            reply.broadcast.payload.size);
+            message.broadcast.payload.bytes,
+            sizeof(message.broadcast.payload.bytes),
+            message.broadcast.payload.size);
 
     if (!hasError(err)) {
-        err = rpc::encode(reply, bytes, size, size);
+        rpc::encode(message, bytes, size, size, err);
     }
     return err;
+}
+
+Status makeConnect (uint8_t* bytes, size_t& size, uint32_t requestId) {
+    assert(bytes);
+
+    barobo_rpc_ClientMessage message;
+    memset(&message, 0, sizeof(message));
+
+    message.id = requestId;
+    message.request.type = barobo_rpc_Request_Type_CONNECT;
+    message.request.has_fire = false;
+
+    Status status;
+    rpc::encode(message, bytes, size, size, status);
+    return status;
+}
+
+Status makeDisconnect (uint8_t* bytes, size_t& size, uint32_t requestId) {
+    assert(bytes);
+
+    barobo_rpc_ClientMessage message;
+    memset(&message, 0, sizeof(message));
+
+    message.id = requestId;
+    message.request.type = barobo_rpc_Request_Type_DISCONNECT;
+    message.request.has_fire = false;
+
+    Status status;
+    rpc::encode(message, bytes, size, size, status);
+    return status;
 }
 
 } // namespace rpc

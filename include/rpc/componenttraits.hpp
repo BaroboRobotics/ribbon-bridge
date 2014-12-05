@@ -1,13 +1,11 @@
 #ifndef RPC_COMPONENTTRAITS_HPP
 #define RPC_COMPONENTTRAITS_HPP
 
+#include "rpc/stdlibheaders.hpp"
 #include "rpc/status.hpp"
+#include "rpc/hasmember.hpp"
 
 namespace rpc {
-
-// Access the attribute component messages of an interface by name.
-template <class Interface>
-struct Attribute;
 
 // Access the method component messages of an interface by name.
 template <class Interface>
@@ -20,10 +18,6 @@ struct MethodResult;
 template <class Interface>
 struct Broadcast;
 
-// Identify whether a type is an attribute component message.
-template <class Attribute>
-struct IsAttribute { constexpr static const bool value = false; };
-
 // Metafunction to identify whether a type is a method component message.
 template <class Method>
 struct IsMethod { constexpr static const bool value = false; };
@@ -35,13 +29,9 @@ struct IsBroadcast { constexpr static const bool value = false; };
 template <class Component>
 struct IsComponent {
     constexpr static const bool value =
-        IsAttribute<Component>::value ||
         IsMethod<Component>::value ||
         IsBroadcast<Component>::value;
 };
-
-template <class Interface>
-bool isAttribute (uint32_t id);
 
 template <class Interface>
 bool isMethod (uint32_t id);
@@ -51,8 +41,7 @@ bool isBroadcast (uint32_t id);
 
 template <class Interface>
 bool isComponent (uint32_t id) {
-    return isAttribute<Interface>(id) ||
-           isMethod<Interface>(id) ||
+    return isMethod<Interface>(id) ||
            isBroadcast<Interface>(id);
 }
 
@@ -63,11 +52,11 @@ union ComponentInUnion;
 template <class Interface>
 union ComponentResultUnion;
 
+template <class Interface>
+union ComponentBroadcastUnion;
+
 template <class Interface, template <class...> class F>
 struct PromiseVariadic;
-
-template <class Interface>
-class Subscriptions;
 
 // Access the component IDs of an interface by name.
 template <class Interface>
@@ -80,11 +69,8 @@ constexpr uint32_t componentId (Payload);
 template <class T>
 struct ResultOf;
 
-template <class Interface>
-struct GetInvoker;
-
-template <class Interface>
-struct SetInvoker;
+template <class T>
+struct ResultOf<T&> : ResultOf<T> { };
 
 template <class Interface>
 struct FireInvoker;
@@ -96,31 +82,16 @@ template <class Interface>
 struct FulfillInvoker;
 
 template <class T, class Interface>
-Status invokeGet (T& service,
-        ComponentInUnion<Interface>& argument,
-        uint32_t componentId,
-        com_barobo_rpc_Reply_Result_payload_t& payload) {
-    return GetInvoker<Interface>::invoke(service, argument, componentId, payload);
-}
-
-template <class T, class Interface>
-Status invokeSet (T& service,
-        ComponentInUnion<Interface>& argument,
-        uint32_t componentId) {
-    return SetInvoker<Interface>::invoke(service, argument, componentId);
-}
-
-template <class T, class Interface>
 Status invokeFire (T& service,
         ComponentInUnion<Interface>& argument,
         uint32_t componentId,
-        com_barobo_rpc_Reply_Result_payload_t& payload) {
+        barobo_rpc_Reply_Result_payload_t& payload) {
     return FireInvoker<Interface>::invoke(service, argument, componentId, payload);
 }
 
 template <class T, class Interface>
 Status invokeBroadcast (T& proxy,
-        ComponentResultUnion<Interface>& argument,
+        ComponentBroadcastUnion<Interface>& argument,
         uint32_t componentId) {
     return BroadcastInvoker<Interface>::invoke(proxy, argument, componentId);
 }
@@ -134,24 +105,28 @@ Status invokeFulfill(T& proxy,
 }
 
 template <class Interface>
-Status decodeSetPayload (ComponentInUnion<Interface>& args,
-        uint32_t componentId,
-        com_barobo_rpc_Request_Set_payload_t& payload);
-
-template <class Interface>
 Status decodeFirePayload (ComponentInUnion<Interface>& args,
         uint32_t componentId,
-        com_barobo_rpc_Request_Fire_payload_t& payload);
+        barobo_rpc_Request_Fire_payload_t& payload);
 
 template <class Interface>
-Status decodeBroadcastPayload (ComponentResultUnion<Interface>& args,
+Status decodeBroadcastPayload (ComponentBroadcastUnion<Interface>& args,
         uint32_t componentId,
-        com_barobo_rpc_Reply_Broadcast_payload_t& payload);
+        barobo_rpc_Broadcast_payload_t& payload);
 
 template <class Interface>
 Status decodeResultPayload (ComponentResultUnion<Interface>& args,
         uint32_t componentId,
-        com_barobo_rpc_Reply_Result_payload_t& payload);
+        barobo_rpc_Reply_Result_payload_t& payload);
+
+RPC_DEFINE_TRAIT_HAS_MEMBER_FUNCTION_OVERLOAD(onFire)
+RPC_DEFINE_TRAIT_HAS_MEMBER_FUNCTION_OVERLOAD(onBroadcast)
+
+template <class T, class Interface>
+struct AssertServiceImplementsInterface;
+
+template <class T, class Interface>
+struct AssertProxyImplementsInterface;
 
 } // namespace rpc
 

@@ -1,0 +1,242 @@
+Definitions
+-----------
+
+Every component (attribute, method, or broadcast), has one or two
+associated types in the C++ implementation. Attributes and broadcasts have
+one, while methods have two. They are referred to as
+
+    attribute-struct          - a struct containing an attribute's value
+    method-input-struct       - a struct containing a method's input parameters
+                                (may be empty)
+    method-output-struct      - a struct containing the union of a method's
+                                output values or error value (may be empty)
+    broadcast-struct          - a struct containing a broadcast's output values
+
+These types are used at compile-time to identify interface components, and
+used at run-time to marshal values to and from these components.
+
+The following expressions are used throughout the rest of this document,
+and have the following meanings:
+
+    p is an instance of a derivation of rpc::AsyncProxy
+    s is an instance of a derivation of rpc::Service
+    a is an attribute in the interface implemented by p and s
+    m is a method in the interface implemented by p and s
+    b is a broadcast in the interface implemented by p and s
+    v[i] is an arbitrary value, where 0 <= i < n
+
+
+Attribute Get
+-------------
+
+The expression
+
+    p.get(Attribute::a())
+
+has return type
+
+    std::future<Attribute::a>
+
+and the following semantics:
+
+    Encode a protocol buffer meaning "get attribute a" and deliver it to the
+    derived class by calling the post function [see note 1]. Return a valid
+    future that can access the asynchronous value of the attribute.
+
+Run-time contract:
+    On an encoding error, throws rpc::Error("ENCODING_FAILURE"). This should
+    never happen; if it does, then something is fundamentally wrong with the
+    RPC toolkit.
+
+    If there was an error in the service, the returned future will throw an
+    rpc::Error on calling its .get() method.
+
+Compile-time contract:
+    Attribute::a is an attribute-struct.
+
+[1] The "derived class" means the user's implementation, i.e. the subclass of
+    rpc::AsyncProxy or rpc::Service that you, the user of this toolkit, writes.
+    You must implement certain methods, such as post, in the derived class.
+    Exactly which methods must be implemented depends on the base class:
+    rpc::Proxy, rpc::AsyncProxy, or rpc::Service.
+
+
+Attribute Set
+-------------
+
+The expression
+
+    p.set(Attribute::a{v[0]})
+
+has return type
+
+    std::future<void>
+
+and the following semantics:
+
+    Encode a protocol buffer meaning "set attribute a" and deliver it to the
+    derived class by calling the post function. Return a valid future that can
+    be used to wait for completion of the set request.
+
+Run-time contract:
+    On an encoding error, throws rpc::Error("ENCODING_FAILURE"). This should
+    never happen; if it does, then something is fundamentally wrong with the
+    RPC toolkit.
+
+    If there was an error in the service, the returned future will throw an
+    rpc::Error on calling its .get() method.
+
+Compile-time contract:
+    Attribute::a is an attribute-struct.
+    Attribute::a is not annotated 'readonly'.
+
+
+Attribute Subscription
+----------------------
+
+The expressions
+
+    p.subscribe(Attribute::a())
+    p.unsubscribe(Attribute::a())
+
+have return type
+
+    std::future<void>
+
+and the following semantics:
+
+    Encode a protocol buffer meaning "subscribe to attribute a updates" and
+    deliver it to the derived class by calling the post function. Return a
+    valid future that can be used to wait for completion of the subscribe or
+    unsubscribe request.
+
+Run-time contract:
+    On an encoding error, throws rpc::Error("ENCODING_FAILURE"). This should
+    never happen; if it does, then something is fundamentally wrong with the
+    RPC toolkit.
+
+    If there was an error in the service, the returned future will throw an
+    rpc::Error on calling its .get() method.
+
+Compile-time contract:
+    Attribute::a is an attribute-struct.
+    Attribute::a is not annotated 'noSubscriptions'.
+
+
+Attribute Broadcast
+-------------------
+
+The expression
+
+    s.broadcast(Attribute::a{v[0]})
+
+has return type
+
+    rpc::Status
+
+and the following semantics:
+
+    Encode a protocol buffer meaning "broadcast v[0] as the updated value of
+    attribute a" and deliver it to the derived class by calling the post
+    function. Note that it is up to the user implementing the service to use
+    this function in an appropriate way. Typically this would be called at only
+    one point in the code: the service's set routine. This logic is left to the
+    implementor because different attributes may consider "updates" to mean
+    different things, i.e. a change in its value versus a write to its value.
+
+Run-time contract:
+    This expression generates no exceptions. If there is an encoding failure,
+    it is reported via the return value. rpc::Status::OK indicates no error.
+
+Compile-time contract:
+    Attribute::a is an attribute-struct.
+    Attribute::a is not annotated 'noSubscriptions'.
+
+
+Method Fire
+-----------
+
+The expression
+
+    p.fire(Method::m{v[0], v[1], ..., v[n-1]})
+
+has return type [see note 2]
+
+    std::future<typename ResultOf<Method::m>::type>
+
+and the following semantics:
+
+    Encode a protocol buffer meaning "fire method m" and deliver it to the
+    derived class by calling the post function. Return a valid
+    future that can access the asynchronous result of the method.
+
+Run-time contract:
+    On an encoding error, throws rpc::Error("ENCODING_FAILURE"). This would
+    likely indicate a bug in the generated code or a buffer overflow. Buffer
+    overflows should only occur if a method parameter list can be
+    variably-sized: using statically-sized arrays and unit testing them at
+    their maximum would ensure no exception will be thrown.
+
+Compile-time contract:
+    Method::m is a method-input-struct.
+
+[2] 'typename ResultOf<method-input-struct>::type' resolves to the
+    method-output-struct of the same method. This may be void: set, subscribe,
+    and unsubscribe do not return anything, but the std::future may still be
+    used to observe when the message is acknowledged, and fire on a method
+    marked fireAndForget returns a future that is already ready.
+
+
+Broadcast Subscription
+----------------------
+
+The expressions
+
+    p.subscribe(Broadcast::b())
+    p.unsubscribe(Broadcast::b())
+
+have return type
+
+    std::future<void>
+
+and the following semantics:
+
+    Encode a protocol buffer meaning "subscribe to broadcast b" and deliver it
+    to the derived class by calling the post function. Return a valid future
+    that can be used to wait for completion of the subscribe or unsubscribe
+    request.
+
+Run-time contract:
+    On an encoding error, throws rpc::Error("ENCODING_FAILURE"). This should
+    never happen; if it does, then something is fundamentally wrong with the
+    RPC toolkit.
+
+    If there was an error in the service, the returned future will throw an
+    rpc::Error on calling its .get() method.
+
+Compile-time contract:
+    Broadcast::b is a broadcast-struct.
+
+
+Broadcast Broadcast, twice the fun
+----------------------------------
+
+The expression
+
+    s.broadcast(Broadcast::b{v[0], v[1], ..., v[n-1]})
+
+has return type
+
+    rpc::Status
+
+and the following semantics:
+
+    Encode a protocol buffer meaning "broadcast b with values v[0]..v[n-1]" and
+    deliver it to the derived class by calling the post function.
+
+Run-time contract:
+    This expression generates no exceptions. If there is an encoding failure,
+    it is reported via the return value. rpc::Status::OK indicates no error.
+
+Compile-time contract:
+    Broadcast::b is a broadcast-struct.

@@ -1,22 +1,21 @@
 import "nanopb.proto";
-package com.barobo.rpc;
+package barobo.rpc;
 
 enum Status {
     OK = 0;
-    /* Cosmic rays */
+    /* nanopb failures */
     DECODING_FAILURE = 1;
     ENCODING_FAILURE = 2;
+    /* ribbon-bridge logic error */
     INCONSISTENT_REQUEST = 3;
     INCONSISTENT_REPLY = 4;
-    /* Operator error or version mismatches */
-    /* Compile-time errors, if using same version of interface */
+    /* ribbon-bridge version mismatch */
     ILLEGAL_OPERATION = 5;
+    /* interface version mismatch */
     NO_SUCH_COMPONENT = 6;
-    READ_ONLY = 8;
-    NO_SUBSCRIPTIONS = 9;
-    /* Runtime errors */
-    BUFFER_OVERFLOW = 7;
-    VERSION_MISMATCH = 10;
+    /* not connected to the request's origin */
+    NOT_CONNECTED = 7;
+    CONNECTION_REFUSED = 8;
 }
 
 message VersionTriplet {
@@ -27,85 +26,70 @@ message VersionTriplet {
 
 message Request {
     enum Type {
-        GET = 1;
-        SET = 2;
-        SUBSCRIBE = 3;
-        UNSUBSCRIBE = 4;
-        FIRE = 5;
-        RESET = 6;
-    }
-
-    message Get {
-        required uint32 id = 1;
-    }
-
-    message Set {
-        required uint32 id = 1;
-        required bytes payload = 2 [(nanopb).max_size = 128];
-    }
-
-    message Subscribe {
-        required uint32 id = 1;
-    }
-
-    message Unsubscribe {
-        required uint32 id = 1;
+        CONNECT = 0;
+        DISCONNECT = 1;
+        FIRE = 2;
     }
 
     message Fire {
-        required uint32 id = 1;
+        required uint32 id = 1; // component id
         required bytes payload = 2 [(nanopb).max_size = 128];
     }
 
-    message Reset {
-        required VersionTriplet rpc = 1;
-        required VersionTriplet interface = 2;
-    }
-
     required Type type = 1;
-    required uint32 id = 2;
-    optional Get get = 3;
-    optional Set set = 4;
-    optional Subscribe subscribe = 5;
-    optional Unsubscribe unsubscribe = 6;
-    optional Fire fire = 7;
-    optional Reset reset = 8;
+    optional Fire fire = 3;
+}
+
+message ClientMessage {
+    required uint32 id = 1; // request id
+    required Request request = 2;
 }
 
 message Reply {
     enum Type {
-        BROADCAST = 1;
-        VERSION = 2;
+        SERVICEINFO = 0;
+        STATUS = 2;
         RESULT = 3;
-        STATUS = 4;
     }
 
-    message Broadcast {
-        required uint32 id = 1;
-        required bytes payload = 2 [(nanopb).max_size = 128];
-    }
-
-    message Version {
-        required VersionTriplet rpc = 1;
-        required VersionTriplet interface = 2;
-    }
-
-    message Result {
-        required uint32 id = 2; // The component id. The Proxy should be able
-                                // to figure this out by keeping a map of
-                                // request IDs, but duplicating it here makes
-                                // implementation much easier.
-        required bytes payload = 3 [(nanopb).max_size = 128];
+    message ServiceInfo {
+        required VersionTriplet rpcVersion = 2;
+        required VersionTriplet interfaceVersion = 3;
     }
 
     message Status {
-        required com.barobo.rpc.Status value = 2;
+        required barobo.rpc.Status value = 1;
+    }
+
+    message Result {
+        required uint32 id = 1; // The component id. The Proxy should be able
+                                // to figure this out by keeping a map of
+                                // request IDs, but duplicating it here makes
+                                // implementation much easier.
+                                // Update: the Asio implementation does not use this
+        required bytes payload = 2 [(nanopb).max_size = 128];
+    }
+
+
+    required Type type = 1;
+    optional ServiceInfo serviceInfo = 3;
+    optional Status status = 4;
+    optional Result result = 5;
+}
+
+message Broadcast {
+    required uint32 id = 1;
+    required bytes payload = 2 [(nanopb).max_size = 128];
+}
+
+message ServerMessage {
+    enum Type {
+        REPLY = 0;
+        BROADCAST = 1;
     }
 
     required Type type = 1;
-    optional uint32 inReplyTo = 2;
-    optional Broadcast broadcast = 3;
-    optional Version version = 4;
-    optional Result result = 5;
-    optional Status status = 6;
+    optional Reply reply = 2;
+    optional uint32 inReplyTo = 3;
+    optional Broadcast broadcast = 4;
 }

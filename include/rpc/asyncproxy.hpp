@@ -1,91 +1,119 @@
 #ifndef RPC_ASYNCPROXY_HPP
 #define RPC_ASYNCPROXY_HPP
 
+#include "rpc/config.hpp"
+
 #ifndef HAVE_STDLIB
 #error "this file requires the standard library"
 #endif
 
-#include "rpc/error.hpp"
+#include "rpc/system_error.hpp"
+#include "rpc/proxy.hpp"
+
+#include "util/deadlinescheduler.hpp"
+#include "util/variant.hpp"
+
+#include <boost/log/common.hpp>
+#include <boost/log/sources/logger.hpp>
 
 #include <boost/unordered_map.hpp>
-#include <boost/variant.hpp>
 
 #include <future>
 #include <tuple>
 #include <utility>
 
+#include <cstdio>
+#include <cinttypes>
+
 namespace rpc {
 
-template <class T, class Interface>
-class AsyncProxy : public rpc::Proxy<AsyncProxy<T, Interface>, Interface, std::future> {
+template <class Interface>
+class AsyncRequestManager {
     template <class... Ts>
-    using MakePromiseVariant = boost::variant<std::promise<Ts>...>;
+    using MakePromiseVariant = util::Variant<std::promise<Ts>...>;
 
     using PromiseVariant = typename rpc::PromiseVariadic<Interface, MakePromiseVariant>::type;
 
-    struct SetExceptionVisitor : boost::static_visitor<> {
-        explicit SetExceptionVisitor (Status status) : mStatus(status) { }
+    struct Throw {
+        explicit Throw (std::exception_ptr e) : mException(e) { }
 
         template <class P>
-        void operator() (P& promise) const {
-            Error error { statusToString(mStatus) };
-            auto eptr = std::make_exception_ptr(error);
-            promise.set_exception(eptr);
-        }
+        void operator() (P& promise) const { promise.set_exception(mException); }
 
     private:
-        Status mStatus;
+        std::exception_ptr mException;
     };
 
 public:
-    using BufferType = typename rpc::Proxy<AsyncProxy<T, Interface>, Interface, std::future>::BufferType;
+    template <class T>
+    using Future = std::future<T>;
 
-    template <class C>
-    void broadcast (C args, ONLY_IF(IsAttribute<C>::value || IsBroadcast<C>::value)) {
-        static_cast<T*>(this)->broadcast(args);
-    }
-
+    // Fulfill a promise with an error from the remote host.
     Status fulfill (uint32_t requestId, Status status) {
-        printf("requestId %" PRId32 " fulfilled with status %s\n", requestId,
-                statusToString(status));
+        BOOST_LOG_NAMED_SCOPE("rpc::AsyncRequestManager::fulfill(status)");
+
+        std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
 
         auto iter = mPromises.find(requestId);
         if (mPromises.end() == iter) {
-            return Status::UNSOLICITED_RESULT;
+            BOOST_LOG(mLog) << "request " << requestId << " does not exist";
+            return Status::UNSOLICITED_REPLY;
         }
 
-        auto promisePtr = boost::get<std::promise<void>>(&iter->second);
-        if (promisePtr && !hasError(status)) {
-            promisePtr->set_value();
-        }
-        else if (!hasError(status)) {
-            // No error reported, but we have a type mismatch.
-            boost::apply_visitor(SetExceptionVisitor { Status::UNRECOGNIZED_RESULT }, iter->second);
+        auto promisePtr = util::get<std::promise<void>>(&iter->second);
+        if (promisePtr) {
+            BOOST_LOG(mLog) << "fulfilling request " << requestId << "with "
+                            << statusToString(status);
+            if (!hasError(status)) {
+                promisePtr->set_value();
+            }
+            else {
+                auto eptr = std::make_exception_ptr(Error(status));
+                util::apply(Throw(eptr), iter->second);
+            }
         }
         else {
-            boost::apply_visitor(SetExceptionVisitor { status }, iter->second);
+            BOOST_LOG(mLog) << "type mismatch fulfilling request " << requestId
+                            << " with " << statusToString(status);
+            if (!hasError(status)) {
+                // No error reported, but we have a type mismatch.
+                printf("type mismatch with requestId %" PRId32 "\n", requestId);
+                auto eptr = std::make_exception_ptr(Error(Status::UNRECOGNIZED_RESULT));
+                util::apply(Throw(eptr), iter->second);
+            }
+            else {
+                auto eptr = std::make_exception_ptr(Error(status));
+                util::apply(Throw(eptr), iter->second);
+            }
         }
 
         mPromises.erase(iter);
         return Status::OK;
     }
 
+    // Fulfill a method or connection request promise.
     template <class C>
     Status fulfill (uint32_t requestId, C result) {
-        printf("requestId %" PRId32 " fulfilled with some shit\n", requestId);
+        BOOST_LOG_NAMED_SCOPE("rpc::AsyncRequestManager::fulfill(result)");
+
+        std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
 
         auto iter = mPromises.find(requestId);
         if (mPromises.end() == iter) {
-            return Status::UNSOLICITED_RESULT;
+            BOOST_LOG(mLog) << "request " << requestId << " does not exist";
+            return Status::UNSOLICITED_REPLY;
         }
 
-        auto promisePtr = boost::get<std::promise<C>>(&iter->second);
-        if (!promisePtr) {
-            // type mismatch
-            boost::apply_visitor(SetExceptionVisitor(Status::UNRECOGNIZED_RESULT), iter->second);
+        auto promisePtr = util::get<std::promise<C>>(&iter->second);
+        if (promisePtr) {
+            BOOST_LOG(mLog) << "fulfilling request " << requestId;
+            promisePtr->set_value(result);
         }
         else {
-            promisePtr->set_value(result);
+            // type mismatch
+            BOOST_LOG(mLog) << "type mismatch fulfilling request " << requestId;
+            auto eptr = std::make_exception_ptr(Error(Status::UNRECOGNIZED_RESULT));
+            util::apply(Throw(eptr), iter->second);
         }
 
         mPromises.erase(iter);
@@ -93,42 +121,77 @@ public:
     }
 
     template <class C>
-    std::future<C> finalize (uint32_t requestId, Status status) {
-        return { };// FIXME
+    Future<C> finalize (uint32_t requestId, Status status) {
+        // If we ever decide to do anything with mPromises here, remember to
+        // lock it with a std::lock_guard.
+        printf("requestId %" PRId32 " wasted on %s\n", requestId, statusToString(status));
+
+        throw Error(status);
     }
 
     template <class C>
-    std::future<C> finalize (uint32_t requestId, const BufferType& buffer) {
-        typename decltype(mPromises)::iterator iter;
-        bool success;
+    Future<C> finalize (uint32_t requestId) {
+        BOOST_LOG_NAMED_SCOPE("rpc::AsyncRequestManager::finalize");
+        std::promise<C>* promisePtr;
+        {
+            std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
 
-        std::tie(iter, success) = tryMakePromise<C>(requestId);
+            typename decltype(mPromises)::iterator iter;
+            bool success;
 
-        if (!success) {
-            // this will break the existing promise
-            mPromises.erase(iter);
             std::tie(iter, success) = tryMakePromise<C>(requestId);
-            assert(success);
+
+            if (!success) {
+                // this will break the existing promise
+                mPromises.erase(iter);
+                std::tie(iter, success) = tryMakePromise<C>(requestId);
+                assert(success);
+            }
+
+            promisePtr = util::get<std::promise<C>>(&iter->second);
+            assert(promisePtr);
         }
 
-        auto promisePtr = boost::get<std::promise<C>>(&iter->second);
-        assert(promisePtr);
+        BOOST_LOG(mLog) << "scheduling request " << requestId << " for reaping "
+                        << "(mPromises:" << &mPromises << ")";
+        mReaper.executeAfter(std::chrono::milliseconds(1000),
+            [=] () {
+                BOOST_LOG_NAMED_SCOPE("rpc::AsyncRequestManager::finalize::(lambda)");
+                std::lock_guard<decltype(mPromisesMutex)> lock { mPromisesMutex };
+                auto iter = mPromises.find(requestId);
+                BOOST_LOG(mLog) << "request " << requestId
+                                << (mPromises.end() == iter ? " no longer " : " still ")
+                                << "exists (mPromises:" << &mPromises << ")";
+                if (mPromises.end() != iter) {
+                    auto promisePtr = util::get<std::promise<C>>(&iter->second);
+                    assert(promisePtr);
+                    auto eptr = std::make_exception_ptr(std::runtime_error(
+                        std::string("No response to request ") +
+                        std::to_string(requestId) +
+                        std::string(" after 1000ms")));
+                    BOOST_LOG(mLog) << "setting exception";
+                    promisePtr->set_exception(eptr);
+                    BOOST_LOG(mLog) << "erasing";
+                    mPromises.erase(iter);
+                }
+            }
+        );
 
-        /* We must call get_future() before post(). If we call post first,
-         * there is a chance that the implementor might run with the buffer,
-         * deliver it to the service, deliver the response back to us, fulfill
-         * the promise, erasing it, and thus invalidating our promise pointer,
-         * all before we get its future. */
-        auto future = promisePtr->get_future();
-        static_cast<T*>(this)->post(buffer);
-        return future;
+        return promisePtr->get_future();
+    }
+
+    uint32_t nextRequestId () {
+        return mNextRequestId++;
     }
 
 private:
+    mutable boost::log::sources::logger_mt mLog;
+
     boost::unordered_map
         < uint32_t
         , PromiseVariant
         > mPromises;
+    std::mutex mPromisesMutex;
 
     template <class C>
     std::pair<typename decltype(mPromises)::iterator, bool>
@@ -137,7 +200,18 @@ private:
                 std::forward_as_tuple(requestId),
                 std::forward_as_tuple(std::promise<C>()));
     }
+
+    std::atomic<uint32_t> mNextRequestId = { 0 };
+
+    // FIXME this means that every proxy will have its own reaper thread,
+    // probably not what we want. Maybe there should be a globally accessible
+    // rpc::reaper(), perhaps hidden in a .cpp, accessible only where we need
+    // it.
+    util::DeadlineScheduler mReaper;
 };
+
+template <class T, class Interface>
+using AsyncProxy = Proxy<T, Interface, AsyncRequestManager>;
 
 } // namespace rpc
 

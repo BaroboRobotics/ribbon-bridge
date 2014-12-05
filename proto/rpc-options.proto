@@ -1,0 +1,27 @@
+/* This file is not currently used. When we write the code generator, it will
+ * be. */
+import "google/protobuf/descriptor.proto";
+package barobo.rpc.options;
+
+message VersionTriplet {
+    optional uint32 major = 1;
+    optional uint32 minor = 2;
+    optional uint32 patch = 3;
+}
+
+extend google.protobuf.FileOptions {
+    optional VersionTriplet version = 50000;
+}
+
+message MethodOptions {
+    optional bool fireAndForget = 1;
+}
+
+message BroadcastOptions {
+    optional bool selective = 1;
+}
+
+extend google.protobuf.MessageOptions {
+    optional MethodOptions method = 50000;
+    optional BroadcastOptions broadcast = 50001;
+}
