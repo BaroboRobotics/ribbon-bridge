@@ -12,10 +12,12 @@ public:
             , mTransport() {
         mTransport.onRequest([this] (const rpc::Buffer<256>& payload) {
             auto success = mService.receiveProxyBuffer(payload);
+            (void)success;
             assert(!hasError(success));
         });
         mTransport.onReply([this] (const rpc::Buffer<256>& payload) {
             auto success = mProxy.receiveServiceBuffer(payload);
+            (void)success;
             assert(!hasError(success));
         });
     }

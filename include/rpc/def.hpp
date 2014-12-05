@@ -90,9 +90,9 @@
 
 #define RPCDEF_decodeBroadcastPayload(interface, broadcasts) \
     template <> \
-    Status decodeBroadcastPayload (ComponentResultUnion<interface>& args, \
+    Status decodeBroadcastPayload (ComponentBroadcastUnion<interface>& args, \
             uint32_t componentId, \
-            barobo_rpc_Reply_Broadcast_payload_t& payload) { \
+            barobo_rpc_Broadcast_payload_t& payload) { \
         using Id = ComponentId<interface>; \
         switch (componentId) { \
             Status status; \
@@ -270,14 +270,21 @@
     };
 
 #define rpcdef_decl_method_output_object(s, interface, method) typename MethodResult<interface>::method method;
-#define rpcdef_decl_broadcast_object(s, interface, broadcast)  typename Broadcast<interface>::broadcast broadcast;
 
-#define RPCDEF_ComponentResultUnion(interface, methods, broadcasts) \
+#define RPCDEF_ComponentResultUnion(interface, methods) \
     template <> \
     union ComponentResultUnion<interface> { \
         BOOST_PP_SEQ_FOR_EACH(rpcdef_decl_method_output_object, interface, methods) \
+    };
+
+#define rpcdef_decl_broadcast_object(s, interface, broadcast) typename Broadcast<interface>::broadcast broadcast;
+
+#define RPCDEF_ComponentBroadcastUnion(interface, broadcasts) \
+    template <> \
+    union ComponentBroadcastUnion<interface> { \
         BOOST_PP_SEQ_FOR_EACH(rpcdef_decl_broadcast_object, interface, broadcasts) \
     };
+
 
 //////////////////////////////////////////////////////////////////////////////
 // PromiseVariadic, a metafunction to help create variants of promises for
@@ -376,7 +383,7 @@
     struct BroadcastInvoker<interface> { \
         template <class T> \
         static Status invoke (T& proxy, \
-                ComponentResultUnion<interface>& argument, \
+                ComponentBroadcastUnion<interface>& argument, \
                 uint32_t componentId) { \
             using Id = ComponentId<interface>; \
             switch (componentId) { \
@@ -473,7 +480,8 @@
     RPCDEF_Broadcast(interfaceNames, broadcasts) \
     RPCDEF_IsBroadcast(rpcdef_cat_scope(interfaceNames), broadcasts) \
     RPCDEF_ComponentInUnion(rpcdef_cat_scope(interfaceNames), methods) \
-    RPCDEF_ComponentResultUnion(rpcdef_cat_scope(interfaceNames), methods, broadcasts) \
+    RPCDEF_ComponentResultUnion(rpcdef_cat_scope(interfaceNames), methods) \
+    RPCDEF_ComponentBroadcastUnion(rpcdef_cat_scope(interfaceNames), broadcasts) \
     RPCDEF_PromiseVariadic(rpcdef_cat_scope(interfaceNames), methods) \
     RPCDEF_ComponentId(rpcdef_cat_scope(interfaceNames), methods broadcasts) \
     RPCDEF_componentId(rpcdef_cat_scope(interfaceNames),  methods, broadcasts) \

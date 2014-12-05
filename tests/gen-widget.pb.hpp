@@ -9,13 +9,9 @@ RPCDEF_HPP(
         (barobo, Widget), (0, 0, 0),
         // all methods
         (nullaryNoResult)
-        (nullaryWithResultOut)
-        (nullaryWithResultError)
         (nullaryWithResult)
         (unaryNoResult)
         (unaryWithResult)
-        (unaryWithResultOut)
-        (unaryWithResultError)
         ,
         // all broadcasts
         (broadcast)

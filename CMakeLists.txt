@@ -1,13 +1,18 @@
 cmake_minimum_required(VERSION 2.8.12)
 project(rpc C CXX)
 
+set(VERSION_MAJOR 0)
+set(VERSION_MINOR 0)
+set(VERSION_PATCH 4)
+set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
+
 set(AVR OFF)
 if(CMAKE_SYSTEM_NAME MATCHES "AVR")
     set(AVR ON)
 endif()
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
 option(RPC_BUILD_TESTS "Build ribbon-bridge tests" OFF)
 
@@ -51,7 +56,7 @@ set(Boost_USE_STATIC_LIBS ON)
 
 # Boost.Log was introduced in Boost version 1.54.0.
 # system is required for asio
-find_package(Boost 1.54.0 REQUIRED COMPONENTS system filesystem log thread coroutine context)
+find_package(Boost 1.54.0 REQUIRED COMPONENTS system filesystem log thread)
 
 
 ##############################################################################
@@ -144,7 +149,11 @@ set(SOURCES
     ${NANOPB_ROOT}/pb_decode.c
     ${NANOPB_ROOT}/pb_encode.c)
 
-set_source_files_properties(src/message.cpp src/status.cpp PROPERTIES
+if(HAVE_EXCEPTIONS)
+    list(APPEND SOURCES src/system_error.cpp)
+endif()
+
+set_source_files_properties(src/message.cpp src/status.cpp src/system_error.cpp PROPERTIES
     COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS")
 
 add_library(rpc STATIC ${SOURCES})
@@ -165,7 +174,12 @@ target_link_libraries(rpc PRIVATE rpc-proto INTERFACE ${Boost_LIBRARIES})
 if(WIN32)
     target_link_libraries(rpc INTERFACE ws2_32)
 endif()
-set_target_properties(rpc PROPERTIES POSITION_INDEPENDENT_CODE ON)
+set_target_properties(rpc PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+    VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+    SOVERSION ${VERSION_MAJOR}
+    MACOSX_RPATH ON
+)
 
 ##############################################################################
 

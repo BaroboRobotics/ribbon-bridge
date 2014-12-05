@@ -4,7 +4,7 @@
 #include "rpc/config.hpp"
 
 #ifdef HAVE_EXCEPTIONS
-# include "rpc/error.hpp"
+# include "rpc/system_error.hpp"
 #endif
 
 #include "rpc/status.hpp"

@@ -7,7 +7,7 @@
 #error "this file requires the standard library"
 #endif
 
-#include "rpc/error.hpp"
+#include "rpc/system_error.hpp"
 #include "rpc/proxy.hpp"
 
 #include "util/deadlinescheduler.hpp"
@@ -57,7 +57,7 @@ public:
         auto iter = mPromises.find(requestId);
         if (mPromises.end() == iter) {
             BOOST_LOG(mLog) << "request " << requestId << " does not exist";
-            return Status::UNSOLICITED_RESULT;
+            return Status::UNSOLICITED_REPLY;
         }
 
         auto promisePtr = util::get<std::promise<void>>(&iter->second);
@@ -68,7 +68,7 @@ public:
                 promisePtr->set_value();
             }
             else {
-                auto eptr = std::make_exception_ptr(Error(statusToString(status)));
+                auto eptr = std::make_exception_ptr(Error(status));
                 util::apply(Throw(eptr), iter->second);
             }
         }
@@ -78,11 +78,11 @@ public:
             if (!hasError(status)) {
                 // No error reported, but we have a type mismatch.
                 printf("type mismatch with requestId %" PRId32 "\n", requestId);
-                auto eptr = std::make_exception_ptr(Error(statusToString(Status::UNRECOGNIZED_RESULT)));
+                auto eptr = std::make_exception_ptr(Error(Status::UNRECOGNIZED_RESULT));
                 util::apply(Throw(eptr), iter->second);
             }
             else {
-                auto eptr = std::make_exception_ptr(Error(statusToString(status)));
+                auto eptr = std::make_exception_ptr(Error(status));
                 util::apply(Throw(eptr), iter->second);
             }
         }
@@ -101,7 +101,7 @@ public:
         auto iter = mPromises.find(requestId);
         if (mPromises.end() == iter) {
             BOOST_LOG(mLog) << "request " << requestId << " does not exist";
-            return Status::UNSOLICITED_RESULT;
+            return Status::UNSOLICITED_REPLY;
         }
 
         auto promisePtr = util::get<std::promise<C>>(&iter->second);
@@ -112,7 +112,7 @@ public:
         else {
             // type mismatch
             BOOST_LOG(mLog) << "type mismatch fulfilling request " << requestId;
-            auto eptr = std::make_exception_ptr(Error(statusToString(Status::UNRECOGNIZED_RESULT)));
+            auto eptr = std::make_exception_ptr(Error(Status::UNRECOGNIZED_RESULT));
             util::apply(Throw(eptr), iter->second);
         }
 
@@ -126,7 +126,7 @@ public:
         // lock it with a std::lock_guard.
         printf("requestId %" PRId32 " wasted on %s\n", requestId, statusToString(status));
 
-        throw Error { statusToString(status) };
+        throw Error(status);
     }
 
     template <class C>

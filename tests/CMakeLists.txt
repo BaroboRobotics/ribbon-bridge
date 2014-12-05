@@ -1,4 +1,6 @@
-rpc_compile_proto(WIDGET_PROTO_C_FILE WIDGET_PROTO_H_FILE proto/widget.proto)
+nanopb_add_proto(widget-interface proto/widget.proto gen-widget.pb.cpp)
+
+target_link_libraries(widget-interface PRIVATE rpc)
 
 set_source_files_properties(
     asio.cpp
@@ -9,21 +11,22 @@ set_source_files_properties(
     COMPILE_FLAGS "-std=c++11 -ggdb ${FEATURE_DEFS}")
 
 add_executable(asio asio.cpp)
-target_link_libraries(asio sfp rpc ${Boost_LIBRARIES} pthread rt)
+target_include_directories(asio PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_link_libraries(asio widget-interface sfp rpc cxx-util ${Boost_LIBRARIES} pthread rt)
 add_test(NAME asio COMMAND asio)
 
-add_executable(fire fire.cpp gen-widget.pb.cpp ${WIDGET_PROTO_C_FILE})
+add_executable(fire fire.cpp)
 target_include_directories(fire
     PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
     PRIVATE ${Boost_INCLUDE_DIRS})
-target_link_libraries(fire rpc ${Boost_LIBRARIES})
+target_link_libraries(fire widget-interface rpc ${Boost_LIBRARIES})
 add_test(NAME fire COMMAND fire)
 
-add_executable(broadcast broadcast.cpp gen-widget.pb.cpp ${WIDGET_PROTO_C_FILE})
+add_executable(broadcast broadcast.cpp)
 target_include_directories(broadcast
     PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
     PRIVATE ${Boost_INCLUDE_DIRS})
-target_link_libraries(broadcast rpc ${Boost_LIBRARIES})
+target_link_libraries(broadcast widget-interface rpc ${Boost_LIBRARIES})
 add_test(NAME broadcast COMMAND broadcast)
 
 set_target_properties(

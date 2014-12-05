@@ -15,6 +15,7 @@ enum Status {
     NO_SUCH_COMPONENT = 6;
     /* not connected to the request's origin */
     NOT_CONNECTED = 7;
+    CONNECTION_REFUSED = 8;
 }
 
 message VersionTriplet {
@@ -36,8 +37,12 @@ message Request {
     }
 
     required Type type = 1;
-    required uint32 id = 2; // request id
     optional Fire fire = 3;
+}
+
+message ClientMessage {
+    required uint32 id = 1; // request id
+    required Request request = 2;
 }
 
 message Reply {
@@ -45,15 +50,9 @@ message Reply {
         SERVICEINFO = 0;
         STATUS = 2;
         RESULT = 3;
-        BROADCAST = 4;
     }
 
     message ServiceInfo {
-        enum Type {
-            REFUSAL = 0;
-            WELCOME = 1;
-        }
-        required Type type = 1;
         required VersionTriplet rpcVersion = 2;
         required VersionTriplet interfaceVersion = 3;
     }
@@ -67,18 +66,30 @@ message Reply {
                                 // to figure this out by keeping a map of
                                 // request IDs, but duplicating it here makes
                                 // implementation much easier.
+                                // Update: the Asio implementation does not use this
         required bytes payload = 2 [(nanopb).max_size = 128];
     }
 
-    message Broadcast {
-        required uint32 id = 1;
-        required bytes payload = 2 [(nanopb).max_size = 128];
-    }
 
     required Type type = 1;
-    optional uint32 inReplyTo = 2;
     optional ServiceInfo serviceInfo = 3;
     optional Status status = 4;
     optional Result result = 5;
-    optional Broadcast broadcast = 6;
+}
+
+message Broadcast {
+    required uint32 id = 1;
+    required bytes payload = 2 [(nanopb).max_size = 128];
+}
+
+message ServerMessage {
+    enum Type {
+        REPLY = 0;
+        BROADCAST = 1;
+    }
+
+    required Type type = 1;
+    optional Reply reply = 2;
+    optional uint32 inReplyTo = 3;
+    optional Broadcast broadcast = 4;
 }

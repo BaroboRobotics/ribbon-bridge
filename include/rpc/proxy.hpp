@@ -102,43 +102,53 @@ public:
 #endif
 
     Status receiveServiceBuffer (BufferType buffer) {
-        barobo_rpc_Reply reply;
+        barobo_rpc_ServerMessage message;
 
         Status status;
-        decode(reply, buffer.bytes, buffer.size, status);
+        decode(message, buffer.bytes, buffer.size, status);
         if (hasError(status)) {
             return status;
         }
 
-        switch (reply.type) {
-            ComponentResultUnion<Interface> argument;
+        switch (message.type) {
+            ComponentResultUnion<Interface> resultArg;
+            ComponentBroadcastUnion<Interface> broadcastArg;
 
-            case barobo_rpc_Reply_Type_STATUS:
-                if (!reply.has_status) {
+            case barobo_rpc_ServerMessage_Type_REPLY:
+                if (!message.has_reply || !message.has_inReplyTo) {
                     return Status::INCONSISTENT_REPLY;
                 }
-                return mRequestManager.fulfill(reply.inReplyTo, static_cast<Status>(reply.status.value));
-            case barobo_rpc_Reply_Type_RESULT:
-                if (!reply.has_result) {
+                switch (message.reply.type) {
+                    case barobo_rpc_Reply_Type_STATUS:
+                        if (!message.reply.has_status) {
+                            return Status::INCONSISTENT_REPLY;
+                        }
+                        return mRequestManager.fulfill(message.inReplyTo, static_cast<Status>(message.reply.status.value));
+                    case barobo_rpc_Reply_Type_RESULT:
+                        if (!message.reply.has_result) {
+                            return Status::INCONSISTENT_REPLY;
+                        }
+                        status = decodeResultPayload(resultArg, message.reply.result.id, message.reply.result.payload);
+                        if (!hasError(status)) {
+                            status = invokeFulfill(mRequestManager, resultArg, message.reply.result.id, message.inReplyTo);
+                        }
+                        return status;
+                    case barobo_rpc_Reply_Type_SERVICEINFO:
+                        if (!message.reply.has_serviceInfo) {
+                            return Status::INCONSISTENT_REPLY;
+                        }
+                        return mRequestManager.fulfill(message.inReplyTo, ServiceInfo(message.reply.serviceInfo));
+                    default:
+                        return Status::INCONSISTENT_REPLY;
+                }
+                break;
+            case barobo_rpc_ServerMessage_Type_BROADCAST:
+                if (!message.has_broadcast) {
                     return Status::INCONSISTENT_REPLY;
                 }
-                status = decodeResultPayload(argument, reply.result.id, reply.result.payload);
+                status = decodeBroadcastPayload(broadcastArg, message.broadcast.id, message.broadcast.payload);
                 if (!hasError(status)) {
-                    status = invokeFulfill(mRequestManager, argument, reply.result.id, reply.inReplyTo);
-                }
-                return status;
-            case barobo_rpc_Reply_Type_SERVICEINFO:
-                if (!reply.has_serviceInfo) {
-                    return Status::INCONSISTENT_REPLY;
-                }
-                return mRequestManager.fulfill(reply.inReplyTo, ServiceInfo(reply.serviceInfo));
-            case barobo_rpc_Reply_Type_BROADCAST:
-                if (!reply.has_broadcast) {
-                    return Status::INCONSISTENT_REPLY;
-                }
-                status = decodeBroadcastPayload(argument, reply.broadcast.id, reply.broadcast.payload);
-                if (!hasError(status)) {
-                    status = invokeBroadcast(*this, argument, reply.broadcast.id);
+                    status = invokeBroadcast(*this, broadcastArg, message.broadcast.id);
                 }
                 return status;
             default:
