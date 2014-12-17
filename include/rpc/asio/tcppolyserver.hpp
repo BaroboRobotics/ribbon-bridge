@@ -400,7 +400,7 @@ public:
                 BOOST_LOG(log) << "TcpPolyServerService died with " << e.what();
             }
             catch (...) {
-                BOOST_LOG(log) << "SFP MessageQueueService died by unknown cause";
+                BOOST_LOG(log) << "TcpPolyServerService died by unknown cause";
             }
         })
     {}
