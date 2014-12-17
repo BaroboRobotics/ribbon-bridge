@@ -522,24 +522,32 @@ struct RunClientOperation : std::enable_shared_from_this<RunClientOperation<C, I
     }
 
     void stepOne (Handler handler, boost::system::error_code ec, barobo_rpc_Broadcast broadcast) {
-        if (!ec) {
+        try {
+            if (ec) {
+                throw boost::system::system_error(ec);
+            }
+
             auto log = mClient.log();
             BOOST_LOG(log) << "broadcast received";
             rpc::ComponentBroadcastUnion<Interface> argument;
             auto status = decodeBroadcastPayload(argument, broadcast.id, broadcast.payload);
-            if (!hasError(status)) {
-                BOOST_LOG(log) << "RunClientOperation: received broadcast";
-                status = invokeBroadcast(mImpl, argument, broadcast.id);
-                start(handler);
+            if (hasError(status)) {
+                ec = status;
+                BOOST_LOG(log) << "RunClientOperation: broadcast decode error: " << ec.message();
+                throw boost::system::system_error(ec);
             }
+
+            status = invokeBroadcast(mImpl, argument, broadcast.id);
             if (hasError(status)) {
                 ec = status;
                 BOOST_LOG(log) << "RunClientOperation: broadcast invocation error: " << ec.message();
-                mIos.post(std::bind(handler, ec));
+                throw boost::system::system_error(ec);
             }
+
+            start(handler);
         }
-        else {
-            mIos.post(std::bind(handler, ec));
+        catch (boost::system::system_error& e) {
+            mIos.post(std::bind(handler, e.code()));
         }
     }
 
