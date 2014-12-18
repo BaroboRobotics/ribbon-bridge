@@ -62,12 +62,16 @@ public:
         mMessageQueue.asyncReceive(boost::asio::buffer(*buf),
             [this, realHandler, buf] (boost::system::error_code ec, size_t size) mutable {
                 if (!ec) {
-                    // FIXME handle zero-length message gracefully
-                    barobo_rpc_ClientMessage message;
-                    Status status;
-                    rpc::decode(message, buf->data(), size, status);
-                    mMessageQueue.get_io_service().post(
-                        std::bind(realHandler, status, std::make_pair(message.id, message.request)));
+                    if (size) {
+                        barobo_rpc_ClientMessage message;
+                        Status status;
+                        rpc::decode(message, buf->data(), size, status);
+                        mMessageQueue.get_io_service().post(
+                            std::bind(realHandler, status, std::make_pair(message.id, message.request)));
+                    }
+                    else {
+                        // it's cool, just a keepalive
+                    }
                 }
                 else {
                     mMessageQueue.get_io_service().post(
