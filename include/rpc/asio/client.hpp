@@ -224,7 +224,6 @@ private:
 
         void receive (std::shared_ptr<std::vector<uint8_t>> buf) {
             if (mReplyHandlers.size() || mBroadcastHandlers.size()) {
-                BOOST_LOG(mLog) << "calling asyncReceive";
                 mMessageQueue.asyncReceive(boost::asio::buffer(*buf), mStrand.wrap(
                     std::bind(&Client::Impl::handleReceive,
                         this->shared_from_this(), buf, _1, _2)));
