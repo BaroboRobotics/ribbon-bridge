@@ -155,11 +155,17 @@ private:
         void handleReply (RequestId requestId, boost::system::error_code ec, barobo_rpc_Reply reply) {
             auto handlerIter = mReplyHandlers.find(requestId);
             if (mReplyHandlers.cend() != handlerIter) {
+                using boost::log::add_value;
+                using std::to_string;
+                BOOST_LOG(mLog) << add_value("RequestId", to_string(requestId))
+                                << "Posting reply handler with " << ec.message();
                 mIoService.post(std::bind(handlerIter->second, ec, reply));
                 mReplyHandlers.erase(handlerIter);
             }
             else {
-                BOOST_LOG(mLog) << "unsolicited reply to request " << requestId;
+                using boost::log::add_value;
+                using std::to_string;
+                BOOST_LOG(mLog) << add_value("RequestId", to_string(requestId)) << "unsolicited reply";
             }
 
             auto timeoutIter = mReplyTimeouts.find(requestId);

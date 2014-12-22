@@ -4,11 +4,13 @@
 #include "rpc.pb.h"
 
 #include "rpc/asio/waitmultiplecompleter.hpp"
+#include "rpc/asio/tcppolyserver.hpp" // for to_string
 
 #include <boost/asio.hpp>
 
 #include <boost/log/common.hpp>
 #include <boost/log/sources/logger.hpp>
+#include <boost/log/utility/manipulators/add_value.hpp>
 
 #include <chrono>
 
@@ -59,7 +61,7 @@ struct ForwardRequestsOperation : std::enable_shared_from_this<ForwardRequestsOp
             startImpl(handler);
         }
         else {
-            BOOST_LOG(log) << "ForwardRequestsOperation: Error receiving request: " << ec.message();
+            BOOST_LOG(log) << "ForwardRequestsOperation::stepOne: Error receiving request: " << ec.message();
             mIos.post(std::bind(handler, ec));
             mClient.close();
         }
@@ -68,12 +70,17 @@ struct ForwardRequestsOperation : std::enable_shared_from_this<ForwardRequestsOp
     void stepTwo (MultiHandler handler, RequestId requestId, boost::system::error_code ec, barobo_rpc_Reply reply) {
         auto log = mServer.log();
         if (!ec) {
+            using boost::log::add_value;
+            using std::to_string;
+            using rpc::asio::to_string;
+            BOOST_LOG(log) << add_value("RequestId", to_string(requestId))
+                           << "ForwardRequestsOperation::stepTwo: " << "Sending reply to client";
             mServer.asyncSendReply(requestId, reply, mStrand.wrap(
                 std::bind(&ForwardRequestsOperation::stepThree,
                     this->shared_from_this(), handler, _1)));
         }
         else {
-            BOOST_LOG(log) << "ForwardRequestsOperation: Error forwarding request: " << ec.message();
+            BOOST_LOG(log) << "ForwardRequestsOperation::stepTwo: Error forwarding request: " << ec.message();
             mIos.post(std::bind(handler, ec));
             mServer.close();
         }

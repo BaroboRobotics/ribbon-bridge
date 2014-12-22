@@ -545,6 +545,12 @@ public:
 
 using TcpPolyServer = BasicTcpPolyServer<>;
 
+std::string to_string (TcpPolyServer::RequestId rid) {
+    std::ostringstream oss;
+    oss << rid.first << "/" << rid.second;
+    return oss.str();
+}
+
 } // namespace asio
 } // namespace rpc
 
