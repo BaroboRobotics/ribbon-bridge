@@ -38,17 +38,6 @@ configure_file(config.hpp.in include/rpc/config.hpp)
 ##############################################################################
 # Boost
 
-# FindBoost.cmake uses BOOST_ROOT as a hint for where to look.
-if(NOT DEFINED BOOST_ROOT)
-    if(DEFINED ENV{BOOST_ROOT})
-        set(BOOST_ROOT "$ENV{BOOST_ROOT}")
-    else()
-        message(WARNING "BOOST_ROOT is undefined.\nIf Boost libraries fail to "
-            "be found, try setting -DBOOST_ROOT=/path/to/boost on the CMake "
-            "command line.\n")
-    endif()
-endif()
-
 # Linking statically to Boost is easier for prototyping. For multi-module
 # projects we'll want to use shared libraries and defined -DBOOST_ALL_DYN_LINK
 # or the like.
