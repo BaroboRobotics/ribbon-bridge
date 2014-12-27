@@ -6,11 +6,13 @@
 #include "rpc/asio/waitmultiplecompleter.hpp"
 #include "rpc/asio/tcppolyserver.hpp" // for to_string
 
-#include <boost/asio.hpp>
+#include <boost/asio/async_result.hpp>
+#include <boost/asio/io_service.hpp>
+#include <boost/asio/strand.hpp>
 
-#include <boost/log/common.hpp>
 #include <boost/log/sources/logger.hpp>
 #include <boost/log/utility/manipulators/add_value.hpp>
+#include <boost/log/sources/record_ostream.hpp>
 
 #include <chrono>
 

@@ -8,10 +8,16 @@
 
 #include <boost/optional.hpp>
 
-#include <boost/asio.hpp>
+#include <boost/asio/async_result.hpp>
+#include <boost/asio/basic_io_object.hpp>
+#include <boost/asio/error.hpp>
+#include <boost/asio/handler_invoke_hook.hpp>
+#include <boost/asio/io_service.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/strand.hpp>
 
-#include <boost/log/common.hpp>
 #include <boost/log/sources/logger.hpp>
+#include <boost/log/sources/record_ostream.hpp>
 
 #include <map>
 #include <memory>

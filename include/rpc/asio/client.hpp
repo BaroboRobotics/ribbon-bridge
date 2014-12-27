@@ -4,15 +4,18 @@
 #include "rpc/system_error.hpp"
 #include "rpc/version.hpp"
 
-#include <boost/asio.hpp>
 #include <boost/asio/async_result.hpp>
+#include <boost/asio/buffer.hpp>
+#include <boost/asio/io_service.hpp>
 #include <boost/asio/steady_timer.hpp>
+#include <boost/asio/strand.hpp>
 
 #include <boost/unordered_map.hpp>
 
-#include <boost/log/common.hpp>
+#include <boost/log/attributes/constant.hpp>
 #include <boost/log/sources/logger.hpp>
 #include <boost/log/utility/manipulators/add_value.hpp>
+#include <boost/log/sources/record_ostream.hpp>
 
 #include <atomic>
 #include <memory>

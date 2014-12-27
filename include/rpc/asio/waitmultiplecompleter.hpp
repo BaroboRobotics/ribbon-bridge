@@ -1,6 +1,15 @@
 #ifndef RPC_ASIO_WAITMULTIPLECOMPLETER_HPP
 #define RPC_ASIO_WAITMULTIPLECOMPLETER_HPP
 
+#include <boost/asio/io_service.hpp>
+
+#include <boost/log/sources/logger.hpp>
+#include <boost/log/sources/record_ostream.hpp>
+
+#include <memory>
+#include <functional>
+#include <exception>
+
 namespace rpc {
 namespace asio {
 
