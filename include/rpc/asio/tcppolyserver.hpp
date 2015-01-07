@@ -161,12 +161,10 @@ public:
         voidReceives(boost::asio::error::operation_aborted);
     }
 
-    void init (boost::log::sources::logger log) {
+    void init (Tcp::endpoint endpoint, boost::log::sources::logger log) {
         mLogPrototype = mLog = log;
         mLog.add_attribute("Protocol", boost::log::attributes::constant<std::string>("RB-PS"));
-    }
 
-    void listen (Tcp::endpoint endpoint) {
         // Replicate what the Tcp::acceptor(ioService, endpoint) ctor would do.
         mAcceptor.open(endpoint.protocol());
         mAcceptor.set_option(boost::asio::socket_base::reuse_address(true));
@@ -175,7 +173,7 @@ public:
         accept();
     }
 
-    boost::asio::ip::tcp::endpoint endpoint () const {
+    Tcp::endpoint endpoint () const {
         return mAcceptor.local_endpoint();
     }
 
@@ -431,12 +429,8 @@ public:
         impl->close(ec);
     }
 
-    void init (implementation_type& impl, boost::log::sources::logger log) {
-        impl->init(log);
-    }
-
-    void listen (implementation_type& impl, boost::asio::ip::tcp::endpoint endpoint) {
-        impl->listen(endpoint);
+    void init (implementation_type& impl, Tcp::endpoint endpoint, boost::log::sources::logger log) {
+        impl->init(endpoint, log);
     }
 
     Tcp::endpoint endpoint (const implementation_type& impl) const {
@@ -493,10 +487,10 @@ public:
     using RequestHandlerSignature = typename Service::RequestHandlerSignature;
     using RequestHandler = typename Service::RequestHandler;
 
-    BasicTcpPolyServer (IoService& ioService, boost::log::sources::logger log)
+    BasicTcpPolyServer (IoService& ioService, Tcp::endpoint endpoint, boost::log::sources::logger log)
         : boost::asio::basic_io_object<Service>(ioService)
     {
-        this->get_service().init(this->get_implementation(), log);
+        this->get_service().init(this->get_implementation(), endpoint, log);
     }
 
     void close () {
@@ -509,10 +503,6 @@ public:
 
     void close (boost::system::error_code& ec) {
         this->get_service().close(this->get_implementation(), ec);
-    }
-
-    void listen (Tcp::endpoint endpoint) {
-        this->get_service().listen(this->get_implementation(), endpoint);
     }
 
     Tcp::endpoint endpoint () const {
