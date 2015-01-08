@@ -56,6 +56,16 @@ struct RunSubServerOperation : std::enable_shared_from_this<RunSubServerOperatio
 
     void stepOne (Handler handler, boost::system::error_code ec) {
         if (!ec) {
+            auto self = this->shared_from_this();
+            mSubServer->messageQueue().asyncKeepalive(
+                [self, this] (boost::system::error_code ec) {
+                    if (boost::asio::error::operation_aborted != ec) {
+                        auto log = mSubServer->log();
+                        BOOST_LOG(log) << "Subserver died with " << ec.message();
+                        mSubServer->close();
+                    }
+                });
+
             asyncWaitForConnection(*mSubServer, mStrand.wrap(
                 std::bind(&RunSubServerOperation::stepTwo,
                     this->shared_from_this(), handler, _1, _2)));
@@ -95,6 +105,8 @@ struct RunSubServerOperation : std::enable_shared_from_this<RunSubServerOperatio
             mIos.post(std::bind(handler, ec));
         }
     }
+
+    mutable boost::log::sources::logger mLog;
 
     boost::asio::io_service& mIos;
     boost::asio::io_service::strand mStrand;
@@ -251,14 +263,6 @@ private:
                 std::bind(&TcpPolyServerImpl::pushRequest, this->shared_from_this(), *peer, _1, _2),
                 mStrand.wrap(std::bind(&TcpPolyServerImpl::handleSubServerFinished,
                     this->shared_from_this(), *peer, _1)));
-
-            auto self = this->shared_from_this();
-            subServer->messageQueue().asyncKeepalive([self, this, subServer] (boost::system::error_code ec) {
-                if (boost::asio::error::operation_aborted != ec) {
-                    BOOST_LOG(mLog) << "Subserver died with " << ec.message();
-                    subServer->close();
-                }
-            });
             accept();
         }
         else {
