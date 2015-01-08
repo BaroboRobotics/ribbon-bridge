@@ -1,6 +1,8 @@
 #ifndef RPC_ASIO_CLIENT_HPP
 #define RPC_ASIO_CLIENT_HPP
 
+#include "rpc/componenttraits.hpp"
+#include "rpc/message.hpp"
 #include "rpc/system_error.hpp"
 #include "rpc/version.hpp"
 
