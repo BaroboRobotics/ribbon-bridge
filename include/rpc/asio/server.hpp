@@ -274,10 +274,9 @@ asyncWaitForConnection (S& server, Handler&& handler) {
     return init.result.get();
 }
 
-template <class S, class Impl, class Handler>
-struct ServeUntilDisconnectionOperation : std::enable_shared_from_this<ServeUntilDisconnectionOperation<S, Impl, Handler>> {
+template <class Interface, class S, class Impl, class Handler>
+struct ServeUntilDisconnectionOperation : std::enable_shared_from_this<ServeUntilDisconnectionOperation<Interface, S, Impl, Handler>> {
     using RequestPair = typename S::RequestPair;
-    using Interface = typename Impl::Interface;
 
     ServeUntilDisconnectionOperation (S& server, Impl& impl)
         : mIos(server.get_io_service())
@@ -362,23 +361,22 @@ struct ServeUntilDisconnectionOperation : std::enable_shared_from_this<ServeUnti
     Impl& mImpl;
 };
 
-template <class S, class Impl, class Handler>
+template <class Interface, class S, class Impl, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, typename S::RequestHandlerSignature)
 asyncServeUntilDisconnection (S& server, Impl& impl, Handler&& handler) {
     boost::asio::detail::async_result_init<
         Handler, typename S::RequestHandlerSignature
     > init { std::forward<Handler>(handler) };
 
-    using Op = ServeUntilDisconnectionOperation<S, Impl, decltype(init.handler)>;
+    using Op = ServeUntilDisconnectionOperation<Interface, S, Impl, decltype(init.handler)>;
     std::make_shared<Op>(server, impl)->start(init.handler);
 
     return init.result.get();
 }
 
-template <class S, class Impl, class Handler>
-struct RunServerOperation : std::enable_shared_from_this<RunServerOperation<S, Impl, Handler>> {
+template <class Interface, class S, class Impl, class Handler>
+struct RunServerOperation : std::enable_shared_from_this<RunServerOperation<Interface, S, Impl, Handler>> {
     using RequestPair = typename S::RequestPair;
-    using Interface = typename Impl::Interface;
 
     RunServerOperation (S& server, Impl& impl)
         : mIos(server.get_io_service())
@@ -411,7 +409,7 @@ struct RunServerOperation : std::enable_shared_from_this<RunServerOperation<S, I
         if (!ec) {
             auto log = mServer.log();
             BOOST_LOG(log) << "now serving!";
-            asyncServeUntilDisconnection(mServer, mImpl, mStrand.wrap(
+            asyncServeUntilDisconnection<Interface>(mServer, mImpl, mStrand.wrap(
                 std::bind(&RunServerOperation::stepThree,
                     this->shared_from_this(), handler, _1, _2)));
         }
@@ -440,14 +438,14 @@ struct RunServerOperation : std::enable_shared_from_this<RunServerOperation<S, I
     Impl& mImpl;
 };
 
-template <class S, class Impl, class Handler>
+template <class Interface, class S, class Impl, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
 asyncRunServer (S& server, Impl& impl, Handler&& handler) {
     boost::asio::detail::async_result_init<
         Handler, void(boost::system::error_code)
     > init { std::forward<Handler>(handler) };
 
-    using Op = RunServerOperation<S, Impl, decltype(init.handler)>;
+    using Op = RunServerOperation<Interface, S, Impl, decltype(init.handler)>;
     std::make_shared<Op>(server, impl)->start(init.handler);
 
     return init.result.get();

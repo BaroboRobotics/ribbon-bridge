@@ -101,7 +101,6 @@ struct ForwardRequestsOperation : std::enable_shared_from_this<ForwardRequestsOp
     boost::asio::io_service::strand mStrand;
     C& mClient;
     S& mServer;
-    ForwardRequestsHandler mHandler;
 };
 
 template <class C, class S, class Handler>

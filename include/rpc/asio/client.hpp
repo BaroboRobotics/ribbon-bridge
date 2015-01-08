@@ -325,65 +325,6 @@ private:
     std::shared_ptr<Impl> mImpl;
 };
 
-// Make a connection request to the remote server. An rpc::ServiceInfo object
-// is passed to the connection handler.
-template <class RpcClient, class Duration, class Handler>
-BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code,ServiceInfo))
-asyncConnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
-    boost::asio::detail::async_result_init<
-        Handler, void(boost::system::error_code,ServiceInfo)
-    > init { std::forward<Handler>(handler) };
-    auto& realHandler = init.handler;
-
-    auto log = client.log();
-
-    barobo_rpc_Request request;
-    memset(&request, 0, sizeof(request));
-    request.type = barobo_rpc_Request_Type_CONNECT;
-    BOOST_LOG(log) << "sending CONNECT request";
-    client.asyncRequest(request, std::forward<Duration>(timeout),
-        [realHandler, log] (boost::system::error_code ec, barobo_rpc_Reply reply) mutable {
-            if (ec) {
-                BOOST_LOG(log) << "CONNECT request completed with error: " << ec.message();
-                realHandler(ec, ServiceInfo());
-                return;
-            }
-            switch (reply.type) {
-                case barobo_rpc_Reply_Type_SERVICEINFO:
-                    if (!reply.has_serviceInfo) {
-                        BOOST_LOG(log) << "CONNECT request completed with inconsistent SERVICEINFO reply";
-                        realHandler(Status::INCONSISTENT_REPLY, ServiceInfo());
-                    }
-                    else {
-                        BOOST_LOG(log) << "CONNECT request completed with SERVICEINFO (success)";
-                        realHandler(boost::system::error_code(), reply.serviceInfo);
-                    }
-                    break;
-                case barobo_rpc_Reply_Type_STATUS:
-                    if (!reply.has_status || barobo_rpc_Status_OK == reply.status.value) {
-                        BOOST_LOG(log) << "CONNECT request completed with inconsistent STATUS reply";
-                        realHandler(Status::INCONSISTENT_REPLY, ServiceInfo());
-                    }
-                    else {
-                        auto remoteEc = make_error_code(RemoteStatus(reply.status.value));
-                        BOOST_LOG(log) << "CONNECT request completed with STATUS: " << remoteEc.message();
-                        realHandler(remoteEc, ServiceInfo());
-                    }
-                    break;
-                case barobo_rpc_Reply_Type_RESULT:
-                    BOOST_LOG(log) << "CONNECT request completed with RESULT (inconsistent reply)";
-                    realHandler(Status::INCONSISTENT_REPLY, ServiceInfo());
-                    break;
-                default:
-                    BOOST_LOG(log) << "CONNECT request completed with unrecognized reply type";
-                    realHandler(Status::INCONSISTENT_REPLY, ServiceInfo());
-                    break;
-            }
-        });
-
-    return init.result.get();
-}
-
 // Make a disconnection request to the remote server.
 template <class RpcClient, class Duration, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
@@ -429,6 +370,87 @@ asyncDisconnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
                 default:
                     BOOST_LOG(log) << "DISCONNECT request completed with unrecognized reply type";
                     realHandler(Status::INCONSISTENT_REPLY);
+                    break;
+            }
+        });
+
+    return init.result.get();
+}
+
+// Make a connection request to the remote server, error on version mismatch.
+// FIXME I think it probably makes more sense for the client to pass version
+// information to the server, and let the server reject based on version
+// mismatch. This is less flexible (i.e., harder for the client to implement
+// multiple versions and adapt whatever the server's offering), but that
+// flexibility is unlikely to be useful any time soon, and if we make the
+// server in charge of rejecting version mismatches, we can guarantee that we
+// won't accidentally leave the server in a connected state.
+template <class Interface, class RpcClient, class Duration, class Handler>
+BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
+asyncConnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
+    boost::asio::detail::async_result_init<
+        Handler, void(boost::system::error_code)
+    > init { std::forward<Handler>(handler) };
+    auto& realHandler = init.handler;
+
+    auto log = client.log();
+
+    barobo_rpc_Request request;
+    memset(&request, 0, sizeof(request));
+    request.type = barobo_rpc_Request_Type_CONNECT;
+    BOOST_LOG(log) << "sending CONNECT request";
+    client.asyncRequest(request, std::forward<Duration>(timeout),
+        [&client, timeout, realHandler, log] (boost::system::error_code ec, barobo_rpc_Reply reply) mutable {
+            auto& ios = client.get_io_service();
+            if (ec) {
+                BOOST_LOG(log) << "CONNECT request completed with error: " << ec.message();
+                ios.post(std::bind(realHandler, ec));
+                return;
+            }
+            switch (reply.type) {
+                case barobo_rpc_Reply_Type_SERVICEINFO:
+                    if (!reply.has_serviceInfo) {
+                        BOOST_LOG(log) << "CONNECT request completed with inconsistent SERVICEINFO reply";
+                        ios.post(std::bind(realHandler, Status::INCONSISTENT_REPLY));
+                    }
+                    else {
+                        BOOST_LOG(log) << "CONNECT request completed with SERVICEINFO (success)";
+                        auto info = ServiceInfo{reply.serviceInfo};
+
+                        BOOST_LOG(log) << "Remote RPC version " << info.rpcVersion()
+                                       << ", interface version " << info.interfaceVersion();
+                        BOOST_LOG(log) << "Local RPC version " << rpc::Version<>::triplet()
+                                       << ", interface version " << rpc::Version<Interface>::triplet();
+
+                        if (info.rpcVersion() != rpc::Version<>::triplet() ||
+                            info.interfaceVersion() != rpc::Version<Interface>::triplet()) {
+                            asyncDisconnect(client, timeout, [&ios, realHandler] (boost::system::error_code) {
+                                ios.post(std::bind(realHandler, Status::VERSION_MISMATCH));
+                            });
+                        }
+                        else {
+                            ios.post(std::bind(realHandler, Status::OK));
+                        }
+                    }
+                    break;
+                case barobo_rpc_Reply_Type_STATUS:
+                    if (!reply.has_status || barobo_rpc_Status_OK == reply.status.value) {
+                        BOOST_LOG(log) << "CONNECT request completed with inconsistent STATUS reply";
+                        ios.post(std::bind(realHandler, Status::INCONSISTENT_REPLY));
+                    }
+                    else {
+                        auto remoteEc = make_error_code(RemoteStatus(reply.status.value));
+                        BOOST_LOG(log) << "CONNECT request completed with STATUS: " << remoteEc.message();
+                        ios.post(std::bind(realHandler, remoteEc));
+                    }
+                    break;
+                case barobo_rpc_Reply_Type_RESULT:
+                    BOOST_LOG(log) << "CONNECT request completed with RESULT (inconsistent reply)";
+                    ios.post(std::bind(realHandler, Status::INCONSISTENT_REPLY));
+                    break;
+                default:
+                    BOOST_LOG(log) << "CONNECT request completed with unrecognized reply type";
+                    ios.post(std::bind(realHandler, Status::INCONSISTENT_REPLY));
                     break;
             }
         });
@@ -514,10 +536,8 @@ asyncFire (RpcClient& client, Method args, Duration&& timeout, Handler&& handler
     return init.result.get();
 }
 
-template <class C, class Impl, class Handler>
-struct RunClientOperation : std::enable_shared_from_this<RunClientOperation<C, Impl, Handler>> {
-    using Interface = typename Impl::Interface;
-
+template <class Interface, class C, class Impl, class Handler>
+struct RunClientOperation : std::enable_shared_from_this<RunClientOperation<Interface, C, Impl, Handler>> {
     RunClientOperation (C& client, Impl& impl)
         : mIos(client.get_io_service())
         , mStrand(mIos)
@@ -567,14 +587,14 @@ struct RunClientOperation : std::enable_shared_from_this<RunClientOperation<C, I
     Impl& mImpl;
 };
 
-template <class C, class Impl, class Handler>
+template <class Interface, class C, class Impl, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
 asyncRunClient (C& client, Impl& impl, Handler&& handler) {
     boost::asio::detail::async_result_init<
         Handler, void(boost::system::error_code)
     > init { std::forward<Handler>(handler) };
 
-    using Op = RunClientOperation<C, Impl, decltype(init.handler)>;
+    using Op = RunClientOperation<Interface, C, Impl, decltype(init.handler)>;
     std::make_shared<Op>(client, impl)->start(init.handler);
 
     return init.result.get();
