@@ -64,8 +64,9 @@ struct ForwardRequestsOperation : std::enable_shared_from_this<ForwardRequestsOp
         }
         else {
             BOOST_LOG(log) << "ForwardRequestsOperation::stepOne: Error receiving request: " << ec.message();
-            mIos.post(std::bind(handler, ec));
             mClient.close();
+            mServer.close();
+            mIos.post(std::bind(handler, ec));
         }
     }
 
@@ -83,18 +84,20 @@ struct ForwardRequestsOperation : std::enable_shared_from_this<ForwardRequestsOp
         }
         else {
             BOOST_LOG(log) << "ForwardRequestsOperation::stepTwo: Error forwarding request: " << ec.message();
-            mIos.post(std::bind(handler, ec));
+            mClient.close();
             mServer.close();
+            mIos.post(std::bind(handler, ec));
         }
     }
 
     void stepThree (MultiHandler handler, boost::system::error_code ec) {
         auto log = mServer.log();
-        mIos.post(std::bind(handler, ec));
         if (ec) {
             BOOST_LOG(log) << "ForwardRequestsOperation: Error replying to request: " << ec.message();
             mClient.close();
+            mServer.close();
         }
+        mIos.post(std::bind(handler, ec));
     }
 
     boost::asio::io_service& mIos;
@@ -138,6 +141,8 @@ struct ForwardBroadcastsOperation : std::enable_shared_from_this<ForwardBroadcas
                     this->shared_from_this(), handler, _1)));
         }
         else {
+            mClient.close();
+            mServer.close();
             mIos.post(std::bind(handler, ec));
         }
     }
@@ -147,6 +152,8 @@ struct ForwardBroadcastsOperation : std::enable_shared_from_this<ForwardBroadcas
             start(handler);
         }
         else {
+            mClient.close();
+            mServer.close();
             mIos.post(std::bind(handler, ec));
         }
     }
