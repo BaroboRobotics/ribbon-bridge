@@ -22,7 +22,8 @@ enum class Status {
     rpc_Status_basic_enumeration,
 
     UNSOLICITED_REPLY,
-    UNRECOGNIZED_RESULT
+    UNRECOGNIZED_RESULT,
+    VERSION_MISMATCH
 };
 
 enum class RemoteStatus {

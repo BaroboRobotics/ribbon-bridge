@@ -4,11 +4,15 @@
 #include "rpc.pb.h"
 
 #include "rpc/asio/waitmultiplecompleter.hpp"
+#include "rpc/asio/tcppolyserver.hpp" // for to_string
 
-#include <boost/asio.hpp>
+#include <boost/asio/async_result.hpp>
+#include <boost/asio/io_service.hpp>
+#include <boost/asio/strand.hpp>
 
-#include <boost/log/common.hpp>
 #include <boost/log/sources/logger.hpp>
+#include <boost/log/utility/manipulators/add_value.hpp>
+#include <boost/log/sources/record_ostream.hpp>
 
 #include <chrono>
 
@@ -59,40 +63,47 @@ struct ForwardRequestsOperation : std::enable_shared_from_this<ForwardRequestsOp
             startImpl(handler);
         }
         else {
-            BOOST_LOG(log) << "ForwardRequestsOperation: Error receiving request: " << ec.message();
-            mIos.post(std::bind(handler, ec));
+            BOOST_LOG(log) << "ForwardRequestsOperation::stepOne: Error receiving request: " << ec.message();
             mClient.close();
+            mServer.close();
+            mIos.post(std::bind(handler, ec));
         }
     }
 
     void stepTwo (MultiHandler handler, RequestId requestId, boost::system::error_code ec, barobo_rpc_Reply reply) {
         auto log = mServer.log();
         if (!ec) {
+            using boost::log::add_value;
+            using std::to_string;
+            using rpc::asio::to_string;
+            BOOST_LOG(log) << add_value("RequestId", to_string(requestId))
+                           << "ForwardRequestsOperation::stepTwo: " << "Sending reply to client";
             mServer.asyncSendReply(requestId, reply, mStrand.wrap(
                 std::bind(&ForwardRequestsOperation::stepThree,
                     this->shared_from_this(), handler, _1)));
         }
         else {
-            BOOST_LOG(log) << "ForwardRequestsOperation: Error forwarding request: " << ec.message();
-            mIos.post(std::bind(handler, ec));
+            BOOST_LOG(log) << "ForwardRequestsOperation::stepTwo: Error forwarding request: " << ec.message();
+            mClient.close();
             mServer.close();
+            mIos.post(std::bind(handler, ec));
         }
     }
 
     void stepThree (MultiHandler handler, boost::system::error_code ec) {
         auto log = mServer.log();
-        mIos.post(std::bind(handler, ec));
         if (ec) {
             BOOST_LOG(log) << "ForwardRequestsOperation: Error replying to request: " << ec.message();
             mClient.close();
+            mServer.close();
         }
+        mIos.post(std::bind(handler, ec));
     }
 
     boost::asio::io_service& mIos;
     boost::asio::io_service::strand mStrand;
     C& mClient;
     S& mServer;
-    ForwardRequestsHandler mHandler;
 };
 
 template <class C, class S, class Handler>
@@ -130,6 +141,8 @@ struct ForwardBroadcastsOperation : std::enable_shared_from_this<ForwardBroadcas
                     this->shared_from_this(), handler, _1)));
         }
         else {
+            mClient.close();
+            mServer.close();
             mIos.post(std::bind(handler, ec));
         }
     }
@@ -139,6 +152,8 @@ struct ForwardBroadcastsOperation : std::enable_shared_from_this<ForwardBroadcas
             start(handler);
         }
         else {
+            mClient.close();
+            mServer.close();
             mIos.post(std::bind(handler, ec));
         }
     }

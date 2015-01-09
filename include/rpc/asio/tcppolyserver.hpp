@@ -8,10 +8,16 @@
 
 #include <boost/optional.hpp>
 
-#include <boost/asio.hpp>
+#include <boost/asio/async_result.hpp>
+#include <boost/asio/basic_io_object.hpp>
+#include <boost/asio/error.hpp>
+#include <boost/asio/handler_invoke_hook.hpp>
+#include <boost/asio/io_service.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/strand.hpp>
 
-#include <boost/log/common.hpp>
 #include <boost/log/sources/logger.hpp>
+#include <boost/log/sources/record_ostream.hpp>
 
 #include <map>
 #include <memory>
@@ -19,7 +25,6 @@
 #include <thread>
 #include <utility>
 
-static const std::chrono::milliseconds kSfpKeepaliveTimeout { 500 };
 
 namespace rpc {
 namespace asio {
@@ -51,6 +56,16 @@ struct RunSubServerOperation : std::enable_shared_from_this<RunSubServerOperatio
 
     void stepOne (Handler handler, boost::system::error_code ec) {
         if (!ec) {
+            auto self = this->shared_from_this();
+            mSubServer->messageQueue().asyncKeepalive(
+                [self, this] (boost::system::error_code ec) {
+                    if (boost::asio::error::operation_aborted != ec) {
+                        auto log = mSubServer->log();
+                        BOOST_LOG(log) << "Subserver died with " << ec.message();
+                        mSubServer->close();
+                    }
+                });
+
             asyncWaitForConnection(*mSubServer, mStrand.wrap(
                 std::bind(&RunSubServerOperation::stepTwo,
                     this->shared_from_this(), handler, _1, _2)));
@@ -90,6 +105,8 @@ struct RunSubServerOperation : std::enable_shared_from_this<RunSubServerOperatio
             mIos.post(std::bind(handler, ec));
         }
     }
+
+    mutable boost::log::sources::logger mLog;
 
     boost::asio::io_service& mIos;
     boost::asio::io_service::strand mStrand;
@@ -156,12 +173,10 @@ public:
         voidReceives(boost::asio::error::operation_aborted);
     }
 
-    void init (boost::log::sources::logger log) {
+    void init (Tcp::endpoint endpoint, boost::log::sources::logger log) {
         mLogPrototype = mLog = log;
         mLog.add_attribute("Protocol", boost::log::attributes::constant<std::string>("RB-PS"));
-    }
 
-    void listen (Tcp::endpoint endpoint) {
         // Replicate what the Tcp::acceptor(ioService, endpoint) ctor would do.
         mAcceptor.open(endpoint.protocol());
         mAcceptor.set_option(boost::asio::socket_base::reuse_address(true));
@@ -170,7 +185,7 @@ public:
         accept();
     }
 
-    boost::asio::ip::tcp::endpoint endpoint () const {
+    Tcp::endpoint endpoint () const {
         return mAcceptor.local_endpoint();
     }
 
@@ -248,13 +263,6 @@ private:
                 std::bind(&TcpPolyServerImpl::pushRequest, this->shared_from_this(), *peer, _1, _2),
                 mStrand.wrap(std::bind(&TcpPolyServerImpl::handleSubServerFinished,
                     this->shared_from_this(), *peer, _1)));
-
-            auto self = this->shared_from_this();
-            asyncKeepalive(subServer->messageQueue(), kSfpKeepaliveTimeout,
-                [self, this, subServer] (boost::system::error_code ec) {
-                    BOOST_LOG(mLog) << "Subserver died with " << ec.message();
-                    subServer->close();
-                });
             accept();
         }
         else {
@@ -400,14 +408,13 @@ public:
                 BOOST_LOG(log) << "TcpPolyServerService died with " << e.what();
             }
             catch (...) {
-                BOOST_LOG(log) << "SFP MessageQueueService died by unknown cause";
+                BOOST_LOG(log) << "TcpPolyServerService died by unknown cause";
             }
         })
     {}
 
     ~TcpPolyServerService () {
         mAsyncWork = boost::none;
-        mAsyncIoService.stop();
         mAsyncThread.join();
     }
 
@@ -426,12 +433,8 @@ public:
         impl->close(ec);
     }
 
-    void init (implementation_type& impl, boost::log::sources::logger log) {
-        impl->init(log);
-    }
-
-    void listen (implementation_type& impl, boost::asio::ip::tcp::endpoint endpoint) {
-        impl->listen(endpoint);
+    void init (implementation_type& impl, Tcp::endpoint endpoint, boost::log::sources::logger log) {
+        impl->init(endpoint, log);
     }
 
     Tcp::endpoint endpoint (const implementation_type& impl) const {
@@ -488,10 +491,10 @@ public:
     using RequestHandlerSignature = typename Service::RequestHandlerSignature;
     using RequestHandler = typename Service::RequestHandler;
 
-    BasicTcpPolyServer (IoService& ioService, boost::log::sources::logger log)
+    BasicTcpPolyServer (IoService& ioService, Tcp::endpoint endpoint, boost::log::sources::logger log)
         : boost::asio::basic_io_object<Service>(ioService)
     {
-        this->get_service().init(this->get_implementation(), log);
+        this->get_service().init(this->get_implementation(), endpoint, log);
     }
 
     void close () {
@@ -504,10 +507,6 @@ public:
 
     void close (boost::system::error_code& ec) {
         this->get_service().close(this->get_implementation(), ec);
-    }
-
-    void listen (Tcp::endpoint endpoint) {
-        this->get_service().listen(this->get_implementation(), endpoint);
     }
 
     Tcp::endpoint endpoint () const {
@@ -544,6 +543,12 @@ public:
 };
 
 using TcpPolyServer = BasicTcpPolyServer<>;
+
+std::string to_string (TcpPolyServer::RequestId rid) {
+    std::ostringstream oss;
+    oss << rid.first << "/" << rid.second;
+    return oss.str();
+}
 
 } // namespace asio
 } // namespace rpc

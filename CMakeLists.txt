@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.12)
 project(rpc C CXX)
 
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 1)
+set(VERSION_MINOR 2)
 set(VERSION_PATCH 0)
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
@@ -22,6 +22,9 @@ if(AVR)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 endif()
 
+include(LinkbotLabs)
+ll_add_dependency(cxx-util cxx-util)
+
 ##############################################################################
 # Configure our project given the available features
 
@@ -37,17 +40,6 @@ configure_file(config.hpp.in include/rpc/config.hpp)
 
 ##############################################################################
 # Boost
-
-# FindBoost.cmake uses BOOST_ROOT as a hint for where to look.
-if(NOT DEFINED BOOST_ROOT)
-    if(DEFINED ENV{BOOST_ROOT})
-        set(BOOST_ROOT "$ENV{BOOST_ROOT}")
-    else()
-        message(WARNING "BOOST_ROOT is undefined.\nIf Boost libraries fail to "
-            "be found, try setting -DBOOST_ROOT=/path/to/boost on the CMake "
-            "command line.\n")
-    endif()
-endif()
 
 # Linking statically to Boost is easier for prototyping. For multi-module
 # projects we'll want to use shared libraries and defined -DBOOST_ALL_DYN_LINK

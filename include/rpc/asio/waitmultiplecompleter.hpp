@@ -1,13 +1,22 @@
 #ifndef RPC_ASIO_WAITMULTIPLECOMPLETER_HPP
 #define RPC_ASIO_WAITMULTIPLECOMPLETER_HPP
 
+#include <boost/asio/io_service.hpp>
+
+#include <boost/log/sources/logger.hpp>
+#include <boost/log/sources/record_ostream.hpp>
+
+#include <memory>
+#include <functional>
+#include <exception>
+
 namespace rpc {
 namespace asio {
 
 // Create an object of this type, then copy it as much as you want, passing it
 // as a handler to multiple asynchronous operations producing an error_code.
 // When the last copy is destroyed, the original handler is posted with the
-// last erroneous error_code received, or success if no errors were reported.
+// first erroneous error_code received, or success if no errors were reported.
 template <class Handler>
 class WaitMultipleCompleter {
     struct Impl {

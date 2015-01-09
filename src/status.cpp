@@ -17,6 +17,7 @@ const char* statusToString (Status status) {
 
         ITEM(UNSOLICITED_REPLY);
         ITEM(UNRECOGNIZED_RESULT);
+        ITEM(VERSION_MISMATCH);
         default:
             return "(unknown status)";
     }
