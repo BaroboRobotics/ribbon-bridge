@@ -25,7 +25,6 @@
 #include <thread>
 #include <utility>
 
-
 namespace rpc {
 namespace asio {
 
@@ -49,33 +48,22 @@ struct RunSubServerOperation : std::enable_shared_from_this<RunSubServerOperatio
     {}
 
     void start (Handler handler) {
-        mSubServer->messageQueue().asyncHandshake(mStrand.wrap(
+        auto self = this->shared_from_this();
+        mSubServer->messageQueue().asyncKeepalive(
+            [self, this] (boost::system::error_code ec) {
+                if (boost::asio::error::operation_aborted != ec) {
+                    auto log = mSubServer->log();
+                    BOOST_LOG(log) << "Subserver died with " << ec.message();
+                    mSubServer->close();
+                }
+            });
+
+        asyncWaitForConnection(*mSubServer, mStrand.wrap(
             std::bind(&RunSubServerOperation::stepOne,
-                this->shared_from_this(), handler, _1)));
+                this->shared_from_this(), handler, _1, _2)));
     }
 
-    void stepOne (Handler handler, boost::system::error_code ec) {
-        if (!ec) {
-            auto self = this->shared_from_this();
-            mSubServer->messageQueue().asyncKeepalive(
-                [self, this] (boost::system::error_code ec) {
-                    if (boost::asio::error::operation_aborted != ec) {
-                        auto log = mSubServer->log();
-                        BOOST_LOG(log) << "Subserver died with " << ec.message();
-                        mSubServer->close();
-                    }
-                });
-
-            asyncWaitForConnection(*mSubServer, mStrand.wrap(
-                std::bind(&RunSubServerOperation::stepTwo,
-                    this->shared_from_this(), handler, _1, _2)));
-        }
-        else {
-            mIos.post(std::bind(handler, ec));
-        }
-    }
-
-    void stepTwo (Handler handler, boost::system::error_code ec, RequestPair rp) {
+    void stepOne (Handler handler, boost::system::error_code ec, RequestPair rp) {
         auto log = mSubServer->log();
         if (!ec) {
             auto& requestId = rp.first;
@@ -96,7 +84,7 @@ struct RunSubServerOperation : std::enable_shared_from_this<RunSubServerOperatio
                 asio_handler_invoke(std::bind(mRequestFunc, requestId, request), &handler);
                 // recurse
                 mSubServer->asyncReceiveRequest(mStrand.wrap(
-                    std::bind(&RunSubServerOperation::stepTwo,
+                    std::bind(&RunSubServerOperation::stepOne,
                         this->shared_from_this(), handler, _1, _2)));
             }
         }
@@ -249,6 +237,23 @@ private:
                        std::shared_ptr<SubServer> subServer,
                        boost::system::error_code ec) {
         if (!ec) {
+            subServer->messageQueue().asyncHandshake(mStrand.wrap(
+                std::bind(&TcpPolyServerImpl::handleHandshake,
+                    this->shared_from_this(), peer, subServer, _1)));
+        }
+        else {
+            BOOST_LOG(mLog) << "Error accepting new connection: " << ec.message();
+            if (boost::asio::error::operation_aborted != ec) {
+                BOOST_LOG(mLog) << "This could be a serious problem...";
+                assert(false);
+            }
+        }
+    }
+
+    void handleHandshake (std::shared_ptr<Tcp::endpoint> peer,
+                       std::shared_ptr<SubServer> subServer,
+                       boost::system::error_code ec) {
+        if (!ec) {
             decltype(mSubServers)::iterator iter;
             bool success;
             {
@@ -266,10 +271,9 @@ private:
             accept();
         }
         else {
-            BOOST_LOG(mLog) << "Error accepting new connection: " << ec.message();
+            BOOST_LOG(mLog) << "Handshake error with " << *peer << ": " << ec.message();
             if (boost::asio::error::operation_aborted != ec) {
-                BOOST_LOG(mLog) << "This could be a serious problem...";
-                assert(false);
+                subServer->close();
             }
         }
     }
