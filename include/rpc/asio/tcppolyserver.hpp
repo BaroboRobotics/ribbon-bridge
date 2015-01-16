@@ -6,6 +6,8 @@
 
 #include "sfp/asio/messagequeue.hpp"
 
+#include "util/benchmarkedlock.hpp"
+
 #include <boost/optional.hpp>
 
 #include <boost/asio/async_result.hpp>
@@ -149,7 +151,7 @@ public:
             BOOST_LOG(mLog) << "Error closing acceptor: " << ec.message();
         }
         {
-            std::lock_guard<std::mutex> lock { mSubServersMutex };
+            auto lock = util::BenchmarkedLock{mSubServersMutex};
             for (auto& kv : mSubServers) {
                 kv.second->close(ec);
                 if (ec) {
@@ -257,7 +259,7 @@ private:
             decltype(mSubServers)::iterator iter;
             bool success;
             {
-                std::lock_guard<std::mutex> lock { mSubServersMutex };
+                auto lock = util::BenchmarkedLock{mSubServersMutex};
                 std::tie(iter, success) = mSubServers.insert(std::make_pair(*peer, subServer));
             }
             assert(success);
@@ -285,7 +287,7 @@ private:
 
     void handleSubServerFinished (Tcp::endpoint peer, boost::system::error_code ec) {
         BOOST_LOG(mLog) << "Subserver " << peer << " finished with " << ec.message();
-        std::lock_guard<std::mutex> lock { mSubServersMutex };
+        auto lock = util::BenchmarkedLock{mSubServersMutex};
         auto iter = mSubServers.find(peer);
         if (iter != mSubServers.end()) {
             iter->second->messageQueue().stream().close();
@@ -308,7 +310,7 @@ private:
     }
 
     void asyncSendReplyImpl (IoService::work work, RequestId requestId, barobo_rpc_Reply reply, ReplyHandler handler) {
-        std::lock_guard<std::mutex> lock { mSubServersMutex };
+        auto lock = util::BenchmarkedLock{mSubServersMutex};
         auto iter = mSubServers.find(requestId.first);
         if (iter != mSubServers.end()) {
             iter->second->asyncSendReply(requestId.second, reply,
@@ -335,7 +337,7 @@ private:
     void asyncSendBroadcastImpl (IoService::work work, barobo_rpc_Broadcast broadcast, BroadcastHandler handler) {
         auto& ios = work.get_io_service();
         WaitMultipleCompleter<BroadcastHandler> completer { ios, handler };
-        std::lock_guard<std::mutex> lock { mSubServersMutex };
+        auto lock = util::BenchmarkedLock{mSubServersMutex};
         for (auto& kv : mSubServers) {
             BOOST_LOG(mLog) << "Broadcasting to " << kv.first;
             kv.second->asyncSendBroadcast(broadcast, completer);
