@@ -187,7 +187,6 @@ private:
             startReceiveCoroutine();
             using boost::log::add_value;
             using std::to_string;
-            BOOST_LOG(mLog) << add_value("RequestId", to_string(requestId)) << "emplaced reply handler";
         }
 
         template <class Duration>
@@ -205,7 +204,6 @@ private:
                     m->handleReply(requestId, boost::asio::error::timed_out, barobo_rpc_Reply());
                 }
             }));
-            BOOST_LOG(mLog) << add_value("RequestId", to_string(requestId)) << "emplaced reply timeout";
         }
 
         void postReplies () {
