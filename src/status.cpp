@@ -14,6 +14,7 @@ const char* statusToString (Status status) {
         ITEM(NO_SUCH_COMPONENT);
         ITEM(NOT_CONNECTED);
         ITEM(CONNECTION_REFUSED);
+        ITEM(TIMED_OUT);
 
         ITEM(UNSOLICITED_REPLY);
         ITEM(UNRECOGNIZED_RESULT);
@@ -36,6 +37,7 @@ const char* statusToString (RemoteStatus status) {
         ITEM(NO_SUCH_COMPONENT);
         ITEM(NOT_CONNECTED);
         ITEM(CONNECTION_REFUSED);
+        ITEM(TIMED_OUT);
         default:
             return "(unknown remote status)";
     }

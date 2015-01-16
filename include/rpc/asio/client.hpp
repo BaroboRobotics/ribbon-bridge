@@ -201,7 +201,7 @@ private:
             timer.async_wait(mStrand.wrap([m, requestId] (boost::system::error_code ec) {
                 if (!ec) {
                     BOOST_LOG(m->mLog) << add_value("RequestId", to_string(requestId)) << "timed out";
-                    m->handleReply(requestId, boost::asio::error::timed_out, barobo_rpc_Reply());
+                    m->handleReply(requestId, Status::TIMED_OUT, barobo_rpc_Reply());
                 }
             }));
         }

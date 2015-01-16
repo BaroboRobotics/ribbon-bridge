@@ -72,15 +72,23 @@ struct ForwardRequestsOperation : std::enable_shared_from_this<ForwardRequestsOp
 
     void stepTwo (MultiHandler handler, RequestId requestId, boost::system::error_code ec, barobo_rpc_Reply reply) {
         auto log = mServer.log();
+        using boost::log::add_value;
+        using std::to_string;
+        using rpc::asio::to_string;
+
+        auto next = mStrand.wrap(
+            std::bind(&ForwardRequestsOperation::stepThree,
+                this->shared_from_this(), handler, _1));
+
         if (!ec) {
-            using boost::log::add_value;
-            using std::to_string;
-            using rpc::asio::to_string;
             BOOST_LOG(log) << add_value("RequestId", to_string(requestId))
-                           << "ForwardRequestsOperation::stepTwo: " << "Sending reply to client";
-            mServer.asyncSendReply(requestId, reply, mStrand.wrap(
-                std::bind(&ForwardRequestsOperation::stepThree,
-                    this->shared_from_this(), handler, _1)));
+                           << "ForwardRequestsOperation::stepTwo: Forwarding reply to client";
+            mServer.asyncSendReply(requestId, reply, next);
+        }
+        else if (Status::TIMED_OUT == ec) {
+            BOOST_LOG(log) << add_value("RequestId", to_string(requestId))
+                           << "ForwardRequestsOperation::stepTwo: Request timed out";
+            asyncReply(mServer, requestId, Status::TIMED_OUT, next);
         }
         else {
             BOOST_LOG(log) << "ForwardRequestsOperation::stepTwo: Error forwarding request: " << ec.message();
