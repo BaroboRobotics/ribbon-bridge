@@ -248,7 +248,7 @@ private:
                 }
 
                 if (nBytesTransferred) {
-                    BOOST_LOG(mLog) << "handleReceive: received " << nBytesTransferred << " bytes";
+                    //BOOST_LOG(mLog) << "handleReceive: received " << nBytesTransferred << " bytes";
                     barobo_rpc_ServerMessage message;
                     decode(message, buf->data(), nBytesTransferred);
 
