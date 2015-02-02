@@ -54,9 +54,9 @@ struct RunSubServerOperation : std::enable_shared_from_this<RunSubServerOperatio
         mSubServer->messageQueue().asyncKeepalive(
             [self, this] (boost::system::error_code ec) {
                 if (boost::asio::error::operation_aborted != ec) {
-                    auto log = mSubServer->log();
+                    auto log = this->mSubServer->log();
                     BOOST_LOG(log) << "Subserver died with " << ec.message();
-                    mSubServer->close();
+                    this->mSubServer->close();
                 }
             });
 
@@ -407,7 +407,7 @@ public:
             boost::log::sources::logger log;
             try {
                 boost::system::error_code ec;
-                auto nHandlers = mAsyncIoService.run(ec);
+                auto nHandlers = this->mAsyncIoService.run(ec);
                 BOOST_LOG(log) << "TcpPolyServerService: " << nHandlers << " completed with " << ec.message();
             }
             catch (std::exception& e) {

@@ -74,7 +74,7 @@ public:
                         barobo_rpc_ClientMessage message;
                         Status status;
                         rpc::decode(message, buf->data(), size, status);
-                        mMessageQueue.get_io_service().post(
+                        this->mMessageQueue.get_io_service().post(
                             std::bind(realHandler, status, std::make_pair(message.id, message.request)));
                     }
                     else {
@@ -82,7 +82,7 @@ public:
                     }
                 }
                 else {
-                    mMessageQueue.get_io_service().post(
+                    this->mMessageQueue.get_io_service().post(
                         std::bind(realHandler, ec, RequestPair()));
                 }
             });
