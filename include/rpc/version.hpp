@@ -7,6 +7,7 @@
 
 #ifdef HAVE_STDLIB
 #include <iostream>
+#include <string>
 #endif
 
 namespace rpc {

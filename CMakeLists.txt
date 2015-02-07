@@ -34,7 +34,12 @@ include(CheckLibraryExists)
 check_cxx_source_compiles("int main () { throw int(); }" HAVE_EXCEPTIONS)
 check_cxx_source_compiles("#include <typeinfo>
 int main () { (void)typeid(void); }" HAVE_RTTI)
-check_library_exists(stdc++ exit "" HAVE_STDLIB)
+
+if(WIN32)
+    set(HAVE_STDLIB ON)
+else()
+    check_library_exists(stdc++ exit "" HAVE_STDLIB)
+endif()
 
 configure_file(config.hpp.in include/rpc/config.hpp)
 

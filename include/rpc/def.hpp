@@ -261,7 +261,7 @@
 //////////////////////////////////////////////////////////////////////////////
 // Component Unions
 
-#define rpcdef_decl_method_input_object(s, interface, method) typename MethodIn<interface>::method method;
+#define rpcdef_decl_method_input_object(s, interface, method) MethodIn<interface>::method method;
 
 #define RPCDEF_ComponentInUnion(interface, methods) \
     template <> \
@@ -269,7 +269,7 @@
         BOOST_PP_SEQ_FOR_EACH(rpcdef_decl_method_input_object, interface, methods) \
     };
 
-#define rpcdef_decl_method_output_object(s, interface, method) typename MethodResult<interface>::method method;
+#define rpcdef_decl_method_output_object(s, interface, method) MethodResult<interface>::method method;
 
 #define RPCDEF_ComponentResultUnion(interface, methods) \
     template <> \
@@ -277,7 +277,7 @@
         BOOST_PP_SEQ_FOR_EACH(rpcdef_decl_method_output_object, interface, methods) \
     };
 
-#define rpcdef_decl_broadcast_object(s, interface, broadcast) typename Broadcast<interface>::broadcast broadcast;
+#define rpcdef_decl_broadcast_object(s, interface, broadcast) Broadcast<interface>::broadcast broadcast;
 
 #define RPCDEF_ComponentBroadcastUnion(interface, broadcasts) \
     template <> \

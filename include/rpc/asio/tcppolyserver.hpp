@@ -282,7 +282,7 @@ private:
         }
     }
 
-    void pushRequest (Tcp::endpoint peer, typename SubServer::RequestId requestId, barobo_rpc_Request request) {
+    void pushRequest (Tcp::endpoint peer, SubServer::RequestId requestId, barobo_rpc_Request request) {
         mInbox.push(std::make_pair(std::make_pair(peer, requestId), request));
         postReceives();
     }
