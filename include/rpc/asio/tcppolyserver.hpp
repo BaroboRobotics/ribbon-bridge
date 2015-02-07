@@ -56,7 +56,8 @@ struct RunSubServerOperation : std::enable_shared_from_this<RunSubServerOperatio
                 if (boost::asio::error::operation_aborted != ec) {
                     auto log = this->mSubServer->log();
                     BOOST_LOG(log) << "Subserver died with " << ec.message();
-                    this->mSubServer->close();
+                    ec = boost::system::error_code{};
+                    this->mSubServer->close(ec); // ignore error
                 }
             });
 
@@ -275,7 +276,8 @@ private:
         else {
             BOOST_LOG(mLog) << "Handshake error with " << *peer << ": " << ec.message();
             if (boost::asio::error::operation_aborted != ec) {
-                subServer->close();
+                ec = boost::system::error_code{};
+                subServer->close(ec); // ignore error
             }
         }
     }
@@ -290,7 +292,8 @@ private:
         auto lock = util::BenchmarkedLock{mSubServersMutex};
         auto iter = mSubServers.find(peer);
         if (iter != mSubServers.end()) {
-            iter->second->messageQueue().stream().close();
+            ec = boost::system::error_code{};
+            iter->second->close(ec); // ignore error
             mSubServers.erase(iter);
             BOOST_LOG(mLog) << peer << " erased; " << mSubServers.size() << " subservers remaining";
         }
