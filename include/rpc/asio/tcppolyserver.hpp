@@ -6,8 +6,6 @@
 
 #include "sfp/asio/messagequeue.hpp"
 
-#include "util/benchmarkedlock.hpp"
-
 #include <boost/optional.hpp>
 
 #include <boost/asio/async_result.hpp>
@@ -147,21 +145,9 @@ public:
     }
 
     void close (boost::system::error_code& ec) {
-        mAcceptor.close(ec);
-        if (ec) {
-            BOOST_LOG(mLog) << "Error closing acceptor: " << ec.message();
-        }
-        {
-            auto lock = util::BenchmarkedLock{mSubServersMutex};
-            for (auto& kv : mSubServers) {
-                kv.second->close(ec);
-                if (ec) {
-                    BOOST_LOG(mLog) << "Error closing subserver "
-                                    << kv.first << ": " << ec.message();
-                }
-            }
-        }
-        voidReceives(boost::asio::error::operation_aborted);
+        mStrand.post(std::bind(&TcpPolyServerImpl::closeImpl,
+            this->shared_from_this()));
+        ec = boost::system::error_code{};
     }
 
     void init (Tcp::endpoint endpoint, boost::log::sources::logger log) {
@@ -228,6 +214,22 @@ public:
     }
 
 private:
+    void closeImpl () {
+        boost::system::error_code ec;
+        mAcceptor.close(ec);
+        if (ec) {
+            BOOST_LOG(mLog) << "Error closing acceptor: " << ec.message();
+        }
+        for (auto& kv : mSubServers) {
+            kv.second->close(ec);
+            if (ec) {
+                BOOST_LOG(mLog) << "Error closing subserver "
+                                << kv.first << ": " << ec.message();
+            }
+        }
+        voidReceives(boost::asio::error::operation_aborted);
+    }
+
     void accept () {
         auto subServer = std::make_shared<SubServer>(mStrand.get_io_service(), mLogPrototype);
         auto peer = std::make_shared<Tcp::endpoint>();
@@ -259,10 +261,7 @@ private:
         if (!ec) {
             decltype(mSubServers)::iterator iter;
             bool success;
-            {
-                auto lock = util::BenchmarkedLock{mSubServersMutex};
-                std::tie(iter, success) = mSubServers.insert(std::make_pair(*peer, subServer));
-            }
+            std::tie(iter, success) = mSubServers.insert(std::make_pair(*peer, subServer));
             assert(success);
 
             BOOST_LOG(mLog) << "inserted subserver for " << *peer;
@@ -289,7 +288,6 @@ private:
 
     void handleSubServerFinished (Tcp::endpoint peer, boost::system::error_code ec) {
         BOOST_LOG(mLog) << "Subserver " << peer << " finished with " << ec.message();
-        auto lock = util::BenchmarkedLock{mSubServersMutex};
         auto iter = mSubServers.find(peer);
         if (iter != mSubServers.end()) {
             ec = boost::system::error_code{};
@@ -313,7 +311,6 @@ private:
     }
 
     void asyncSendReplyImpl (IoService::work work, RequestId requestId, barobo_rpc_Reply reply, ReplyHandler handler) {
-        auto lock = util::BenchmarkedLock{mSubServersMutex};
         auto iter = mSubServers.find(requestId.first);
         if (iter != mSubServers.end()) {
             iter->second->asyncSendReply(requestId.second, reply,
@@ -340,7 +337,6 @@ private:
     void asyncSendBroadcastImpl (IoService::work work, barobo_rpc_Broadcast broadcast, BroadcastHandler handler) {
         auto& ios = work.get_io_service();
         WaitMultipleCompleter<BroadcastHandler> completer { ios, handler };
-        auto lock = util::BenchmarkedLock{mSubServersMutex};
         for (auto& kv : mSubServers) {
             BOOST_LOG(mLog) << "Broadcasting to " << kv.first;
             kv.second->asyncSendBroadcast(broadcast, completer);
@@ -378,12 +374,11 @@ private:
     }
 
     IoService::strand mStrand;
-    Tcp::acceptor mAcceptor;
 
     SubServer::RequestId mNextRequestId = 0;
 
+    Tcp::acceptor mAcceptor;
     std::map<Tcp::endpoint, std::shared_ptr<SubServer>> mSubServers;
-    std::mutex mSubServersMutex;
 
     std::queue<std::pair<RequestId, barobo_rpc_Request>> mInbox;
     std::queue<std::pair<IoService::work, RequestHandler>> mReceives;
