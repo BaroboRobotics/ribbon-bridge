@@ -154,15 +154,13 @@ public:
         mLogPrototype = mLog = log;
         mLog.add_attribute("Protocol", boost::log::attributes::constant<std::string>("RB-PS"));
 
-        // Replicate what the Tcp::acceptor(ioService, endpoint) ctor would do.
-        mAcceptor.open(endpoint.protocol());
-        mAcceptor.set_option(boost::asio::socket_base::reuse_address(true));
-        mAcceptor.bind(endpoint);
-        mAcceptor.listen();
-        accept();
+        mDesiredEndpoint = endpoint;
+
+        mStrand.post(std::bind(&TcpPolyServerImpl::initAcceptor, this->shared_from_this()));
     }
 
     Tcp::endpoint endpoint () const {
+        // This may be different from mDesiredEndpoint, which may use service (port) "0".
         return mAcceptor.local_endpoint();
     }
 
@@ -214,20 +212,22 @@ public:
     }
 
 private:
-    void closeImpl () {
-        boost::system::error_code ec;
-        mAcceptor.close(ec);
-        if (ec) {
-            BOOST_LOG(mLog) << "Error closing acceptor: " << ec.message();
-        }
-        for (auto& kv : mSubServers) {
-            kv.second->close(ec);
+    void initAcceptor () {
+        if (mAcceptor.is_open()) {
+            boost::system::error_code ec;
+            mAcceptor.close(ec);
             if (ec) {
-                BOOST_LOG(mLog) << "Error closing subserver "
-                                << kv.first << ": " << ec.message();
+                BOOST_LOG(mLog) << "Error closing acceptor for reinitialization: " << ec.message();
             }
         }
-        voidReceives(boost::asio::error::operation_aborted);
+
+        // Replicate what the Tcp::acceptor(ioService, endpoint) ctor would do.
+        mAcceptor.open(mDesiredEndpoint.protocol());
+        mAcceptor.set_option(boost::asio::socket_base::reuse_address(true));
+        mAcceptor.bind(mDesiredEndpoint);
+        mAcceptor.listen();
+
+        accept();
     }
 
     void accept () {
@@ -245,12 +245,13 @@ private:
             subServer->messageQueue().asyncHandshake(mStrand.wrap(
                 std::bind(&TcpPolyServerImpl::handleHandshake,
                     this->shared_from_this(), peer, subServer, _1)));
+            accept();
         }
         else {
             BOOST_LOG(mLog) << "Error accepting new connection: " << ec.message();
             if (boost::asio::error::operation_aborted != ec) {
-                BOOST_LOG(mLog) << "This could be a serious problem...";
-                assert(false);
+                BOOST_LOG(mLog) << "Attempting to reinitialize acceptor";
+                initAcceptor();
             }
         }
     }
@@ -270,7 +271,6 @@ private:
                 std::bind(&TcpPolyServerImpl::pushRequest, this->shared_from_this(), *peer, _1, _2),
                 mStrand.wrap(std::bind(&TcpPolyServerImpl::handleSubServerFinished,
                     this->shared_from_this(), *peer, _1)));
-            accept();
         }
         else {
             BOOST_LOG(mLog) << "Handshake error with " << *peer << ": " << ec.message();
@@ -279,6 +279,22 @@ private:
                 subServer->close(ec); // ignore error
             }
         }
+    }
+
+    void closeImpl () {
+        boost::system::error_code ec;
+        mAcceptor.close(ec);
+        if (ec) {
+            BOOST_LOG(mLog) << "Error closing acceptor: " << ec.message();
+        }
+        for (auto& kv : mSubServers) {
+            kv.second->close(ec);
+            if (ec) {
+                BOOST_LOG(mLog) << "Error closing subserver "
+                                << kv.first << ": " << ec.message();
+            }
+        }
+        voidReceives(boost::asio::error::operation_aborted);
     }
 
     void pushRequest (Tcp::endpoint peer, SubServer::RequestId requestId, barobo_rpc_Request request) {
@@ -377,6 +393,7 @@ private:
 
     SubServer::RequestId mNextRequestId = 0;
 
+    Tcp::endpoint mDesiredEndpoint;
     Tcp::acceptor mAcceptor;
     std::map<Tcp::endpoint, std::shared_ptr<SubServer>> mSubServers;
 
