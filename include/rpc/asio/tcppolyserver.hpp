@@ -155,8 +155,7 @@ public:
         mLog.add_attribute("Protocol", boost::log::attributes::constant<std::string>("RB-PS"));
 
         mDesiredEndpoint = endpoint;
-
-        mStrand.post(std::bind(&TcpPolyServerImpl::initAcceptor, this->shared_from_this()));
+        initAcceptor();
     }
 
     Tcp::endpoint endpoint () const {
@@ -227,7 +226,7 @@ private:
         mAcceptor.bind(mDesiredEndpoint);
         mAcceptor.listen();
 
-        accept();
+        mStrand.post(std::bind(&TcpPolyServerImpl::accept, this->shared_from_this()));
     }
 
     void accept () {
