@@ -1,10 +1,8 @@
 #ifndef RPC_ASIO_TCPPOLYSERVER_HPP
 #define RPC_ASIO_TCPPOLYSERVER_HPP
 
-#include "rpc/asio/server.hpp"
+#include "rpc/asio/tcpserver.hpp"
 #include "rpc/asio/waitmultiplecompleter.hpp"
-
-#include "sfp/asio/messagequeue.hpp"
 
 #include <boost/optional.hpp>
 
@@ -30,7 +28,6 @@ namespace asio {
 
 using IoService = boost::asio::io_service;
 using namespace std::placeholders;
-using Tcp = boost::asio::ip::tcp;
 
 namespace detail {
 
@@ -120,7 +117,7 @@ asyncRunSubServer (std::shared_ptr<S> server, RequestFunc&& requestFunc, Handler
 
 class TcpPolyServerImpl : public std::enable_shared_from_this<TcpPolyServerImpl> {
 public:
-    using SubServer = Server<sfp::asio::MessageQueue<Tcp::socket>>;
+    using SubServer = TcpServer;
 
     using RequestId = std::pair<Tcp::endpoint, typename SubServer::RequestId>;
     using RequestPair = std::pair<RequestId, barobo_rpc_Request>;
