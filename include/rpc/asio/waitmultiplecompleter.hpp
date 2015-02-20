@@ -16,7 +16,9 @@ namespace asio {
 // Create an object of this type, then copy it as much as you want, passing it
 // as a handler to multiple asynchronous operations producing an error_code.
 // When the last copy is destroyed, the original handler is posted with the
-// first erroneous error_code received, or success if no errors were reported.
+// first non-operation_aborted error_code received, or operation_aborted if
+// only operation_aborted and success are received, or success if only success
+// error_codes were received.
 template <class Handler>
 class WaitMultipleCompleter {
     struct Impl {
@@ -25,14 +27,27 @@ class WaitMultipleCompleter {
             , mHandler(handler)
         {}
 
+        // We consider three kinds of errors: success, operation_aborted, and
+        // all others. In general, the "all others" category is the most
+        // interesting, because it is the only true error: operation_aborted
+        // just means that we, the programmer, canceled the operation.
+        // WaitMultipleCompleter::operator()'s job is to collect these errors
+        // such that mErrorCode contains the first reported non-success, non-
+        // operation_aborted error. If more than one such error is reported, we
+        // can squawk about it in the log. If no such error is reported,
+        // mErrorCode shall contain the logical OR of all reported errors,
+        // where operation_aborted is 1, success is 0.
         void operator() (boost::system::error_code ec) {
             if (ec) {
-                if (mErrorCode) {
-                    BOOST_LOG(mLog) << "multiple errors reported to a WaitMultipleCompleter, discarding "
-                                    << '"' << ec.message() << '"';
-                }
-                else {
+                // If we haven't recorded an error in the "all others" category yet...
+                if (!mErrorCode || boost::asio::error::operation_aborted == mErrorCode) {
                     mErrorCode = ec;
+                }
+                // If we have recorded an error in the "all others" category, but
+                // we have to deal with a second one...
+                else if (boost::asio::error::operation_aborted != ec) {
+                    BOOST_LOG(mLog) << "multiple non-operation_aborted errors reported to a WaitMultipleCompleter, discarding "
+                                    << '"' << ec.message() << '"';
                 }
             }
         }
