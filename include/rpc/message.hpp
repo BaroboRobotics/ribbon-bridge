@@ -11,42 +11,55 @@
 
 #include "rpc.pb.h"
 
-#include <pb_encode.h>
-#include <pb_decode.h>
-
 #define RPC_MESSAGE_MAX_SIZE 256
 
 namespace rpc {
 
-template <class M>
-const pb_field_t* pbFields (M);
+namespace _ {
 
-Status encodeProtobuf (const void* pbStruct, const pb_field_t* pbFields, uint8_t* bytes, size_t size, size_t& bytesWritten);
-Status decodeProtobuf (void* pbStruct, const pb_field_t* pbFields, uint8_t* bytes, size_t size);
+// Look up the pb_field_t* of a protobuf given its type (i.e., compile-time).
+template <class NanopbStruct>
+const pb_field_t* pbFieldPtr ();
 
-template <class T>
-void encode (const T& message, uint8_t* bytes, size_t size, size_t& bytesWritten, Status& status) {
-    status = encodeProtobuf(&message, pbFields(message), bytes, size, bytesWritten);
+// Look up the pb_field_t* of a protobuf given its interface and component ID,
+// (i.e., run-time).
+template <class Interface>
+const pb_field_t* pbFieldPtr (uint32_t);
+
+void encode (const void*, const pb_field_t*, uint8_t*, size_t, size_t&, Status&);
+void decode (void*, const pb_field_t*, uint8_t*, size_t size, Status&);
+
+} // namespace _
+
+template <class NanopbStruct>
+void encode (const NanopbStruct& message,
+    uint8_t* bytes, size_t size,
+    size_t& nWritten, Status& status) {
+    _::encode(&message, _::pbFieldPtr<NanopbStruct>(), bytes, size, nWritten, status);
 }
 
-template <class T>
-void decode (T& message, uint8_t* bytes, size_t size, Status& status) {
-    status = decodeProtobuf(&message, pbFields(message), bytes, size);
+template <class NanopbStruct>
+void decode (NanopbStruct& message,
+    uint8_t* bytes, size_t size, Status& status) {
+    _::decode(&message, _::pbFieldPtr<NanopbStruct>(), bytes, size, status);
 }
 
 #ifdef HAVE_EXCEPTIONS
 
-template <class T>
-void encode (const T& message, uint8_t* bytes, size_t size, size_t& bytesWritten) {
+template <class NanopbStruct>
+void encode (const NanopbStruct& message,
+    uint8_t* bytes, size_t size,
+    size_t& nWritten) {
     Status status;
-    encode(message, bytes, size, bytesWritten, status);
+    encode(message, bytes, size, nWritten, status);
     if (hasError(status)) {
         throw Error(status);
     }
 }
 
-template <class T>
-void decode (T& message, uint8_t* bytes, size_t size) {
+template <class NanopbStruct>
+void decode (NanopbStruct& message,
+    uint8_t* bytes, size_t size) {
     Status status;
     decode(message, bytes, size, status);
     if (hasError(status)) {
@@ -55,13 +68,6 @@ void decode (T& message, uint8_t* bytes, size_t size) {
 }
 
 #endif
-
-Status makeFire (uint8_t* bytes, size_t& size, uint32_t requestId,
-        uint32_t componentId, const pb_field_t* fields, void* payload);
-Status makeBroadcast (uint8_t* bytes, size_t& size,
-        uint32_t componentId, const pb_field_t* fields, void* payload);
-Status makeConnect (uint8_t* bytes, size_t& size, uint32_t requestId);
-Status makeDisconnect (uint8_t* bytes, size_t& size, uint32_t requestId);
 
 } // namespace rpc
 

@@ -286,17 +286,13 @@ struct ServeUntilDisconnectionOperation : std::enable_shared_from_this<ServeUnti
     {}
 
     barobo_rpc_Reply serve (barobo_rpc_Request_Fire fire, Status& status) {
-        ComponentInUnion<Interface> args;
+        MethodInUnion<Interface> m;
         barobo_rpc_Reply reply = decltype(reply)();
-
-        status = decodeFirePayload(args, fire.id, fire.payload);
+        m.invoke(mImpl, fire.id, fire.payload, reply.result.payload, status);
         if (!hasError(status)) {
-            status = invokeFire(mImpl, args, fire.id, reply.result.payload);
-            if (!hasError(status)) {
-                reply.type = barobo_rpc_Reply_Type_RESULT;
-                reply.has_result = true;
-                reply.result.id = fire.id;
-            }
+            reply.type = barobo_rpc_Reply_Type_RESULT;
+            reply.has_result = true;
+            reply.result.id = fire.id;
         }
         return reply;
     }
