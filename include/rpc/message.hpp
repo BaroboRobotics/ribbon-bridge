@@ -26,7 +26,7 @@ const pb_field_t* pbFieldPtr ();
 template <class Interface>
 const pb_field_t* pbFieldPtr (uint32_t);
 
-void encode (const void*, const pb_field_t*, uint8_t*, size_t, size_t&, Status&);
+void encode (const void*, const pb_field_t*, uint8_t*, size_t, pb_size_t&, Status&);
 void decode (void*, const pb_field_t*, uint8_t*, size_t size, Status&);
 
 } // namespace _
@@ -34,7 +34,7 @@ void decode (void*, const pb_field_t*, uint8_t*, size_t size, Status&);
 template <class NanopbStruct>
 void encode (const NanopbStruct& message,
     uint8_t* bytes, size_t size,
-    size_t& nWritten, Status& status) {
+    pb_size_t& nWritten, Status& status) {
     _::encode(&message, _::pbFieldPtr<NanopbStruct>(), bytes, size, nWritten, status);
 }
 
@@ -49,7 +49,7 @@ void decode (NanopbStruct& message,
 template <class NanopbStruct>
 void encode (const NanopbStruct& message,
     uint8_t* bytes, size_t size,
-    size_t& nWritten) {
+    pb_size_t& nWritten) {
     Status status;
     encode(message, bytes, size, nWritten, status);
     if (hasError(status)) {

@@ -19,7 +19,7 @@ const pb_field_t* pbFieldPtr<barobo_rpc_ServerMessage> () {
 
 void encode (const void* pbStruct, const pb_field_t* pbFields,
     uint8_t* bytes, size_t size,
-    size_t& nWritten, Status& status) {
+    pb_size_t& nWritten, Status& status) {
     auto stream = pb_ostream_from_buffer(bytes, size);
     status = Status::OK;
     if (!pb_encode(&stream, pbFields, pbStruct)) {

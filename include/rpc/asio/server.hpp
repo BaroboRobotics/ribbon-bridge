@@ -109,7 +109,7 @@ public:
 
         auto buf = std::make_shared<std::vector<uint8_t>>(1024);
         try {
-            size_t bytesWritten;
+            pb_size_t bytesWritten;
             rpc::encode(message, buf->data(), buf->size(), bytesWritten);
             buf->resize(bytesWritten);
             mMessageQueue.asyncSend(boost::asio::buffer(*buf),
@@ -143,7 +143,7 @@ public:
 
         auto buf = std::make_shared<std::vector<uint8_t>>(1024);
         try {
-            size_t bytesWritten;
+            pb_size_t bytesWritten;
             rpc::encode(message, buf->data(), buf->size(), bytesWritten);
             buf->resize(bytesWritten);
             mMessageQueue.asyncSend(boost::asio::buffer(*buf),

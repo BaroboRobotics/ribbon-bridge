@@ -175,7 +175,7 @@
 //////////////////////////////////////////////////////////////////////////////
 // Component Unions
 
-#if 0 //HAVE_CONSTEXPR_FUNCTION_TEMPLATES
+#if HAVE_CONSTEXPR_FUNCTION_TEMPLATES
 
 # define rpcdef_case_invoke_fire(s, interface, method) \
     case ::rpc::componentId(MethodIn<interface>::method{}): \
@@ -258,7 +258,6 @@
     if (iter != delegates.end()) { \
         iter->second(*this, client, in, status); \
     }
-
 
 #endif // HAVE_CONSTEXPR_FUNCTION_TEMPLATES
 
