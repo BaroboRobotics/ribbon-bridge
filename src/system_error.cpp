@@ -4,11 +4,11 @@ namespace rpc {
 
 // Local statuses
 
-const char* ErrorCategory::name () const noexcept {
+const char* ErrorCategory::name () const BOOST_NOEXCEPT {
     return "rpc";
 }
 
-std::string ErrorCategory::message (int ev) const noexcept {
+std::string ErrorCategory::message (int ev) const BOOST_NOEXCEPT {
     return statusToString(static_cast<Status>(ev));
 }
 
@@ -29,11 +29,11 @@ boost::system::error_condition make_error_condition (Status status) {
 
 // Remote statuses
 
-const char* RemoteErrorCategory::name () const noexcept {
+const char* RemoteErrorCategory::name () const BOOST_NOEXCEPT {
     return "rpc-remote";
 }
 
-std::string RemoteErrorCategory::message (int ev) const noexcept {
+std::string RemoteErrorCategory::message (int ev) const BOOST_NOEXCEPT {
     return statusToString(static_cast<RemoteStatus>(ev));
 }
 

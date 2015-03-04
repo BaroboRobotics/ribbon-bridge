@@ -19,13 +19,13 @@
 namespace rpc {
 namespace asio {
 
-using ForwardRequestsHandlerSignature = void(boost::system::error_code);
+typedef void ForwardRequestsHandlerSignature(boost::system::error_code);
 using ForwardRequestsHandler = std::function<ForwardRequestsHandlerSignature>;
 
-using ForwardBroadcastsHandlerSignature = void(boost::system::error_code);
+typedef void ForwardBroadcastsHandlerSignature(boost::system::error_code);
 using ForwardBroadcastsHandler = std::function<ForwardBroadcastsHandlerSignature>;
 
-using RunProxyHandlerSignature = void(boost::system::error_code);
+typedef void RunProxyHandlerSignature(boost::system::error_code);
 using RunProxyHandler = std::function<RunProxyHandlerSignature>;
 
 template <class C, class S, class Handler>

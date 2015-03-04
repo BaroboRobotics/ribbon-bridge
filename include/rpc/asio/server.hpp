@@ -24,7 +24,7 @@ public:
     using RequestId = uint32_t;
     using RequestPair = std::pair<RequestId, barobo_rpc_Request>;
 
-    using RequestHandlerSignature = void(boost::system::error_code, RequestPair);
+    typedef void RequestHandlerSignature(boost::system::error_code, RequestPair);
     using RequestHandler = std::function<RequestHandlerSignature>;
 
 	explicit Server (boost::asio::io_service& ios, boost::log::sources::logger log)

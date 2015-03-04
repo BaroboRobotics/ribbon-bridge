@@ -55,10 +55,10 @@
 #define RPCDEF_Version(interface, version) \
     template <> \
     struct Version<interface> { \
-        constexpr static const uint32_t major = BOOST_PP_TUPLE_ELEM(0, version); \
-        constexpr static const uint32_t minor = BOOST_PP_TUPLE_ELEM(1, version); \
-        constexpr static const uint32_t patch = BOOST_PP_TUPLE_ELEM(2, version); \
-        constexpr static VersionTriplet triplet () { return { major, minor, patch }; } \
+        static const uint32_t major = BOOST_PP_TUPLE_ELEM(0, version); \
+        static const uint32_t minor = BOOST_PP_TUPLE_ELEM(1, version); \
+        static const uint32_t patch = BOOST_PP_TUPLE_ELEM(2, version); \
+        static VersionTriplet triplet () { return { major, minor, patch }; } \
     };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -92,7 +92,7 @@
 #define rpcdef_define_true_metafunc(s, metafuncname, componentStruct) \
     template <> \
     struct metafuncname<componentStruct> { \
-        constexpr static const bool value = true; \
+        static const bool value = true; \
     };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -298,9 +298,15 @@
 //////////////////////////////////////////////////////////////////////////////
 // Component IDs
 
+#if HAVE_CONSTEXPR_FUNCTION_TEMPLATES
+# define rpcdef_constexpr constexpr
+#else
+# define rpcdef_constexpr static inline
+#endif
+
 #define rpcdef_define_componentId(type, interface, component) \
     template <> \
-    constexpr uint32_t componentId (type<interface>::component) { \
+    rpcdef_constexpr uint32_t componentId (type<interface>::component) { \
         return hash(BOOST_PP_STRINGIZE(component)); \
     }
     
@@ -367,7 +373,7 @@
     RPCDEF_IsMethod(rpcdef_cat_scope(interfaceNames), methods) \
     RPCDEF_Broadcast(interfaceNames, broadcasts) \
     RPCDEF_IsBroadcast(rpcdef_cat_scope(interfaceNames), broadcasts) \
-    RPCDEF_componentId(rpcdef_cat_scope(interfaceNames),  methods, broadcasts) \
+    RPCDEF_componentId(rpcdef_cat_scope(interfaceNames), methods, broadcasts) \
     RPCDEF_AssertServiceImplementsInterface(rpcdef_cat_scope(interfaceNames), methods) \
     RPCDEF_AssertProxyImplementsInterface(rpcdef_cat_scope(interfaceNames), broadcasts) \
     RPCDEF_MethodInUnion(rpcdef_cat_scope(interfaceNames), methods) \

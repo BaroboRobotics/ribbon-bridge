@@ -20,11 +20,11 @@ struct Broadcast;
 
 // Metafunction to identify whether a type is a method component message.
 template <class Method>
-struct IsMethod { constexpr static const bool value = false; };
+struct IsMethod { static const bool value = false; };
 
 // Metafunction to identify whether a type is a broadcast component message.
 template <class Broadcast>
-struct IsBroadcast { constexpr static const bool value = false; };
+struct IsBroadcast { static const bool value = false; };
 
 // Union containing a data member for every component message of an interface,
 // and an invoke member, such that:
@@ -41,7 +41,12 @@ union BroadcastUnion;
 
 // Access the component ID of an interface by type.
 template <class Payload>
-constexpr uint32_t componentId (Payload);
+#if HAVE_CONSTEXPR_FUNCTION_TEMPLATES
+constexpr
+#else
+static inline
+#endif // HAVE_CONSTEXPR_FUNCTION_TEMPLATES
+uint32_t componentId (Payload);
 
 template <class T>
 struct ResultOf;

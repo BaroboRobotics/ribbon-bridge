@@ -14,13 +14,13 @@ namespace rpc {
 
 class VersionTriplet {
 public:
-	constexpr VersionTriplet (uint32_t major, uint32_t minor, uint32_t patch)
+	VersionTriplet (uint32_t major, uint32_t minor, uint32_t patch)
 			: mTriplet(barobo_rpc_VersionTriplet{major, minor, patch}) { }
 
-	constexpr VersionTriplet (barobo_rpc_VersionTriplet triplet)
+	explicit VersionTriplet (barobo_rpc_VersionTriplet triplet)
 			: mTriplet(triplet) { }
 
-	constexpr operator barobo_rpc_VersionTriplet () const {
+	operator barobo_rpc_VersionTriplet () const {
 		return mTriplet;
 	}
 
@@ -61,10 +61,10 @@ struct Version;
 // Define the RPC library version.
 template <>
 struct Version<void> {
-	constexpr static const uint32_t major = RPC_VERSION_MAJOR;
-	constexpr static const uint32_t minor = RPC_VERSION_MINOR;
-	constexpr static const uint32_t patch = RPC_VERSION_PATCH;
-	constexpr static VersionTriplet triplet () { return { major, minor, patch }; }
+	static const uint32_t major = RPC_VERSION_MAJOR;
+	static const uint32_t minor = RPC_VERSION_MINOR;
+	static const uint32_t patch = RPC_VERSION_PATCH;
+	static VersionTriplet triplet () { return { major, minor, patch }; }
 };
 
 class ServiceInfo {

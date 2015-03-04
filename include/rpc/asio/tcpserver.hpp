@@ -15,7 +15,7 @@ namespace asio {
 using Tcp = boost::asio::ip::tcp;
 using TcpServer = rpc::asio::Server<sfp::asio::MessageQueue<Tcp::socket>>;
 
-using InitTcpServerHandlerSignature = void(boost::system::error_code, Tcp::endpoint);
+typedef void InitTcpServerHandlerSignature(boost::system::error_code, Tcp::endpoint);
 
 template <class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, InitTcpServerHandlerSignature)
