@@ -122,13 +122,13 @@ public:
     using RequestId = std::pair<Tcp::endpoint, typename SubServer::RequestId>;
     using RequestPair = std::pair<RequestId, barobo_rpc_Request>;
 
-    using RequestHandlerSignature = void(boost::system::error_code, RequestPair);
+    typedef void RequestHandlerSignature(boost::system::error_code, RequestPair);
     using RequestHandler = std::function<RequestHandlerSignature>;
 
-    using ReplyHandlerSignature = void(boost::system::error_code);
+    typedef void ReplyHandlerSignature(boost::system::error_code);
     using ReplyHandler = std::function<ReplyHandlerSignature>;
 
-    using BroadcastHandlerSignature = void(boost::system::error_code);
+    typedef void BroadcastHandlerSignature(boost::system::error_code);
     using BroadcastHandler = std::function<BroadcastHandlerSignature>;
 
     explicit TcpPolyServerImpl (IoService& ioService)

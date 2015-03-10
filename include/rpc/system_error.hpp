@@ -20,8 +20,8 @@ using Error = boost::system::system_error;
 
 class ErrorCategory : public boost::system::error_category {
 public:
-    virtual const char* name () const noexcept override;
-    virtual std::string message (int ev) const noexcept override;
+    virtual const char* name () const BOOST_NOEXCEPT override;
+    virtual std::string message (int ev) const BOOST_NOEXCEPT override;
 };
 
 const boost::system::error_category& errorCategory ();
@@ -30,8 +30,8 @@ boost::system::error_condition make_error_condition (Status status);
 
 class RemoteErrorCategory : public boost::system::error_category {
 public:
-    virtual const char* name () const noexcept override;
-    virtual std::string message (int ev) const noexcept override;
+    virtual const char* name () const BOOST_NOEXCEPT override;
+    virtual std::string message (int ev) const BOOST_NOEXCEPT override;
 };
 
 const boost::system::error_category& remoteErrorCategory ();

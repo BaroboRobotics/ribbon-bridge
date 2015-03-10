@@ -84,7 +84,7 @@ public:
 
         auto buf = std::make_shared<std::vector<uint8_t>>(1024);
         try {
-            size_t bytesWritten;
+            pb_size_t bytesWritten;
             rpc::encode(message, buf->data(), buf->size(), bytesWritten);
             buf->resize(bytesWritten);
 
@@ -557,15 +557,9 @@ struct RunClientOperation : std::enable_shared_from_this<RunClientOperation<Inte
 
             auto log = mClient.log();
             BOOST_LOG(log) << "broadcast received";
-            rpc::ComponentBroadcastUnion<Interface> argument;
-            auto status = decodeBroadcastPayload(argument, broadcast.id, broadcast.payload);
-            if (hasError(status)) {
-                ec = status;
-                BOOST_LOG(log) << "RunClientOperation: broadcast decode error: " << ec.message();
-                throw boost::system::system_error(ec);
-            }
-
-            status = invokeBroadcast(mImpl, argument, broadcast.id);
+            rpc::BroadcastUnion<Interface> b;
+            rpc::Status status;
+            b.invoke(mImpl, broadcast.id, broadcast.payload, status);
             if (hasError(status)) {
                 ec = status;
                 BOOST_LOG(log) << "RunClientOperation: broadcast invocation error: " << ec.message();

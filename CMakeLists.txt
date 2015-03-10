@@ -33,6 +33,7 @@ include(CheckLibraryExists)
 
 set(CMAKE_REQUIRED_FLAGS "-std=c++11")
 
+# Visual Studio 2015 Preview fails this test, gcc and clang pass
 check_cxx_source_compiles("template <unsigned N>
 constexpr unsigned f (const char (&)[N]) { return N; }
 int main () { switch (2) { case f(\"a\"): break; } }"
@@ -152,7 +153,8 @@ set(SOURCES
     src/message.cpp
     src/status.cpp
     ${NANOPB_ROOT}/pb_decode.c
-    ${NANOPB_ROOT}/pb_encode.c)
+    ${NANOPB_ROOT}/pb_encode.c
+    ${NANOPB_ROOT}/pb_common.c)
 
 if(HAVE_EXCEPTIONS)
     list(APPEND SOURCES src/system_error.cpp)
