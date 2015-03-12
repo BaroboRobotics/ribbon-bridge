@@ -45,7 +45,7 @@ public:
                 buffer.size,
                 status);
             if (!hasError(status)) {
-                static_cast<T*>(this)->bufferToProxy(buffer);
+                static_cast<T*>(this)->bufferToClient(buffer);
             }
         }
 
@@ -68,7 +68,7 @@ public:
         Status status;
         encode(svMessage, response.bytes, sizeof(response.bytes), response.size, status);
         if (!hasError(status)) {
-            static_cast<T*>(this)->bufferToProxy(response);
+            static_cast<T*>(this)->bufferToClient(response);
         }
 
         return status;
@@ -90,23 +90,23 @@ public:
         Status status;
         encode(svMessage, response.bytes, sizeof(response.bytes), response.size, status);
         if (!hasError(status)) {
-            static_cast<T*>(this)->bufferToProxy(response);
+            static_cast<T*>(this)->bufferToClient(response);
         }
 
         return status;
     }
 
-    Status receiveProxyBuffer (BufferType in) {
+    Status receiveClientBuffer (BufferType in) {
         barobo_rpc_ClientMessage message;
         Status status;
         decode(message, in.bytes, in.size, status);
         if (hasError(status)) {
             return status;
         }
-        return receiveProxyRequest(message);
+        return receiveClientRequest(message);
     }
 
-    Status receiveProxyRequest (barobo_rpc_ClientMessage clMessage) {
+    Status receiveClientRequest (barobo_rpc_ClientMessage clMessage) {
         barobo_rpc_ServerMessage svMessage;
         memset(&svMessage, 0, sizeof(svMessage));
 
@@ -168,7 +168,7 @@ public:
         Status status;
         encode(svMessage, response.bytes, sizeof(response.bytes), response.size, status);
         if (!hasError(status)) {
-            static_cast<T*>(this)->bufferToProxy(response);
+            static_cast<T*>(this)->bufferToClient(response);
         }
 
         return status;
