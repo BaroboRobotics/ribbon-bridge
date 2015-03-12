@@ -1,5 +1,5 @@
-#ifndef RPC_SERVICE_HPP
-#define RPC_SERVICE_HPP
+#ifndef RPC_SERVER_HPP
+#define RPC_SERVER_HPP
 
 #include "rpc.pb.h"
 
@@ -14,11 +14,11 @@
 namespace rpc {
 
 template <class T, class Interface>
-class Service {
+class Server {
 public:
     using BufferType = Buffer<256>;
 
-    Service () { (void)AssertServiceImplementsInterface<T, Interface>(); }
+    Server () { (void)AssertServerImplementsInterface<T, Interface>(); }
 
     template <class C>
     Status broadcast (C args, ONLY_IF(IsBroadcast<C>::value)) {
@@ -52,10 +52,12 @@ public:
         return status;
     }
 
+#if 0
     template <class Method>
     typename ResultOf<Method>::type fire (Method args, ONLY_IF(IsMethod<Method>::value)) {
         return static_cast<T*>(this)->onFire(args);
     }
+#endif
 
     Status refuseConnection (barobo_rpc_ClientMessage clMessage) {
         barobo_rpc_ServerMessage svMessage;
@@ -70,9 +72,8 @@ public:
         svMessage.inReplyTo = clMessage.id;
 
         BufferType response;
-        response.size = sizeof(response.bytes);
         Status status;
-        encode(svMessage, response.bytes, response.size, response.size, status);
+        encode(svMessage, response.bytes, sizeof(response.bytes), response.size, status);
         if (!hasError(status)) {
             static_cast<T*>(this)->bufferToProxy(response);
         }
@@ -93,9 +94,8 @@ public:
         svMessage.inReplyTo = clMessage.id;
 
         BufferType response;
-        response.size = sizeof(response.bytes);
         Status status;
-        encode(svMessage, response.bytes, response.size, response.size, status);
+        encode(svMessage, response.bytes, sizeof(response.bytes), response.size, status);
         if (!hasError(status)) {
             static_cast<T*>(this)->bufferToProxy(response);
         }
@@ -123,8 +123,6 @@ public:
 
         svMessage.has_reply = true;
         switch (clMessage.request.type) {
-            ComponentInUnion<Interface> argument;
-
             case barobo_rpc_Request_Type_CONNECT:
                 svMessage.reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
                 svMessage.reply.has_serviceInfo = true;
@@ -145,23 +143,26 @@ public:
                     svMessage.reply.type = barobo_rpc_Reply_Type_STATUS;
                     svMessage.reply.has_status = true;
                     svMessage.reply.status.value = barobo_rpc_Status_INCONSISTENT_REQUEST;
-                    break;
                 }
-                svMessage.reply.status.value = decltype(svMessage.reply.status.value)(decodeFirePayload(argument, clMessage.request.fire.id, clMessage.request.fire.payload));
-                if (barobo_rpc_Status_OK != svMessage.reply.status.value) {
-                    svMessage.reply.type = barobo_rpc_Reply_Type_STATUS;
-                    svMessage.reply.has_status = true;
-                    break;
+                else {
+                    MethodInUnion<Interface> argument;
+                    Status status;
+                    argument.invoke(static_cast<T&>(*this),
+                        clMessage.request.fire.id,
+                        clMessage.request.fire.payload,
+                        svMessage.reply.result.payload,
+                        status);
+                    if (hasError(status)) {
+                        svMessage.reply.type = barobo_rpc_Reply_Type_STATUS;
+                        svMessage.reply.has_status = true;
+                        svMessage.reply.status.value = decltype(svMessage.reply.status.value)(status);
+                    }
+                    else {
+                        svMessage.reply.type = barobo_rpc_Reply_Type_RESULT;
+                        svMessage.reply.has_result = true;
+                        svMessage.reply.result.id = clMessage.request.fire.id;
+                    }
                 }
-                svMessage.reply.status.value = decltype(svMessage.reply.status.value)(invokeFire(*this, argument, clMessage.request.fire.id, svMessage.reply.result.payload));
-                if (barobo_rpc_Status_OK != svMessage.reply.status.value) {
-                    svMessage.reply.type = barobo_rpc_Reply_Type_STATUS;
-                    svMessage.reply.has_status = true;
-                    break;
-                }
-                svMessage.reply.type = barobo_rpc_Reply_Type_RESULT;
-                svMessage.reply.has_result = true;
-                svMessage.reply.result.id = clMessage.request.fire.id;
                 break;
             default:
                 svMessage.reply.type = barobo_rpc_Reply_Type_STATUS;
@@ -171,9 +172,8 @@ public:
         }
 
         BufferType response;
-        response.size = sizeof(response.bytes);
         Status status;
-        encode(svMessage, response.bytes, response.size, response.size, status);
+        encode(svMessage, response.bytes, sizeof(response.bytes), response.size, status);
         if (!hasError(status)) {
             static_cast<T*>(this)->bufferToProxy(response);
         }

@@ -60,10 +60,10 @@ RPC_DEFINE_TRAIT_HAS_MEMBER_FUNCTION_OVERLOAD(onFire)
 RPC_DEFINE_TRAIT_HAS_MEMBER_FUNCTION_OVERLOAD(onBroadcast)
 
 template <class T, class Interface>
-struct AssertServiceImplementsInterface;
+struct AssertServerImplementsInterface;
 
 template <class T, class Interface>
-struct AssertProxyImplementsInterface;
+struct AssertClientImplementsInterface;
 
 } // namespace rpc
 

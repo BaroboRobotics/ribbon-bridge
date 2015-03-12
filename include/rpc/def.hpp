@@ -272,7 +272,7 @@
                 barobo_rpc_Request_Fire_payload_t& in, \
                 barobo_rpc_Reply_Result_payload_t& out, \
                 Status& status) { \
-            (void)AssertServiceImplementsInterface<T, interface>(); \
+            (void)AssertServerImplementsInterface<T, interface>(); \
             rpcdef_invoke_fire_impl(interface, methods) \
         } \
         BOOST_PP_SEQ_FOR_EACH(rpcdef_decl_method_input_object, interface, methods) \
@@ -289,7 +289,7 @@
                 uint32_t componentId, \
                 barobo_rpc_Broadcast_payload_t& in, \
                 Status& status) { \
-            (void)AssertProxyImplementsInterface<T, interface>(); \
+            (void)AssertClientImplementsInterface<T, interface>(); \
             rpcdef_invoke_broadcast_impl(interface, broadcasts) \
         } \
     };
@@ -321,37 +321,37 @@
     BOOST_PP_SEQ_FOR_EACH(rpcdef_broadcast_componentId, interface, broadcasts)
 
 //////////////////////////////////////////////////////////////////////////////
-// Compile-time assertions that a proxy implements an interface
+// Compile-time assertions that a client implements an interface
 
-#define rpcdef_proxy_broadcast_assertion(s, interface, broadcast) \
+#define rpcdef_client_broadcast_assertion(s, interface, broadcast) \
     static_assert(HasMemberFunctionOverloadonBroadcast \
             < T \
             , void(rpc::Broadcast<interface>::broadcast)>::value, \
             BOOST_PP_STRINGIZE(interface) \
-            " proxy must implement onBroadcast(" \
+            " client must implement onBroadcast(" \
             BOOST_PP_STRINGIZE(broadcast) ")");
 
-#define RPCDEF_AssertProxyImplementsInterface(interface, broadcasts) \
+#define RPCDEF_AssertClientImplementsInterface(interface, broadcasts) \
     template <class T> \
-    struct AssertProxyImplementsInterface<T, interface> { \
-        BOOST_PP_SEQ_FOR_EACH(rpcdef_proxy_broadcast_assertion, interface, broadcasts) \
+    struct AssertClientImplementsInterface<T, interface> { \
+        BOOST_PP_SEQ_FOR_EACH(rpcdef_client_broadcast_assertion, interface, broadcasts) \
     };
 
 //////////////////////////////////////////////////////////////////////////////
-// Compile-time assertions that a service implements an interface
+// Compile-time assertions that a server implements an interface
 
-#define rpcdef_service_fire_assertion(s, interface, method) \
+#define rpcdef_server_fire_assertion(s, interface, method) \
     static_assert(HasMemberFunctionOverloadonFire \
             < T \
             , rpc::MethodResult<interface>::method(rpc::MethodIn<interface>::method)>::value, \
             BOOST_PP_STRINGIZE(interface) \
-            " service does not implement onFire(" \
+            " server does not implement onFire(" \
             BOOST_PP_STRINGIZE(method) ")");
 
-#define RPCDEF_AssertServiceImplementsInterface(interface, methods) \
+#define RPCDEF_AssertServerImplementsInterface(interface, methods) \
     template <class T> \
-    struct AssertServiceImplementsInterface<T, interface> { \
-        BOOST_PP_SEQ_FOR_EACH(rpcdef_service_fire_assertion, interface, methods) \
+    struct AssertServerImplementsInterface<T, interface> { \
+        BOOST_PP_SEQ_FOR_EACH(rpcdef_server_fire_assertion, interface, methods) \
     };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -374,8 +374,8 @@
     RPCDEF_Broadcast(interfaceNames, broadcasts) \
     RPCDEF_IsBroadcast(rpcdef_cat_scope(interfaceNames), broadcasts) \
     RPCDEF_componentId(rpcdef_cat_scope(interfaceNames), methods, broadcasts) \
-    RPCDEF_AssertServiceImplementsInterface(rpcdef_cat_scope(interfaceNames), methods) \
-    RPCDEF_AssertProxyImplementsInterface(rpcdef_cat_scope(interfaceNames), broadcasts) \
+    RPCDEF_AssertServerImplementsInterface(rpcdef_cat_scope(interfaceNames), methods) \
+    RPCDEF_AssertClientImplementsInterface(rpcdef_cat_scope(interfaceNames), broadcasts) \
     RPCDEF_MethodInUnion(rpcdef_cat_scope(interfaceNames), methods) \
     RPCDEF_BroadcastUnion(rpcdef_cat_scope(interfaceNames), broadcasts) \
     }
