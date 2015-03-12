@@ -1,12 +1,14 @@
 #ifndef RPC_BUFFER_HPP
 #define RPC_BUFFER_HPP
 
+//#include "rpc.pb.h"
+
 namespace rpc {
 
 template <size_t N>
 struct Buffer {
     uint8_t bytes[N];
-    size_t size;
+    pb_size_t size;
 };
 
 } // namespace rpc
