@@ -44,7 +44,7 @@ check_cxx_source_compiles("int main () { throw int(); }" HAVE_EXCEPTIONS)
 check_cxx_source_compiles("#include <typeinfo>
 int main () { (void)typeid(void); }" HAVE_RTTI)
 
-if(WIN32)
+if(WIN32 OR APPLE)
     set(HAVE_STDLIB ON)
 else()
     check_library_exists(stdc++ exit "" HAVE_STDLIB)
