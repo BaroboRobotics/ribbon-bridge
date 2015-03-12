@@ -40,8 +40,10 @@ public:
     {}
 
     ~Client () {
-        boost::system::error_code ec;
-        close(ec);
+        if (mImpl) {
+            boost::system::error_code ec;
+            close(ec);
+        }
     }
 
     void close () {
