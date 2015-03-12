@@ -1,17 +1,16 @@
 #ifndef RPC_TESTS_WIDGETIMPL_HPP
 #define RPC_TESTS_WIDGETIMPL_HPP
 
-#include "rpc/service.hpp"
-#include "rpc/asyncproxy.hpp"
+#include "rpc/server.hpp"
 
 /* You first need to include the generated interface code. */
 #include "gen-widget.pb.hpp"
 
 /* Implementation of the barobo::Widget interface. */
 
-class WidgetService : public rpc::Service<WidgetService, barobo::Widget> {
+class WidgetServer : public rpc::Server<WidgetServer, barobo::Widget> {
 public:
-    WidgetService (std::function<void(const BufferType&)> postFunc) : mPostFunc(postFunc) { }
+    WidgetServer (std::function<void(const BufferType&)> postFunc) : mPostFunc(postFunc) { }
 
     void bufferToProxy (const BufferType& buffer) {
         mPostFunc(buffer);
@@ -51,33 +50,6 @@ public:
 
 private:
     std::function<void(const BufferType&)> mPostFunc;
-};
-
-class WidgetProxy : public rpc::AsyncProxy<WidgetProxy, barobo::Widget> {
-public:
-    WidgetProxy (std::function<void(const BufferType&)> postFunc) : mPostFunc(postFunc) { }
-
-    void bufferToService (const BufferType& buffer) {
-        mPostFunc(buffer);
-    }
-
-    using Broadcast = rpc::Broadcast<barobo::Widget>;
-
-    void onBroadcast (Broadcast::broadcast args) {
-        printf("onBroadcast(broadcast): %f\n", args.value);
-        mBroadcastedBroadcast = args;
-    }
-
-    //////
-
-    Broadcast::broadcast broadcastedBroadcast () const {
-        return mBroadcastedBroadcast;
-    }
-
-private:
-    std::function<void(const BufferType&)> mPostFunc;
-
-    Broadcast::broadcast mBroadcastedBroadcast;
 };
 
 #endif
