@@ -52,13 +52,6 @@ public:
         return status;
     }
 
-#if 0
-    template <class Method>
-    typename ResultOf<Method>::type fire (Method args, ONLY_IF(IsMethod<Method>::value)) {
-        return static_cast<T*>(this)->onFire(args);
-    }
-#endif
-
     Status refuseConnection (barobo_rpc_ClientMessage clMessage) {
         barobo_rpc_ServerMessage svMessage;
         memset(&svMessage, 0, sizeof(svMessage));

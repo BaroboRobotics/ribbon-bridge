@@ -181,7 +181,7 @@
     case ::rpc::componentId(MethodIn<interface>::method{}): \
         decode(this->method, in.bytes, in.size, status); \
         if (!hasError(status)) { \
-            encode(server.fire(this->method), out.bytes, sizeof(out.bytes), out.size, status); \
+            encode(server.onFire(this->method), out.bytes, sizeof(out.bytes), out.size, status); \
         } \
         break;
 
@@ -197,7 +197,7 @@
     case ::rpc::componentId(Broadcast<interface>::brdcst{}): \
         decode(this->brdcst, in.bytes, in.size, status); \
         if (!hasError(status)) { \
-            client.broadcast(this->brdcst); \
+            client.onBroadcast(this->brdcst); \
         } \
         break; \
 
@@ -221,7 +221,7 @@
         Status& status) { \
         decode(self.method, in.bytes, in.size, status); \
         if (!hasError(status)) { \
-            encode(server.fire(self.method), out.bytes, sizeof(out.bytes), out.size, status); \
+            encode(server.onFire(self.method), out.bytes, sizeof(out.bytes), out.size, status); \
         } \
     } },
 
@@ -244,7 +244,7 @@
         Status& status) { \
         decode(self.brdcst, in.bytes, in.size, status); \
         if (!hasError(status)) { \
-            client.broadcast(self.brdcst); \
+            client.onBroadcast(self.brdcst); \
         } \
     } },
 
@@ -302,7 +302,7 @@
 # define rpcdef_constexpr constexpr
 #else
 # define rpcdef_constexpr static inline
-#endif
+#endif // HAVE_CONSTEXPR_FUNCTION_TEMPLATES
 
 #define rpcdef_define_componentId(type, interface, component) \
     template <> \
