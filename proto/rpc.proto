@@ -16,6 +16,7 @@ enum Status {
     /* not connected to the request's origin */
     NOT_CONNECTED = 7;
     CONNECTION_REFUSED = 8;
+    TIMED_OUT = 9;
 }
 
 message VersionTriplet {

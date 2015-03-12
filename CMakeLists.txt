@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.12)
 project(rpc C CXX)
 
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 2)
+set(VERSION_MINOR 3)
 set(VERSION_PATCH 0)
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
@@ -31,10 +31,24 @@ ll_add_dependency(cxx-util cxx-util)
 include(CheckCXXSourceCompiles)
 include(CheckLibraryExists)
 
+set(CMAKE_REQUIRED_FLAGS "-std=c++11")
+
+# Visual Studio 2015 Preview fails this test, gcc and clang pass
+check_cxx_source_compiles("template <unsigned N>
+constexpr unsigned f (const char (&)[N]) { return N; }
+int main () { switch (2) { case f(\"a\"): break; } }"
+    HAVE_CONSTEXPR_FUNCTION_TEMPLATES)
+
 check_cxx_source_compiles("int main () { throw int(); }" HAVE_EXCEPTIONS)
+
 check_cxx_source_compiles("#include <typeinfo>
 int main () { (void)typeid(void); }" HAVE_RTTI)
-check_library_exists(stdc++ exit "" HAVE_STDLIB)
+
+if(WIN32)
+    set(HAVE_STDLIB ON)
+else()
+    check_library_exists(stdc++ exit "" HAVE_STDLIB)
+endif()
 
 configure_file(config.hpp.in include/rpc/config.hpp)
 
@@ -48,7 +62,7 @@ set(Boost_USE_STATIC_LIBS ON)
 
 # Boost.Log was introduced in Boost version 1.54.0.
 # system is required for asio
-find_package(Boost 1.54.0 REQUIRED COMPONENTS system filesystem log thread)
+find_package(Boost 1.54.0 REQUIRED COMPONENTS system filesystem log thread date_time regex)
 
 
 ##############################################################################
@@ -139,7 +153,8 @@ set(SOURCES
     src/message.cpp
     src/status.cpp
     ${NANOPB_ROOT}/pb_decode.c
-    ${NANOPB_ROOT}/pb_encode.c)
+    ${NANOPB_ROOT}/pb_encode.c
+    ${NANOPB_ROOT}/pb_common.c)
 
 if(HAVE_EXCEPTIONS)
     list(APPEND SOURCES src/system_error.cpp)

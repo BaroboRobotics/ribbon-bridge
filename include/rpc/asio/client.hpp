@@ -40,8 +40,10 @@ public:
     {}
 
     ~Client () {
-        boost::system::error_code ec;
-        close(ec);
+        if (mImpl) {
+            boost::system::error_code ec;
+            close(ec);
+        }
     }
 
     void close () {
@@ -84,7 +86,7 @@ public:
 
         auto buf = std::make_shared<std::vector<uint8_t>>(1024);
         try {
-            size_t bytesWritten;
+            pb_size_t bytesWritten;
             rpc::encode(message, buf->data(), buf->size(), bytesWritten);
             buf->resize(bytesWritten);
 
@@ -187,7 +189,6 @@ private:
             startReceiveCoroutine();
             using boost::log::add_value;
             using std::to_string;
-            BOOST_LOG(mLog) << add_value("RequestId", to_string(requestId)) << "emplaced reply handler";
         }
 
         template <class Duration>
@@ -202,10 +203,9 @@ private:
             timer.async_wait(mStrand.wrap([m, requestId] (boost::system::error_code ec) {
                 if (!ec) {
                     BOOST_LOG(m->mLog) << add_value("RequestId", to_string(requestId)) << "timed out";
-                    m->handleReply(requestId, boost::asio::error::timed_out, barobo_rpc_Reply());
+                    m->handleReply(requestId, Status::TIMED_OUT, barobo_rpc_Reply());
                 }
             }));
-            BOOST_LOG(mLog) << add_value("RequestId", to_string(requestId)) << "emplaced reply timeout";
         }
 
         void postReplies () {
@@ -250,7 +250,7 @@ private:
                 }
 
                 if (nBytesTransferred) {
-                    BOOST_LOG(mLog) << "handleReceive: received " << nBytesTransferred << " bytes";
+                    //BOOST_LOG(mLog) << "handleReceive: received " << nBytesTransferred << " bytes";
                     barobo_rpc_ServerMessage message;
                     decode(message, buf->data(), nBytesTransferred);
 
@@ -559,15 +559,9 @@ struct RunClientOperation : std::enable_shared_from_this<RunClientOperation<Inte
 
             auto log = mClient.log();
             BOOST_LOG(log) << "broadcast received";
-            rpc::ComponentBroadcastUnion<Interface> argument;
-            auto status = decodeBroadcastPayload(argument, broadcast.id, broadcast.payload);
-            if (hasError(status)) {
-                ec = status;
-                BOOST_LOG(log) << "RunClientOperation: broadcast decode error: " << ec.message();
-                throw boost::system::system_error(ec);
-            }
-
-            status = invokeBroadcast(mImpl, argument, broadcast.id);
+            rpc::BroadcastUnion<Interface> b;
+            rpc::Status status;
+            b.invoke(mImpl, broadcast.id, broadcast.payload, status);
             if (hasError(status)) {
                 ec = status;
                 BOOST_LOG(log) << "RunClientOperation: broadcast invocation error: " << ec.message();

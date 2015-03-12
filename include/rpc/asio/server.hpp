@@ -24,7 +24,7 @@ public:
     using RequestId = uint32_t;
     using RequestPair = std::pair<RequestId, barobo_rpc_Request>;
 
-    using RequestHandlerSignature = void(boost::system::error_code, RequestPair);
+    typedef void RequestHandlerSignature(boost::system::error_code, RequestPair);
     using RequestHandler = std::function<RequestHandlerSignature>;
 
 	explicit Server (boost::asio::io_service& ios, boost::log::sources::logger log)
@@ -74,7 +74,7 @@ public:
                         barobo_rpc_ClientMessage message;
                         Status status;
                         rpc::decode(message, buf->data(), size, status);
-                        mMessageQueue.get_io_service().post(
+                        this->mMessageQueue.get_io_service().post(
                             std::bind(realHandler, status, std::make_pair(message.id, message.request)));
                     }
                     else {
@@ -82,7 +82,7 @@ public:
                     }
                 }
                 else {
-                    mMessageQueue.get_io_service().post(
+                    this->mMessageQueue.get_io_service().post(
                         std::bind(realHandler, ec, RequestPair()));
                 }
             });
@@ -109,7 +109,7 @@ public:
 
         auto buf = std::make_shared<std::vector<uint8_t>>(1024);
         try {
-            size_t bytesWritten;
+            pb_size_t bytesWritten;
             rpc::encode(message, buf->data(), buf->size(), bytesWritten);
             buf->resize(bytesWritten);
             mMessageQueue.asyncSend(boost::asio::buffer(*buf),
@@ -143,7 +143,7 @@ public:
 
         auto buf = std::make_shared<std::vector<uint8_t>>(1024);
         try {
-            size_t bytesWritten;
+            pb_size_t bytesWritten;
             rpc::encode(message, buf->data(), buf->size(), bytesWritten);
             buf->resize(bytesWritten);
             mMessageQueue.asyncSend(boost::asio::buffer(*buf),
@@ -286,17 +286,13 @@ struct ServeUntilDisconnectionOperation : std::enable_shared_from_this<ServeUnti
     {}
 
     barobo_rpc_Reply serve (barobo_rpc_Request_Fire fire, Status& status) {
-        ComponentInUnion<Interface> args;
+        MethodInUnion<Interface> m;
         barobo_rpc_Reply reply = decltype(reply)();
-
-        status = decodeFirePayload(args, fire.id, fire.payload);
+        m.invoke(mImpl, fire.id, fire.payload, reply.result.payload, status);
         if (!hasError(status)) {
-            status = invokeFire(mImpl, args, fire.id, reply.result.payload);
-            if (!hasError(status)) {
-                reply.type = barobo_rpc_Reply_Type_RESULT;
-                reply.has_result = true;
-                reply.result.id = fire.id;
-            }
+            reply.type = barobo_rpc_Reply_Type_RESULT;
+            reply.has_result = true;
+            reply.result.id = fire.id;
         }
         return reply;
     }

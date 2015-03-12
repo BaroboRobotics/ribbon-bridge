@@ -22,7 +22,7 @@ struct HasMember##member { \
     template <class> \
     static Yes check (...); \
 \
-    constexpr static const bool value = sizeof(check<Derived>(0)) == sizeof(Yes); \
+    static const bool value = sizeof(check<Derived>(0)) == sizeof(Yes); \
 };
 
 /* For an argument memfun, define a metafunction with value true if a class T
@@ -45,7 +45,7 @@ struct HasMemberFunctionOverload##memfun<T, R(Args...)> { \
     template <class U> \
     static No check (...); \
 \
-    constexpr static const bool value = sizeof(check<T>(0)) == sizeof(Yes); \
+    static const bool value = sizeof(check<T>(0)) == sizeof(Yes); \
 };
 
 #endif

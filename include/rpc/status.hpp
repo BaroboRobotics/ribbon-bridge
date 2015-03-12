@@ -16,7 +16,8 @@ namespace rpc {
     ILLEGAL_OPERATION          = barobo_rpc_Status_ILLEGAL_OPERATION, \
     NO_SUCH_COMPONENT          = barobo_rpc_Status_NO_SUCH_COMPONENT, \
     NOT_CONNECTED              = barobo_rpc_Status_NOT_CONNECTED, \
-    CONNECTION_REFUSED         = barobo_rpc_Status_CONNECTION_REFUSED
+    CONNECTION_REFUSED         = barobo_rpc_Status_CONNECTION_REFUSED, \
+    TIMED_OUT                  = barobo_rpc_Status_TIMED_OUT
 
 enum class Status {
     rpc_Status_basic_enumeration,

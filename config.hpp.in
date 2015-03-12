@@ -1,9 +1,10 @@
 #ifndef RPC_CONFIG_HPP
 #define RPC_CONFIG_HPP
 
-#cmakedefine HAVE_RTTI
-#cmakedefine HAVE_EXCEPTIONS
-#cmakedefine HAVE_STDLIB
+#cmakedefine HAVE_CONSTEXPR_FUNCTION_TEMPLATES 1
+#cmakedefine HAVE_RTTI 1
+#cmakedefine HAVE_EXCEPTIONS 1
+#cmakedefine HAVE_STDLIB 1
 
 #define RPC_VERSION_MAJOR @VERSION_MAJOR@
 #define RPC_VERSION_MINOR @VERSION_MINOR@
