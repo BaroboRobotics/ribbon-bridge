@@ -11,9 +11,6 @@ if(CMAKE_SYSTEM_NAME MATCHES "AVR")
     set(AVR ON)
 endif()
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
-
 option(RPC_BUILD_TESTS "Build ribbon-bridge tests" OFF)
 
 if(AVR)
@@ -161,10 +158,16 @@ if(HAVE_EXCEPTIONS)
 endif()
 
 set_source_files_properties(src/message.cpp src/status.cpp src/system_error.cpp PROPERTIES
-    COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS")
+    CXX_STANDARD 11
+    CXX_STANDARD_REQUIRED ON
+    COMPILE_FLAGS "-D__STDC_FORMAT_MACROS")
 
 add_library(rpc STATIC ${SOURCES})
-
+if(MSVC)
+    target_compile_options(rpc PRIVATE /W4)
+else()
+    target_compile_options(rpc PRIVATE -Wall)
+endif()
 target_include_directories(rpc
     PUBLIC ${NANOPB_ROOT}
     PUBLIC include
@@ -172,7 +175,6 @@ target_include_directories(rpc
     PUBLIC ${PROJECT_BINARY_DIR}
     PUBLIC ${PROJECT_BINARY_DIR}/include
     PUBLIC ${Boost_INCLUDE_DIRS}
-    $<TARGET_PROPERTY:cxx-util,INTERFACE_INCLUDE_DIRECTORIES>
     )
 
 # Our asio code is header-only, so no need for us to link with Boost/Winsock
