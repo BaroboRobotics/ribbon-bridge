@@ -29,7 +29,7 @@ namespace asio {
 using IoService = boost::asio::io_service;
 using namespace std::placeholders;
 
-namespace detail {
+namespace _ {
 
 // TODO refactor to combine this with RunServerOperation in server.hpp?
 template <class S, class RequestFunc, class Handler>
@@ -113,7 +113,7 @@ asyncRunSubServer (std::shared_ptr<S> server, RequestFunc&& requestFunc, Handler
     return init.result.get();
 }
 
-} // namespace detail
+} // namespace _
 
 class TcpPolyServerImpl : public std::enable_shared_from_this<TcpPolyServerImpl> {
 public:
@@ -263,7 +263,7 @@ private:
 
             BOOST_LOG(mLog) << "inserted subserver for " << *peer;
 
-            detail::asyncRunSubServer(subServer,
+            _::asyncRunSubServer(subServer,
                 std::bind(&TcpPolyServerImpl::pushRequest, this->shared_from_this(), *peer, _1, _2),
                 mStrand.wrap(std::bind(&TcpPolyServerImpl::handleSubServerFinished,
                     this->shared_from_this(), *peer, _1)));
