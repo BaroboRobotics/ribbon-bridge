@@ -323,27 +323,27 @@ private:
     }
 
     void asyncSendReplyImpl (IoService::work work, RequestId requestId, barobo_rpc_Reply reply, ReplyHandler handler) {
+        // If no subserver exists for this request ID, or if there is an error
+        // replying to the subserver, ignore this attempt at a reply. We don't
+        // want to post an error, because the situation is similar to a remote
+        // client ignoring spurious, or expired, replies. The TcpPolyServer is
+        // still functional.
         auto iter = mSubServers.find(requestId.first);
         if (iter != mSubServers.end()) {
+            auto log = mLog;
             iter->second->asyncSendReply(requestId.second, reply,
-                [work, handler] (boost::system::error_code ec) mutable {
-                    auto& ios = work.get_io_service();
-                    ios.post(std::bind(handler, ec));
+                [work, handler, log] (boost::system::error_code ec) mutable {
+                    if (ec) {
+                        // Replies cannot fail
+                        BOOST_LOG(log) << "ignoring subserver reply failure: " << ec.message();
+                    }
                 });
         }
         else if (requestId.first == Tcp::endpoint()) {
             BOOST_LOG(mLog) << "Reply to inaddr_any endpoint in polyserver, probably to our DISCONNECT, ignoring";
-            auto& ios = work.get_io_service();
-            ios.post(std::bind(handler, boost::system::error_code()));
         }
-        else {
-            // If no subserver exists for this request ID, ignore this attempt
-            // at a reply. We don't want to post an error, because the
-            // situation is similar to a remote client ignoring spurious, or
-            // expired, replies. The TcpPolyServer is still functional.
-            auto& ios = work.get_io_service();
-            ios.post(std::bind(handler, boost::system::error_code()));
-        }
+        auto& ios = work.get_io_service();
+        ios.post(std::bind(handler, boost::system::error_code()));
     }
 
     void asyncSendBroadcastImpl (IoService::work work, barobo_rpc_Broadcast broadcast, BroadcastHandler handler) {
