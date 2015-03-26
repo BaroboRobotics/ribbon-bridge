@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.2.1)
 project(rpc C CXX)
 
 set(VERSION_MAJOR 0)
@@ -157,12 +157,14 @@ if(HAVE_EXCEPTIONS)
     list(APPEND SOURCES src/system_error.cpp)
 endif()
 
-set_source_files_properties(src/message.cpp src/status.cpp src/system_error.cpp PROPERTIES
+
+add_library(rpc STATIC ${SOURCES})
+
+set_target_properties(rpc PROPERTIES
     CXX_STANDARD 11
     CXX_STANDARD_REQUIRED ON
     COMPILE_FLAGS "-D__STDC_FORMAT_MACROS")
 
-add_library(rpc STATIC ${SOURCES})
 if(MSVC)
     target_compile_options(rpc PRIVATE /W4)
 else()
