@@ -332,7 +332,7 @@ private:
         if (iter != mSubServers.end()) {
             auto log = mLog;
             iter->second->asyncSendReply(requestId.second, reply,
-                [work, handler, log] (boost::system::error_code ec) mutable {
+                [log] (boost::system::error_code ec) mutable {
                     if (ec) {
                         // Replies cannot fail
                         BOOST_LOG(log) << "ignoring subserver reply failure: " << ec.message();
