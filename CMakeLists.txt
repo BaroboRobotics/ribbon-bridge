@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.2.1)
 project(rpc C CXX)
 
-set(VERSION_MAJOR 0)
+set(VERSION_MAJOR 99)
 set(VERSION_MINOR 3)
 set(VERSION_PATCH 0)
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
