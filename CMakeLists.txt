@@ -112,7 +112,7 @@ function(nanopb_compile_proto cFilepathResultVar hFilepathResultVar protoFilepat
     get_filename_component(_dir ${_absProto} DIRECTORY)
 
     add_custom_command(OUTPUT ${cOutput} ${hOutput}
-        COMMAND ${PROTOC_EXECUTABLE} -I${_dir} -I${PROTOC_INCLUDE_DIR}
+        COMMAND ${PROTOC_EXECUTABLE} -I${_dir} -I${PROTOC_INCLUDE_DIR} -I${rpc_SOURCE_DIR}/proto
             --nanopb_out=${CMAKE_CURRENT_BINARY_DIR} ${_absProto}
         MAIN_DEPENDENCY ${protoFilepath}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
