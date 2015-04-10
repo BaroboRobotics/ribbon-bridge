@@ -71,23 +71,23 @@ class Versions {
 public:
 	Versions () = default;
 
-	Versions (barobo_rpc_Versions info)
-			: mRpcVersion(info.rpcVersion)
-			, mInterfaceVersion(info.interfaceVersion) { }
+	Versions (barobo_rpc_Versions vers)
+			: mRpcVersion(vers.rpc)
+			, mInterfaceVersion(vers.interface) { }
 
 	template <class Interface>
 	static Versions create () {
-		barobo_rpc_Versions info;
-		info.rpcVersion = Version<>::triplet();
-		info.interfaceVersion = Version<Interface>::triplet();
-		return info;
+		barobo_rpc_Versions vers;
+		vers.rpc = Version<>::triplet();
+		vers.interface = Version<Interface>::triplet();
+		return vers;
 	}
 
 	operator barobo_rpc_Versions () const {
-		barobo_rpc_Versions info;
-        info.rpcVersion = rpcVersion();
-        info.interfaceVersion = interfaceVersion();
-        return info;
+		barobo_rpc_Versions vers;
+        vers.rpc = rpc();
+        vers.interface = interface();
+        return vers;
 	}
 
 	VersionTriplet rpc () const { return mRpcVersion; }
