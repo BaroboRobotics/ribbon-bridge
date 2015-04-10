@@ -117,14 +117,14 @@ public:
         svMessage.has_reply = true;
         switch (clMessage.request.type) {
             case barobo_rpc_Request_Type_CONNECT:
-                svMessage.reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
-                svMessage.reply.has_serviceInfo = true;
-                svMessage.reply.serviceInfo.rpcVersion.major = Version<>::major;
-                svMessage.reply.serviceInfo.rpcVersion.minor = Version<>::minor;
-                svMessage.reply.serviceInfo.rpcVersion.patch = Version<>::patch;
-                svMessage.reply.serviceInfo.interfaceVersion.major = Version<Interface>::major;
-                svMessage.reply.serviceInfo.interfaceVersion.minor = Version<Interface>::minor;
-                svMessage.reply.serviceInfo.interfaceVersion.patch = Version<Interface>::patch;
+                svMessage.reply.type = barobo_rpc_Reply_Type_VERSIONS;
+                svMessage.reply.has_versions = true;
+                svMessage.reply.versions.rpc.major = Version<>::major;
+                svMessage.reply.versions.rpc.minor = Version<>::minor;
+                svMessage.reply.versions.rpc.patch = Version<>::patch;
+                svMessage.reply.versions.interface.major = Version<Interface>::major;
+                svMessage.reply.versions.interface.minor = Version<Interface>::minor;
+                svMessage.reply.versions.interface.patch = Version<Interface>::patch;
                 break;
             case barobo_rpc_Request_Type_DISCONNECT:
                 svMessage.reply.type = barobo_rpc_Reply_Type_STATUS;

@@ -348,8 +348,8 @@ asyncDisconnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
                 return;
             }
             switch (reply.type) {
-                case barobo_rpc_Reply_Type_SERVICEINFO:
-                    BOOST_LOG(log) << "DISCONNECT request completed with SERVICEINFO (inconsistent reply)";
+                case barobo_rpc_Reply_Type_VERSIONS:
+                    BOOST_LOG(log) << "DISCONNECT request completed with VERSIONS (inconsistent reply)";
                     realHandler(Status::INCONSISTENT_REPLY);
                     break;
                 case barobo_rpc_Reply_Type_STATUS:
@@ -408,22 +408,22 @@ asyncConnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
                 return;
             }
             switch (reply.type) {
-                case barobo_rpc_Reply_Type_SERVICEINFO:
-                    if (!reply.has_serviceInfo) {
-                        BOOST_LOG(log) << "CONNECT request completed with inconsistent SERVICEINFO reply";
+                case barobo_rpc_Reply_Type_VERSIONS:
+                    if (!reply.has_versions) {
+                        BOOST_LOG(log) << "CONNECT request completed with inconsistent VERSIONS reply";
                         ios.post(std::bind(realHandler, Status::INCONSISTENT_REPLY));
                     }
                     else {
-                        BOOST_LOG(log) << "CONNECT request completed with SERVICEINFO (success)";
-                        auto info = ServiceInfo{reply.serviceInfo};
+                        BOOST_LOG(log) << "CONNECT request completed with VERSIONS (success)";
+                        auto vers = Versions{reply.versions};
 
-                        BOOST_LOG(log) << "Remote RPC version " << info.rpcVersion()
-                                       << ", interface version " << info.interfaceVersion();
+                        BOOST_LOG(log) << "Remote RPC version " << vers.rpc()
+                                       << ", interface version " << vers.interface();
                         BOOST_LOG(log) << "Local RPC version " << rpc::Version<>::triplet()
                                        << ", interface version " << rpc::Version<Interface>::triplet();
 
-                        if (info.rpcVersion() != rpc::Version<>::triplet() ||
-                            info.interfaceVersion() != rpc::Version<Interface>::triplet()) {
+                        if (vers.rpc() != rpc::Version<>::triplet() ||
+                            vers.interface() != rpc::Version<Interface>::triplet()) {
                             asyncDisconnect(client, timeout, [&ios, realHandler] (boost::system::error_code) {
                                 ios.post(std::bind(realHandler, Status::VERSION_MISMATCH));
                             });
@@ -494,8 +494,8 @@ asyncFire (RpcClient& client, Method args, Duration&& timeout, Handler&& handler
                     return;
                 }
                 switch (reply.type) {
-                    case barobo_rpc_Reply_Type_SERVICEINFO:
-                        BOOST_LOG(log) << "FIRE request completed with SERVICEINFO (inconsistent reply)";
+                    case barobo_rpc_Reply_Type_VERSIONS:
+                        BOOST_LOG(log) << "FIRE request completed with VERSIONS (inconsistent reply)";
                         realHandler(Status::INCONSISTENT_REPLY, Result());
                         break;
                     case barobo_rpc_Reply_Type_STATUS:
