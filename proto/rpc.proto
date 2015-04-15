@@ -25,6 +25,11 @@ message VersionTriplet {
     required uint32 patch = 3;
 }
 
+message Versions {
+    required VersionTriplet rpc = 2;
+    required VersionTriplet interface = 3;
+}
+
 message Request {
     enum Type {
         CONNECT = 0;
@@ -48,14 +53,9 @@ message ClientMessage {
 
 message Reply {
     enum Type {
-        SERVICEINFO = 0;
+        VERSIONS = 0;
         STATUS = 2;
         RESULT = 3;
-    }
-
-    message ServiceInfo {
-        required VersionTriplet rpcVersion = 2;
-        required VersionTriplet interfaceVersion = 3;
     }
 
     message Status {
@@ -73,7 +73,7 @@ message Reply {
 
 
     required Type type = 1;
-    optional ServiceInfo serviceInfo = 3;
+    optional Versions versions = 3;
     optional Status status = 4;
     optional Result result = 5;
 }

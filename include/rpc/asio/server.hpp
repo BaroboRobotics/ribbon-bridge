@@ -204,12 +204,12 @@ asyncReply (S& server, typename S::RequestId requestId, Status status, Handler&&
 
 template <class S, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
-asyncReply (S& server, typename S::RequestId requestId, ServiceInfo info, Handler&& handler) {
+asyncReply (S& server, typename S::RequestId requestId, Versions vers, Handler&& handler) {
     barobo_rpc_Reply reply;
     reply = decltype(reply)();
-    reply.type = barobo_rpc_Reply_Type_SERVICEINFO;
-    reply.has_serviceInfo = true;
-    reply.serviceInfo = info;
+    reply.type = barobo_rpc_Reply_Type_VERSIONS;
+    reply.has_versions = true;
+    reply.versions = vers;
     server.asyncSendReply(requestId, reply, std::forward<Handler>(handler));
 }
 
@@ -312,7 +312,7 @@ struct ServeUntilDisconnectionOperation : std::enable_shared_from_this<ServeUnti
                 mIos.post(std::bind(handler, ec, rp));
             }
             else if (barobo_rpc_Request_Type_CONNECT == request.type) {
-                asyncReply(mServer, requestId, ServiceInfo::create<Interface>(), mStrand.wrap(
+                asyncReply(mServer, requestId, Versions::create<Interface>(), mStrand.wrap(
                     std::bind(&ServeUntilDisconnectionOperation::stepTwo,
                         this->shared_from_this(), handler, _1)));
             }
@@ -392,7 +392,7 @@ struct RunServerOperation : std::enable_shared_from_this<RunServerOperation<Inte
             auto log = mServer.log();
             BOOST_LOG(log) << "connection received";
             auto& requestId = rp.first;
-            asyncReply(mServer, requestId, ServiceInfo::create<Interface>(), mStrand.wrap(
+            asyncReply(mServer, requestId, Versions::create<Interface>(), mStrand.wrap(
                 std::bind(&RunServerOperation::stepTwo,
                     this->shared_from_this(), handler, _1)));
         }
