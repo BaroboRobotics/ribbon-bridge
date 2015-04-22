@@ -68,9 +68,9 @@ public:
     // Make a request of the remote server and wait for the reply to arrive.
     // In general, you'll want to use the asyncConnect, asyncDisconnect, and
     // asyncFire free functions instead, to make this easier.
-    template <class Duration, class Handler>
+    template <class Duration, class SendFunc, class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code,barobo_rpc_Reply))
-    asyncRequest (barobo_rpc_Request request, Duration&& timeout, Handler&& handler) {
+    asyncRequest (barobo_rpc_Request request, Duration&& timeout, SendFunc&& sendFunc, Handler&& handler) {
         boost::asio::detail::async_result_init<
             Handler, void(boost::system::error_code,barobo_rpc_Reply)
         > init { std::forward<Handler>(handler) };
@@ -90,7 +90,7 @@ public:
             rpc::encode(message, buf->data(), buf->size(), bytesWritten);
             buf->resize(bytesWritten);
 
-            m->mStrand.post([m, buf, requestId, realHandler, timeout] () {
+            m->mStrand.post([m, buf, requestId, realHandler, timeout, sendFunc] () {
                 using boost::log::add_value;
                 using std::to_string;
                 BOOST_LOG(m->mLog) << add_value("RequestId", to_string(requestId)) << "beginning transaction";
@@ -98,9 +98,13 @@ public:
                 m->emplaceReplyTimeout(requestId, timeout);
 
                 m->mMessageQueue.asyncSend(boost::asio::buffer(*buf),
-                    m->mStrand.wrap([m, buf, requestId] (boost::system::error_code ec) {
+                    m->mStrand.wrap([m, buf, requestId, sendFunc, realHandler] (boost::system::error_code ec) {
                         if (ec) {
                             m->handleReply(requestId, ec, barobo_rpc_Reply());
+                        }
+                        else {
+                            using boost::asio::asio_handler_invoke;
+                            asio_handler_invoke(sendFunc, &realHandler);
                         }
                     }));
             });
@@ -340,7 +344,7 @@ asyncDisconnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
     memset(&request, 0, sizeof(request));
     request.type = barobo_rpc_Request_Type_DISCONNECT;
     BOOST_LOG(log) << "sending DISCONNECT request";
-    client.asyncRequest(request, std::forward<Duration>(timeout),
+    client.asyncRequest(request, std::forward<Duration>(timeout), []{},
         [realHandler, log] (boost::system::error_code ec, barobo_rpc_Reply reply) mutable {
             if (ec) {
                 BOOST_LOG(log) << "DISCONNECT request completed with error: " << ec.message();
@@ -399,7 +403,7 @@ asyncConnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
     memset(&request, 0, sizeof(request));
     request.type = barobo_rpc_Request_Type_CONNECT;
     BOOST_LOG(log) << "sending CONNECT request";
-    client.asyncRequest(request, std::forward<Duration>(timeout),
+    client.asyncRequest(request, std::forward<Duration>(timeout), []{},
         [&client, timeout, realHandler, log] (boost::system::error_code ec, barobo_rpc_Reply reply) mutable {
             auto& ios = client.get_io_service();
             if (ec) {
@@ -486,7 +490,7 @@ asyncFire (RpcClient& client, Method args, Duration&& timeout, Handler&& handler
     }
     else {
         BOOST_LOG(log) << "sending FIRE request";
-        client.asyncRequest(request, std::forward<Duration>(timeout),
+        client.asyncRequest(request, std::forward<Duration>(timeout), []{},
             [realHandler, log] (boost::system::error_code ec, barobo_rpc_Reply reply) mutable {
                 if (ec) {
                     BOOST_LOG(log) << "FIRE request completed with error: " << ec.message();

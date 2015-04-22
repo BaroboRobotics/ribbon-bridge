@@ -57,7 +57,12 @@ struct ForwardRequestsOperation : std::enable_shared_from_this<ForwardRequestsOp
         if (!ec) {
             auto& requestId = rp.first;
             auto& request = rp.second;
-            mClient.asyncRequest(request, std::chrono::seconds(60), mStrand.wrap(
+            std::function<void()> sendFunc = []{};
+            if (barobo_rpc_Request_Type_DISCONNECT == request.type) {
+                sendFunc = std::bind(&ForwardRequestsOperation::onSendDisconnect,
+                    this->shared_from_this());
+            }
+            mClient.asyncRequest(request, std::chrono::seconds(60), sendFunc, mStrand.wrap(
                 std::bind(&ForwardRequestsOperation::stepTwo,
                     this->shared_from_this(), handler, requestId, _1, _2)));
             startImpl(handler);
@@ -68,6 +73,13 @@ struct ForwardRequestsOperation : std::enable_shared_from_this<ForwardRequestsOp
             mServer.close();
             mIos.post(std::bind(handler, ec));
         }
+    }
+
+    void onSendDisconnect () {
+        auto log = mServer.log();
+        BOOST_LOG(log) << "DISCONNECT forwarded, now closing proxy";
+        mClient.close();
+        mServer.close();
     }
 
     void stepTwo (MultiHandler handler, RequestId requestId, boost::system::error_code ec, barobo_rpc_Reply reply) {
