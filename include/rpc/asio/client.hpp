@@ -168,8 +168,8 @@ private:
             if (mReplyHandlers.cend() != handlerIter) {
                 using boost::log::add_value;
                 using std::to_string;
-                BOOST_LOG(mLog) << add_value("RequestId", to_string(requestId))
-                                << "Posting reply handler with " << ec.message();
+                //BOOST_LOG(mLog) << add_value("RequestId", to_string(requestId))
+                //                << "Posting reply handler with " << ec.message();
                 mIoService.post(std::bind(handlerIter->second, ec, reply));
                 mReplyHandlers.erase(handlerIter);
             }
@@ -343,7 +343,7 @@ asyncDisconnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
     barobo_rpc_Request request;
     memset(&request, 0, sizeof(request));
     request.type = barobo_rpc_Request_Type_DISCONNECT;
-    BOOST_LOG(log) << "sending DISCONNECT request";
+    //BOOST_LOG(log) << "sending DISCONNECT request";
     client.asyncRequest(request, std::forward<Duration>(timeout), []{},
         [realHandler, log] (boost::system::error_code ec, barobo_rpc_Reply reply) mutable {
             if (ec) {
