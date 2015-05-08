@@ -8,16 +8,12 @@ const char* statusToString (Status status) {
         ITEM(OK);
         ITEM(DECODING_FAILURE);
         ITEM(ENCODING_FAILURE);
-        ITEM(INCONSISTENT_REQUEST);
-        ITEM(INCONSISTENT_REPLY);
-        ITEM(ILLEGAL_OPERATION);
+        ITEM(MESSAGE_SANITY_FAILURE);
         ITEM(NO_SUCH_COMPONENT);
         ITEM(NOT_CONNECTED);
         ITEM(CONNECTION_REFUSED);
         ITEM(TIMED_OUT);
 
-        ITEM(UNSOLICITED_REPLY);
-        ITEM(UNRECOGNIZED_RESULT);
         ITEM(VERSION_MISMATCH);
         default:
             return "(unknown status)";
@@ -31,9 +27,7 @@ const char* statusToString (RemoteStatus status) {
         ITEM(OK);
         ITEM(DECODING_FAILURE);
         ITEM(ENCODING_FAILURE);
-        ITEM(INCONSISTENT_REQUEST);
-        ITEM(INCONSISTENT_REPLY);
-        ITEM(ILLEGAL_OPERATION);
+        ITEM(MESSAGE_SANITY_FAILURE);
         ITEM(NO_SUCH_COMPONENT);
         ITEM(NOT_CONNECTED);
         ITEM(CONNECTION_REFUSED);

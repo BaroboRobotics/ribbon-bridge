@@ -7,16 +7,13 @@ enum Status {
     DECODING_FAILURE = 1;
     ENCODING_FAILURE = 2;
     /* ribbon-bridge logic error */
-    INCONSISTENT_REQUEST = 3;
-    INCONSISTENT_REPLY = 4;
-    /* ribbon-bridge version mismatch */
-    ILLEGAL_OPERATION = 5;
+    MESSAGE_SANITY_FAILURE = 3;
     /* interface version mismatch */
-    NO_SUCH_COMPONENT = 6;
+    NO_SUCH_COMPONENT = 4;
     /* not connected to the request's origin */
-    NOT_CONNECTED = 7;
-    CONNECTION_REFUSED = 8;
-    TIMED_OUT = 9;
+    NOT_CONNECTED = 5;
+    CONNECTION_REFUSED = 6;
+    TIMED_OUT = 7;
 }
 
 message VersionTriplet {
