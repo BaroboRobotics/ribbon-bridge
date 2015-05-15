@@ -2,46 +2,28 @@
 
 namespace rpc {
 
-const char* statusToString (Status status) {
-#define ITEM(x) case Status::x: return #x
-    switch (status) {
-        ITEM(OK);
-        ITEM(DECODING_FAILURE);
-        ITEM(ENCODING_FAILURE);
-        ITEM(INCONSISTENT_REQUEST);
-        ITEM(INCONSISTENT_REPLY);
-        ITEM(ILLEGAL_OPERATION);
-        ITEM(NO_SUCH_COMPONENT);
-        ITEM(NOT_CONNECTED);
-        ITEM(CONNECTION_REFUSED);
-        ITEM(TIMED_OUT);
-
-        ITEM(UNSOLICITED_REPLY);
-        ITEM(UNRECOGNIZED_RESULT);
-        ITEM(VERSION_MISMATCH);
-        default:
-            return "(unknown status)";
+#define ITEM(t, x) case t::x: return #x
+#define statusToStringBody(t) \
+    switch (status) { \
+        ITEM(t, OK); \
+        ITEM(t, DECODING_FAILURE); \
+        ITEM(t, ENCODING_FAILURE); \
+        ITEM(t, PROTOCOL_ERROR); \
+        ITEM(t, INTERFACE_ERROR); \
+        ITEM(t, NOT_CONNECTED); \
+        ITEM(t, CONNECTION_REFUSED); \
+        ITEM(t, TIMED_OUT); \
+        ITEM(t, VERSION_MISMATCH); \
+        default: \
+            return "(unknown " #t ")"; \
     }
-#undef ITEM
+
+const char* statusToString (Status status) {
+    statusToStringBody(Status)
 }
 
 const char* statusToString (RemoteStatus status) {
-#define ITEM(x) case RemoteStatus::x: return "remote " #x
-    switch (status) {
-        ITEM(OK);
-        ITEM(DECODING_FAILURE);
-        ITEM(ENCODING_FAILURE);
-        ITEM(INCONSISTENT_REQUEST);
-        ITEM(INCONSISTENT_REPLY);
-        ITEM(ILLEGAL_OPERATION);
-        ITEM(NO_SUCH_COMPONENT);
-        ITEM(NOT_CONNECTED);
-        ITEM(CONNECTION_REFUSED);
-        ITEM(TIMED_OUT);
-        default:
-            return "(unknown remote status)";
-    }
-#undef ITEM
+    statusToStringBody(RemoteStatus)
 }
 
 } // namespace rpc

@@ -135,7 +135,7 @@ public:
                 if (!clMessage.request.has_fire) {
                     svMessage.reply.type = barobo_rpc_Reply_Type_STATUS;
                     svMessage.reply.has_status = true;
-                    svMessage.reply.status.value = barobo_rpc_Status_INCONSISTENT_REQUEST;
+                    svMessage.reply.status.value = barobo_rpc_Status_PROTOCOL_ERROR;
                 }
                 else {
                     MethodInUnion<Interface> argument;
@@ -160,7 +160,7 @@ public:
             default:
                 svMessage.reply.type = barobo_rpc_Reply_Type_STATUS;
                 svMessage.reply.has_status = true;
-                svMessage.reply.status.value = barobo_rpc_Status_ILLEGAL_OPERATION;
+                svMessage.reply.status.value = barobo_rpc_Status_PROTOCOL_ERROR;
                 break;
         }
 

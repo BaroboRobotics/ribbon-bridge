@@ -318,7 +318,7 @@ struct ServeUntilDisconnectionOperation : std::enable_shared_from_this<ServeUnti
             }
             else if (barobo_rpc_Request_Type_FIRE == request.type) {
                 if (!request.has_fire) {
-                    mIos.post(std::bind(handler, Status::INCONSISTENT_REPLY, rp));
+                    mIos.post(std::bind(handler, Status::PROTOCOL_ERROR, rp));
                 }
                 else {
                     Status status;
@@ -334,7 +334,7 @@ struct ServeUntilDisconnectionOperation : std::enable_shared_from_this<ServeUnti
                 }
             }
             else {
-                mIos.post(std::bind(handler, Status::INCONSISTENT_REPLY, rp));
+                mIos.post(std::bind(handler, Status::PROTOCOL_ERROR, rp));
             }
         }
         else {
