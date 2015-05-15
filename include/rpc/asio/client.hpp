@@ -261,18 +261,18 @@ private:
                     switch (message.type) {
                         case barobo_rpc_ServerMessage_Type_REPLY:
                             if (!message.has_inReplyTo || !message.has_reply) {
-                                throw Error(Status::MESSAGE_SANITY_FAILURE);
+                                throw Error(Status::PROTOCOL_ERROR);
                             }
                             mReplyInbox.push(std::make_pair(message.inReplyTo, message.reply));
                             break;
                         case barobo_rpc_ServerMessage_Type_BROADCAST:
                             if (message.has_inReplyTo || !message.has_broadcast) {
-                                throw Error(Status::MESSAGE_SANITY_FAILURE);
+                                throw Error(Status::PROTOCOL_ERROR);
                             }
                             mBroadcastInbox.push(message.broadcast);
                             break;
                         default:
-                            throw Error(Status::MESSAGE_SANITY_FAILURE);
+                            throw Error(Status::PROTOCOL_ERROR);
                             break;
                     }
 
@@ -353,12 +353,12 @@ asyncDisconnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
             switch (reply.type) {
                 case barobo_rpc_Reply_Type_VERSIONS:
                     BOOST_LOG(log) << "DISCONNECT request completed with VERSIONS (inconsistent reply)";
-                    realHandler(Status::MESSAGE_SANITY_FAILURE);
+                    realHandler(Status::PROTOCOL_ERROR);
                     break;
                 case barobo_rpc_Reply_Type_STATUS:
                     if (!reply.has_status) {
                         BOOST_LOG(log) << "DISCONNECT request completed with inconsistent STATUS reply";
-                        realHandler(Status::MESSAGE_SANITY_FAILURE);
+                        realHandler(Status::PROTOCOL_ERROR);
                     }
                     else {
                         auto remoteEc = make_error_code(RemoteStatus(reply.status.value));
@@ -368,11 +368,11 @@ asyncDisconnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
                     break;
                 case barobo_rpc_Reply_Type_RESULT:
                     BOOST_LOG(log) << "DISCONNECT request completed with RESULT (inconsistent reply)";
-                    realHandler(Status::MESSAGE_SANITY_FAILURE);
+                    realHandler(Status::PROTOCOL_ERROR);
                     break;
                 default:
                     BOOST_LOG(log) << "DISCONNECT request completed with unrecognized reply type";
-                    realHandler(Status::MESSAGE_SANITY_FAILURE);
+                    realHandler(Status::PROTOCOL_ERROR);
                     break;
             }
         });
@@ -414,7 +414,7 @@ asyncConnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
                 case barobo_rpc_Reply_Type_VERSIONS:
                     if (!reply.has_versions) {
                         BOOST_LOG(log) << "CONNECT request completed with inconsistent VERSIONS reply";
-                        ios.post(std::bind(realHandler, Status::MESSAGE_SANITY_FAILURE));
+                        ios.post(std::bind(realHandler, Status::PROTOCOL_ERROR));
                     }
                     else {
                         BOOST_LOG(log) << "CONNECT request completed with VERSIONS (success)";
@@ -439,7 +439,7 @@ asyncConnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
                 case barobo_rpc_Reply_Type_STATUS:
                     if (!reply.has_status || barobo_rpc_Status_OK == reply.status.value) {
                         BOOST_LOG(log) << "CONNECT request completed with inconsistent STATUS reply";
-                        ios.post(std::bind(realHandler, Status::MESSAGE_SANITY_FAILURE));
+                        ios.post(std::bind(realHandler, Status::PROTOCOL_ERROR));
                     }
                     else {
                         auto remoteEc = make_error_code(RemoteStatus(reply.status.value));
@@ -449,11 +449,11 @@ asyncConnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
                     break;
                 case barobo_rpc_Reply_Type_RESULT:
                     BOOST_LOG(log) << "CONNECT request completed with RESULT (inconsistent reply)";
-                    ios.post(std::bind(realHandler, Status::MESSAGE_SANITY_FAILURE));
+                    ios.post(std::bind(realHandler, Status::PROTOCOL_ERROR));
                     break;
                 default:
                     BOOST_LOG(log) << "CONNECT request completed with unrecognized reply type";
-                    ios.post(std::bind(realHandler, Status::MESSAGE_SANITY_FAILURE));
+                    ios.post(std::bind(realHandler, Status::PROTOCOL_ERROR));
                     break;
             }
         });
@@ -499,12 +499,12 @@ asyncFire (RpcClient& client, Method args, Duration&& timeout, Handler&& handler
                 switch (reply.type) {
                     case barobo_rpc_Reply_Type_VERSIONS:
                         BOOST_LOG(log) << "FIRE request completed with VERSIONS (inconsistent reply)";
-                        realHandler(Status::MESSAGE_SANITY_FAILURE, Result());
+                        realHandler(Status::PROTOCOL_ERROR, Result());
                         break;
                     case barobo_rpc_Reply_Type_STATUS:
                         if (!reply.has_status) {
                             BOOST_LOG(log) << "FIRE request completed with inconsistent STATUS reply";
-                            realHandler(Status::MESSAGE_SANITY_FAILURE, Result());
+                            realHandler(Status::PROTOCOL_ERROR, Result());
                         }
                         else {
                             auto remoteEc = make_error_code(RemoteStatus(reply.status.value));
@@ -515,7 +515,7 @@ asyncFire (RpcClient& client, Method args, Duration&& timeout, Handler&& handler
                     case barobo_rpc_Reply_Type_RESULT:
                         if (!reply.has_result) {
                             BOOST_LOG(log) << "FIRE request completed with inconsistent RESULT reply";
-                            realHandler(Status::MESSAGE_SANITY_FAILURE, Result());
+                            realHandler(Status::PROTOCOL_ERROR, Result());
                         }
                         else {
                             Status status;
@@ -530,7 +530,7 @@ asyncFire (RpcClient& client, Method args, Duration&& timeout, Handler&& handler
                         break;
                     default:
                         BOOST_LOG(log) << "FIRE request completed with unrecognized reply type";
-                        realHandler(Status::MESSAGE_SANITY_FAILURE, Result());
+                        realHandler(Status::PROTOCOL_ERROR, Result());
                         break;
                 }
             });
