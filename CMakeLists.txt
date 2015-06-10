@@ -146,6 +146,15 @@ nanopb_add_proto(rpc-proto proto/rpc.proto)
 
 ##############################################################################
 
+if(MSVC)
+    # Disable warning C4127: conditional expression is constant
+    set_source_files_properties(
+        ${NANOPB_ROOT}/pb_decode.c
+        ${NANOPB_ROOT}/pb_encode.c
+        PROPERTIES COMPILE_FLAGS /wd4127
+        )
+endif()
+
 set(SOURCES
     src/message.cpp
     src/status.cpp
