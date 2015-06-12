@@ -19,9 +19,6 @@ if(AVR)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 endif()
 
-include(LinkbotLabs)
-ll_add_dependency(cxx-util cxx-util)
-
 ##############################################################################
 # Configure our project given the available features
 
