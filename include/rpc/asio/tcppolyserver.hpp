@@ -305,7 +305,7 @@ private:
             ec = boost::system::error_code{};
             iter->second->close(ec); // ignore error
             mSubServers.erase(iter);
-            BOOST_LOG(mLog) << peer << " erased; " << mSubServers.size() << " subservers remaining";
+            BOOST_LOG(mLog) << "" << peer << " erased; " << mSubServers.size() << " subservers remaining";
         }
         if (!mSubServers.size()) {
             BOOST_LOG(mLog) << "Emitting disconnect";
