@@ -4,7 +4,6 @@
 #include "rpc.pb.h"
 
 #include "rpc/asio/waitmultiplecompleter.hpp"
-#include "rpc/asio/tcppolyserver.hpp" // for to_string
 
 #include <boost/asio/async_result.hpp>
 #include <boost/asio/io_service.hpp>
@@ -18,6 +17,13 @@
 
 namespace rpc {
 namespace asio {
+
+template <class T, class U>
+std::string to_string (const std::pair<T, U> &rid) {
+    std::ostringstream oss;
+    oss << rid.first << "/" << rid.second;
+    return oss.str();
+}
 
 typedef void ForwardRequestsHandlerSignature(boost::system::error_code);
 using ForwardRequestsHandler = std::function<ForwardRequestsHandlerSignature>;
