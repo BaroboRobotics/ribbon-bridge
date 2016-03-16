@@ -20,6 +20,8 @@ namespace asio {
 
 template <class T, class U>
 std::string to_string (const std::pair<T, U> &rid) {
+    // PolyServer request IDs are std::pairs, so that they can tack on additional information to
+    // route replies to the appropriate subserver. We need to be able to print them.
     std::ostringstream oss;
     oss << rid.first << "/" << rid.second;
     return oss.str();
