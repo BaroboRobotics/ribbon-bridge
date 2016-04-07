@@ -3,6 +3,8 @@
 
 #include "rpc.pb.h"
 
+#include <util/asynccompletion.hpp>
+
 #include "rpc/asio/waitmultiplecompleter.hpp"
 
 #include <boost/asio/async_result.hpp>
@@ -137,7 +139,7 @@ struct ForwardRequestsOperation : std::enable_shared_from_this<ForwardRequestsOp
 template <class C, class S, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, ForwardRequestsHandlerSignature)
 asyncForwardRequests (C& client, S& server, Handler&& handler) {
-    boost::asio::detail::async_result_init<
+    util::AsyncCompletion<
         Handler, ForwardRequestsHandlerSignature
     > init { std::forward<Handler>(handler) };
 
@@ -195,7 +197,7 @@ struct ForwardBroadcastsOperation : std::enable_shared_from_this<ForwardBroadcas
 template <class C, class S, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, ForwardBroadcastsHandlerSignature)
 asyncForwardBroadcasts (C& client, S& server, Handler&& handler) {
-    boost::asio::detail::async_result_init<
+    util::AsyncCompletion<
         Handler, ForwardBroadcastsHandlerSignature
     > init { std::forward<Handler>(handler) };
 
@@ -211,7 +213,7 @@ asyncForwardBroadcasts (C& client, S& server, Handler&& handler) {
 template <class C, class S, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, RunProxyHandlerSignature)
 asyncRunProxy (C& client, S& server, Handler&& handler) {
-    boost::asio::detail::async_result_init<
+    util::AsyncCompletion<
         Handler, ForwardBroadcastsHandlerSignature
     > init { std::forward<Handler>(handler) };
 
