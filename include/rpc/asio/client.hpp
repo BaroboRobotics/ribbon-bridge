@@ -1,7 +1,7 @@
 #ifndef RPC_ASIO_CLIENT_HPP
 #define RPC_ASIO_CLIENT_HPP
 
-#include <util/asynccompletion.hpp>
+#include <util/asio/asynccompletion.hpp>
 
 #include "rpc/componenttraits.hpp"
 #include "rpc/message.hpp"

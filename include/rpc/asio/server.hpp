@@ -3,7 +3,7 @@
 
 #include "rpc.pb.h"
 
-#include <util/asynccompletion.hpp>
+#include <util/asio/asynccompletion.hpp>
 
 #include <boost/asio/async_result.hpp>
 #include <boost/asio/buffer.hpp>

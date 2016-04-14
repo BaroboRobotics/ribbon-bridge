@@ -3,7 +3,7 @@
 
 #include "rpc.pb.h"
 
-#include <util/asynccompletion.hpp>
+#include <util/asio/asynccompletion.hpp>
 
 #include "rpc/asio/waitmultiplecompleter.hpp"
 
