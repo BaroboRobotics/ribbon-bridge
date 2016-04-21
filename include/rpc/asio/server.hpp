@@ -63,7 +63,7 @@ public:
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler, RequestHandlerSignature)
     asyncReceiveRequest (Handler&& handler) {
-        util::AsyncCompletion<
+        util::asio::AsyncCompletion<
             Handler, RequestHandlerSignature
         > init { std::forward<Handler>(handler) };
         auto& realHandler = init.handler;
@@ -95,7 +95,7 @@ public:
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
     asyncSendReply (RequestId requestId, barobo_rpc_Reply reply, Handler&& handler) {
-        util::AsyncCompletion<
+        util::asio::AsyncCompletion<
             Handler, void(boost::system::error_code)
         > init { std::forward<Handler>(handler) };
         auto& realHandler = init.handler;
@@ -130,7 +130,7 @@ public:
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
     asyncSendBroadcast (barobo_rpc_Broadcast broadcast, Handler&& handler) {
-        util::AsyncCompletion<
+        util::asio::AsyncCompletion<
             Handler, void(boost::system::error_code)
         > init { std::forward<Handler>(handler) };
         auto& realHandler = init.handler;
@@ -170,7 +170,7 @@ private:
 template <class S, class Broadcast, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
 asyncBroadcast (S& server, Broadcast args, Handler&& handler) {
-    util::AsyncCompletion<
+    util::asio::AsyncCompletion<
         Handler, void(boost::system::error_code)
     > init { std::forward<Handler>(handler) };
     auto& realHandler = init.handler;
@@ -266,7 +266,7 @@ struct WaitForConnectionOperation : std::enable_shared_from_this<WaitForConnecti
 template <class S, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, typename S::RequestHandlerSignature)
 asyncWaitForConnection (S& server, Handler&& handler) {
-    util::AsyncCompletion<
+    util::asio::AsyncCompletion<
         Handler, typename S::RequestHandlerSignature
     > init { std::forward<Handler>(handler) };
 
@@ -362,7 +362,7 @@ struct ServeUntilDisconnectionOperation : std::enable_shared_from_this<ServeUnti
 template <class Interface, class S, class Impl, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, typename S::RequestHandlerSignature)
 asyncServeUntilDisconnection (S& server, Impl& impl, Handler&& handler) {
-    util::AsyncCompletion<
+    util::asio::AsyncCompletion<
         Handler, typename S::RequestHandlerSignature
     > init { std::forward<Handler>(handler) };
 
@@ -439,7 +439,7 @@ struct RunServerOperation : std::enable_shared_from_this<RunServerOperation<Inte
 template <class Interface, class S, class Impl, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
 asyncRunServer (S& server, Impl& impl, Handler&& handler) {
-    util::AsyncCompletion<
+    util::asio::AsyncCompletion<
         Handler, void(boost::system::error_code)
     > init { std::forward<Handler>(handler) };
 

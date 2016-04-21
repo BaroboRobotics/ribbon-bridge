@@ -139,7 +139,7 @@ struct ForwardRequestsOperation : std::enable_shared_from_this<ForwardRequestsOp
 template <class C, class S, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, ForwardRequestsHandlerSignature)
 asyncForwardRequests (C& client, S& server, Handler&& handler) {
-    util::AsyncCompletion<
+    util::asio::AsyncCompletion<
         Handler, ForwardRequestsHandlerSignature
     > init { std::forward<Handler>(handler) };
 
@@ -197,7 +197,7 @@ struct ForwardBroadcastsOperation : std::enable_shared_from_this<ForwardBroadcas
 template <class C, class S, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, ForwardBroadcastsHandlerSignature)
 asyncForwardBroadcasts (C& client, S& server, Handler&& handler) {
-    util::AsyncCompletion<
+    util::asio::AsyncCompletion<
         Handler, ForwardBroadcastsHandlerSignature
     > init { std::forward<Handler>(handler) };
 
@@ -213,7 +213,7 @@ asyncForwardBroadcasts (C& client, S& server, Handler&& handler) {
 template <class C, class S, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, RunProxyHandlerSignature)
 asyncRunProxy (C& client, S& server, Handler&& handler) {
-    util::AsyncCompletion<
+    util::asio::AsyncCompletion<
         Handler, ForwardBroadcastsHandlerSignature
     > init { std::forward<Handler>(handler) };
 

@@ -73,7 +73,7 @@ public:
     template <class Duration, class SendFunc, class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code,barobo_rpc_Reply))
     asyncRequest (barobo_rpc_Request request, Duration&& timeout, SendFunc&& sendFunc, Handler&& handler) {
-        util::AsyncCompletion<
+        util::asio::AsyncCompletion<
             Handler, void(boost::system::error_code,barobo_rpc_Reply)
         > init { std::forward<Handler>(handler) };
         auto& realHandler = init.handler;
@@ -122,7 +122,7 @@ public:
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code,barobo_rpc_Broadcast))
     asyncReceiveBroadcast (Handler&& handler) {
-        util::AsyncCompletion<
+        util::asio::AsyncCompletion<
             Handler, void(boost::system::error_code,barobo_rpc_Broadcast)
         > init { std::forward<Handler>(handler) };
         auto& realHandler = init.handler;
@@ -334,7 +334,7 @@ private:
 template <class RpcClient, class Duration, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
 asyncDisconnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
-    util::AsyncCompletion<
+    util::asio::AsyncCompletion<
         Handler, void(boost::system::error_code)
     > init { std::forward<Handler>(handler) };
     auto& realHandler = init.handler;
@@ -393,7 +393,7 @@ asyncDisconnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
 template <class Interface, class RpcClient, class Duration, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
 asyncConnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
-    util::AsyncCompletion<
+    util::asio::AsyncCompletion<
         Handler, void(boost::system::error_code)
     > init { std::forward<Handler>(handler) };
     auto& realHandler = init.handler;
@@ -467,7 +467,7 @@ asyncConnect (RpcClient& client, Duration&& timeout, Handler&& handler) {
 template <class RpcClient, class Method, class Duration, class Handler, class Result = typename ResultOf<Method>::type>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code, Result))
 asyncFire (RpcClient& client, Method args, Duration&& timeout, Handler&& handler) {
-    util::AsyncCompletion<
+    util::asio::AsyncCompletion<
         Handler, void(boost::system::error_code, Result)
     > init { std::forward<Handler>(handler) };
     auto& realHandler = init.handler;
@@ -589,7 +589,7 @@ struct RunClientOperation : std::enable_shared_from_this<RunClientOperation<Inte
 template <class Interface, class C, class Impl, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
 asyncRunClient (C& client, Impl& impl, Handler&& handler) {
-    util::AsyncCompletion<
+    util::asio::AsyncCompletion<
         Handler, void(boost::system::error_code)
     > init { std::forward<Handler>(handler) };
 
