@@ -72,7 +72,7 @@ public:
     // asyncFire free functions instead, to make this easier.
     template <class Duration, class SendFunc, class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code,barobo_rpc_Reply))
-    asyncRequest (barobo_rpc_Request request, Duration&& timeout, SendFunc&& sendFunc, Handler&& handler) {
+    asyncSendRequest (barobo_rpc_Request request, Handler&& handler) {
         util::asio::AsyncCompletion<
             Handler, void(boost::system::error_code,barobo_rpc_Reply)
         > init { std::forward<Handler>(handler) };

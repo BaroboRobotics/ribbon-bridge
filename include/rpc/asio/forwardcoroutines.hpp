@@ -4,8 +4,7 @@
 #include "rpc.pb.h"
 
 #include <util/asio/asynccompletion.hpp>
-
-#include "rpc/asio/waitmultiplecompleter.hpp"
+#include <util/asio/operation.hpp>
 
 #include <boost/asio/async_result.hpp>
 #include <boost/asio/io_service.hpp>
@@ -30,110 +29,122 @@ std::string to_string (const std::pair<T, U> &rid) {
 }
 
 typedef void ForwardRequestsHandlerSignature(boost::system::error_code);
-using ForwardRequestsHandler = std::function<ForwardRequestsHandlerSignature>;
-
 typedef void ForwardBroadcastsHandlerSignature(boost::system::error_code);
-using ForwardBroadcastsHandler = std::function<ForwardBroadcastsHandlerSignature>;
-
 typedef void RunProxyHandlerSignature(boost::system::error_code);
-using RunProxyHandler = std::function<RunProxyHandlerSignature>;
 
-template <class C, class S, class Handler>
-struct ForwardRequestsOperation : std::enable_shared_from_this<ForwardRequestsOperation<C, S, Handler>> {
-    using RequestId = typename S::RequestId;
-    using RequestPair = typename S::RequestPair;
+template <class C, class S>
+struct ForwardOneRequestOperation {
+    using SRequestId = typename S::RequestId;
+    using SRequestPair = typename S::RequestPair;
+    using CRequestId = typename C::RequestId;
 
-    using MultiHandler = WaitMultipleCompleter<Handler>;
-
-    ForwardRequestsOperation (C& client, S& server)
-        : mIos(server.get_io_service())
-        , mStrand(mIos)
-        , mClient(client)
-        , mServer(server)
+    ForwardOneRequestOperation (C& client, S& server, RequestPair rp)
+        , client_(client)
+        , server_(server)
+        , serverRequestId_(rp.first)
+        , request_(rp.second)
     {}
 
-    void start (Handler handler) {
-        startImpl(WaitMultipleCompleter<Handler>(mIos, handler));
+    C& client_;
+    S& server_;
+    RequestId serverRequestId_;
+    barobo_rpc_Request request_;
+
+    CRequestId clientRequestId_;
+
+    boost::log::sources::logger log_;
+
+    boost::system::error_code rc_ = boost::asio::error_operation_aborted;
+
+    std::tuple<boost::system::error_code> result () const {
+        return std::make_tuple(rc_);
     }
 
-    void startImpl (MultiHandler handler) {
-        mServer.asyncReceiveRequest(mStrand.wrap(
-            std::bind(&ForwardRequestsOperation::stepOne,
-                this->shared_from_this(), handler, _1, _2)));
-    }
-
-    void stepOne (MultiHandler handler, boost::system::error_code ec, RequestPair rp) {
-        auto log = mServer.log();
-        if (!ec) {
-            auto& requestId = rp.first;
-            auto& request = rp.second;
-            std::function<void()> sendFunc = []{};
-            if (barobo_rpc_Request_Type_DISCONNECT == request.type) {
-                sendFunc = std::bind(&ForwardRequestsOperation::onSendDisconnect,
-                    this->shared_from_this());
-            }
-            mClient.asyncRequest(request, std::chrono::seconds(60), sendFunc, mStrand.wrap(
-                std::bind(&ForwardRequestsOperation::stepTwo,
-                    this->shared_from_this(), handler, requestId, _1, _2)));
-            startImpl(handler);
-        }
-        else {
-            BOOST_LOG(log) << "ForwardRequestsOperation::stepOne: Error receiving request: " << ec.message();
-            mClient.close();
-            mServer.close();
-            mIos.post(std::bind(handler, ec));
-        }
-    }
-
-    void onSendDisconnect () {
-        auto log = mServer.log();
-        BOOST_LOG(log) << "DISCONNECT forwarded, now closing proxy";
-        mClient.close();
-        mServer.close();
-    }
-
-    void stepTwo (MultiHandler handler, RequestId requestId, boost::system::error_code ec, barobo_rpc_Reply reply) {
-        auto log = mServer.log();
+    template <class Op>
+    void operator() (Op&& op, boost::system::error_code ec = {},
+            boost::optional<barobo_rpc_Reply> reply = {}) {
         using boost::log::add_value;
         using std::to_string;
         using rpc::asio::to_string;
 
-        auto next = mStrand.wrap(
-            std::bind(&ForwardRequestsOperation::stepThree,
-                this->shared_from_this(), handler, _1));
-
-        if (!ec) {
-            BOOST_LOG(log) << add_value("RequestId", to_string(requestId))
-                           << "ForwardRequestsOperation::stepTwo: Forwarding reply to client";
-            mServer.asyncSendReply(requestId, reply, next);
-        }
-        else if (Status::TIMED_OUT == ec) {
-            BOOST_LOG(log) << add_value("RequestId", to_string(requestId))
-                           << "ForwardRequestsOperation::stepTwo: Request timed out";
-            asyncReply(mServer, requestId, Status::TIMED_OUT, next);
-        }
-        else {
-            BOOST_LOG(log) << "ForwardRequestsOperation::stepTwo: Error forwarding request: " << ec.message();
-            mClient.close();
-            mServer.close();
-            mIos.post(std::bind(handler, ec));
+        if (!ec) reenter(op) {
+            yield client_.asyncSendRequest(requestId_, request_, std::move(op));
+            if (barobo_rpc_Request_Type_DISCONNECT == request_.type) {
+                client_.close();
+                server_.close();
+                yield break;
+            }
+            yield client_.asyncReceiveReply(requestId_, std::chrono::seconds(60), std::move(op));
+            if (reply) {
+                BOOST_LOG(log_) << add_value("RequestId", to_string(requestId_))
+                               << "Forwarding reply to connected client";
+                yield server_.asyncSendReply(requestId_, reply, std::move(op));
+            }
+            else {
+                BOOST_LOG(log) << add_value("RequestId", to_string(requestId_))
+                               << "Request timed out";
+                yield asyncReply(server_, requestId_, Status::TIMED_OUT, std::move(op));
+            }
         }
     }
+    else if (boost::asio::error::operation_aborted != ec) {
+        BOOST_LOG(log_) << "ForwardRequestsOperation I/O error: " << ec.message();
+        client_.close();
+        server_.close();
+        rc_ = ec;
+    }
+};
 
-    void stepThree (MultiHandler handler, boost::system::error_code ec) {
-        auto log = mServer.log();
-        if (ec) {
-            BOOST_LOG(log) << "ForwardRequestsOperation: Error replying to request: " << ec.message();
-            mClient.close();
-            mServer.close();
-        }
-        mIos.post(std::bind(handler, ec));
+template <class C, class S, class CompletionToken>
+BOOST_ASIO_INITFN_RESULT_TYPE(CompletionToken, void(boost::system::error_code))
+asyncForwardOneRequest (C& client, S& server, typename S::RequestPair rp,
+        CompletionToken&& token) {
+    util::asio::AsyncCompletion<
+        CompletionToken, void(boost::system::error_code))
+    > init { std::forward<CompletionToken>(token) };
+
+    using Forwarder = ForwardOneRequestOperation<C, S>;
+    makeOperation<Forwarder>(std::move(init.handler), client, server, rp)();
+
+    return init.result.get();
+}
+
+template <class C, class S>
+struct ForwardRequestsOperation {
+    using RequestId = typename S::RequestId;
+    using RequestPair = typename S::RequestPair;
+
+    ForwardRequestsOperation (C& client, S& server)
+        , client_(client)
+        , server_(server)
+    {}
+
+    C& client_;
+    S& server_;
+
+    boost::log::sources::logger log_;
+
+    boost::system::error_code rc_ = boost::asio::error_operation_aborted;
+
+    std::tuple<boost::system::error_code> result () const {
+        return std::make_tuple(rc_);
     }
 
-    boost::asio::io_service& mIos;
-    boost::asio::io_service::strand mStrand;
-    C& mClient;
-    S& mServer;
+    template <class Op>
+    void operator() (Op&& op, boost::system::error_code ec = {}, RequestPair arg = {}) {
+        if (!ec) reenter(op) {
+            do {
+                yield server_.asyncReceiveRequest(std::move(op));
+                fork asyncForwardOneRequest(client, server, rp, op);
+            } while (op.is_parent());
+        }
+        else if (boost::asio::error::operation_aborted != ec) {
+            BOOST_LOG(log_) << "ForwardRequestsOperation I/O error: " << ec.message();
+            client_.close();
+            server_.close();
+            rc_ = ec;
+        }
+    }
 };
 
 template <class C, class S, class Handler>
@@ -149,60 +160,50 @@ asyncForwardRequests (C& client, S& server, Handler&& handler) {
     return init.result.get();
 }
 
-template <class C, class S, class Handler>
-struct ForwardBroadcastsOperation : std::enable_shared_from_this<ForwardBroadcastsOperation<C, S, Handler>> {
+template <class C, class S>
+struct ForwardBroadcastsOperation {
     ForwardBroadcastsOperation (C& client, S& server)
-        : mIos(client.get_io_service())
-        , mStrand(mIos)
-        , mClient(client)
-        , mServer(server)
+        : context(client.get_io_service())
+        , client_(client)
+        , server_(server)
     {}
 
-    void start (Handler handler) {
-        mClient.asyncReceiveBroadcast(mStrand.wrap(
-            std::bind(&ForwardBroadcastsOperation::stepOne,
-                this->shared_from_this(), handler, _1, _2)));
+    C& client_;
+    S& server_;
+
+    boost::log::sources::logger log_;
+    boost::system::error_code rc_ = boost::asio::error::operation_aborted;
+
+    std::tuple<boost::system::error_code> result () {
+        return std::make_tuple(rc_);
     }
 
-    void stepOne (Handler handler, boost::system::error_code ec, barobo_rpc_Broadcast broadcast) {
-        if (!ec) {
-            mServer.asyncSendBroadcast(broadcast, mStrand.wrap(
-                std::bind(&ForwardBroadcastsOperation::stepTwo,
-                    this->shared_from_this(), handler, _1)));
+    template <class Op>
+    void operator() (Op&& op, boost::system::error_code ec = {},
+            barobo_rpc_Broadcast broadcast arg = {}) {
+        if (!ec) reenter (op) {
+            while (true) {
+                yield client_.asyncReceiveBroadcast(std::move(op));
+                yield server_.asyncSendBroadcast(arg, std::move(op));
+            }
         }
-        else {
-            mClient.close();
-            mServer.close();
-            mIos.post(std::bind(handler, ec));
-        }
-    }
-
-    void stepTwo (Handler handler, boost::system::error_code ec) {
-        if (!ec) {
-            start(handler);
-        }
-        else {
-            mClient.close();
-            mServer.close();
-            mIos.post(std::bind(handler, ec));
+        else if (boost::asio::error::operation_aborted != ec) {
+            BOOST_LOG(log_) << "ForwardBroadcastsOperation I/O error: " << ec.message();
+            client_.close();
+            server_.close();
+            rc_ = ec;
         }
     }
 
-    boost::asio::io_service& mIos;
-    boost::asio::io_service::strand mStrand;
-    C& mClient;
-    S& mServer;
-};
-
-template <class C, class S, class Handler>
-BOOST_ASIO_INITFN_RESULT_TYPE(Handler, ForwardBroadcastsHandlerSignature)
-asyncForwardBroadcasts (C& client, S& server, Handler&& handler) {
+template <class C, class S, class CompletionToken>
+BOOST_ASIO_INITFN_RESULT_TYPE(CompletionToken, ForwardBroadcastsHandlerSignature)
+asyncForwardBroadcasts (C& client, S& server, CompletionToken&& token) {
     util::asio::AsyncCompletion<
-        Handler, ForwardBroadcastsHandlerSignature
-    > init { std::forward<Handler>(handler) };
+        CompletionToken, ForwardBroadcastsHandlerSignature
+    > init { std::forward<CompletionToken>(token) };
 
-    using Op = ForwardBroadcastsOperation<C, S, decltype(init.handler)>;
-    std::make_shared<Op>(client, server)->start(init.handler);
+    using Op = ForwardBroadcastsOperation<C, S>;
+    util::asio::makeOperation<Op>(std::move(init.handler), client, server)();
 
     return init.result.get();
 }
