@@ -11,11 +11,9 @@
 #include "rpc/system_error.hpp"
 #include "rpc/version.hpp"
 
-#include <boost/asio/async_result.hpp>
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/steady_timer.hpp>
-#include <boost/asio/strand.hpp>
 
 #include <boost/log/attributes/constant.hpp>
 #include <boost/log/sources/logger.hpp>
@@ -40,15 +38,17 @@ template <class MessageQueue>
 struct ClientImpl : public std::enable_shared_from_this<ClientImpl<MessageQueue>> {
     using RequestId = uint32_t;
 
-    explicit ClientImpl (boost::asio::io_service& ios)
-        : mMessageQueue(ios)
+    explicit ClientImpl (boost::asio::io_service& context)
+        : mMessageQueue(context)
     {
         mLog.add_attribute("Protocol", boost::log::attributes::constant<std::string>("RB-CL"));
     }
 
     void close (boost::system::error_code& ec) {
         mMessageQueue.close(ec);
-        voidHandlers(boost::asio::error::operation_aborted);
+        mMessageQueue.get_io_service().post([self=this->shared_from_this(), this] {
+            voidHandlers(boost::asio::error::operation_aborted);
+        });
     }
 
     MessageQueue& messageQueue () {
