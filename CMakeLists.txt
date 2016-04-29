@@ -91,7 +91,7 @@ set(PROTOC_EXECUTABLE
 # absolute paths of the generated .c and .h files, respectively.
 # <proto-filepath> is the input file; its path will be interpreted relative to
 # the current source directory, if it is not absolute. <c-filepath-result-var>
-# and <h-filepath-result-var> 
+# and <h-filepath-result-var>
 function(nanopb_compile_proto cFilepathResultVar hFilepathResultVar protoFilepath)
     # Get the input .proto file's name, stripped of the last extension. Note:
     # using get_filename_component(... NAME_WE) instead of the funky regex
@@ -167,7 +167,7 @@ endif()
 add_library(rpc STATIC ${SOURCES})
 
 set_target_properties(rpc PROPERTIES
-    CXX_STANDARD 11
+    CXX_STANDARD 14
     CXX_STANDARD_REQUIRED ON
     COMPILE_FLAGS "-D__STDC_FORMAT_MACROS")
 
