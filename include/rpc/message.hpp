@@ -1,13 +1,13 @@
 #ifndef RPC_MESSAGE_HPP
 #define RPC_MESSAGE_HPP
 
-#include "rpc/config.hpp"
+#include <rpc/config.hpp>
 
 #ifdef HAVE_EXCEPTIONS
-# include "rpc/system_error.hpp"
+# include <rpc/system_error.hpp>
 #endif
 
-#include "rpc/status.hpp"
+#include <rpc/status.hpp>
 
 #include "rpc.pb.h"
 

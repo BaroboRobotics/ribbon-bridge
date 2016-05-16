@@ -6,10 +6,10 @@
 #include <util/asio/transparentservice.hpp>
 #include <util/producerconsumerqueue.hpp>
 
-#include "rpc/componenttraits.hpp"
-#include "rpc/message.hpp"
-#include "rpc/system_error.hpp"
-#include "rpc/version.hpp"
+#include <rpc/componenttraits.hpp>
+#include <rpc/message.hpp>
+#include <rpc/system_error.hpp>
+#include <rpc/version.hpp>
 
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/io_service.hpp>

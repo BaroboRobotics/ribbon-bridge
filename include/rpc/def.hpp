@@ -1,10 +1,10 @@
 #ifndef RPC_DEF_HPP
 #define RPC_DEF_HPP
 
-#include "rpc/version.hpp"
-#include "rpc/componenttraits.hpp"
-#include "rpc/hash.hpp"
-#include "rpc/message.hpp"
+#include <rpc/version.hpp>
+#include <rpc/componenttraits.hpp>
+#include <rpc/hash.hpp>
+#include <rpc/message.hpp>
 
 #include <boost/preprocessor/cat.hpp>
 #include <boost/preprocessor/stringize.hpp>
@@ -309,7 +309,7 @@
     rpcdef_constexpr uint32_t componentId (type<interface>::component) { \
         return hash(BOOST_PP_STRINGIZE(component)); \
     }
-    
+
 #define rpcdef_method_componentId(s, interface, method) \
     rpcdef_define_componentId(MethodIn, interface, method)
 

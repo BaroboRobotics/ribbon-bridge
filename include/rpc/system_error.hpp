@@ -1,13 +1,13 @@
 #ifndef RPC_SYSTEM_ERROR_HPP
 #define RPC_SYSTEM_ERROR_HPP
 
-#include "rpc/config.hpp"
+#include <rpc/config.hpp>
 
 #ifndef HAVE_EXCEPTIONS
 #error rpc/error.hpp included with exceptions disabled
 #endif
 
-#include "rpc/status.hpp"
+#include <rpc/status.hpp>
 
 #include <boost/system/error_code.hpp>
 #include <boost/system/system_error.hpp>

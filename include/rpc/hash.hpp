@@ -1,9 +1,8 @@
 #ifndef RPC_HASH_HPP
 #define RPC_HASH_HPP
 
-#include "rpc/config.hpp"
-
-#include "rpc/stdlibheaders.hpp"
+#include <rpc/config.hpp>
+#include <rpc/stdlibheaders.hpp>
 
 namespace rpc {
 
