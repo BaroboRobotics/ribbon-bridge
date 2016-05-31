@@ -17,6 +17,9 @@ if(AVR)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
+else()
+    set(Boost_USE_STATIC_LIBS ON)
+    find_package(Boost 1.54.0 REQUIRED COMPONENTS system filesystem log thread date_time regex)
 endif()
 
 ##############################################################################
@@ -45,19 +48,6 @@ else()
 endif()
 
 configure_file(config.hpp.in include/rpc/config.hpp)
-
-##############################################################################
-# Boost
-
-# Linking statically to Boost is easier for prototyping. For multi-module
-# projects we'll want to use shared libraries and defined -DBOOST_ALL_DYN_LINK
-# or the like.
-set(Boost_USE_STATIC_LIBS ON)
-
-# Boost.Log was introduced in Boost version 1.54.0.
-# system is required for asio
-find_package(Boost 1.54.0 REQUIRED COMPONENTS system filesystem log thread date_time regex)
-
 
 ##############################################################################
 # Set up nanopb
