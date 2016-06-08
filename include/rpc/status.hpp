@@ -11,20 +11,15 @@ namespace rpc {
     OK                         = barobo_rpc_Status_OK, \
     DECODING_FAILURE           = barobo_rpc_Status_DECODING_FAILURE, \
     ENCODING_FAILURE           = barobo_rpc_Status_ENCODING_FAILURE, \
-    INCONSISTENT_REQUEST       = barobo_rpc_Status_INCONSISTENT_REQUEST, \
-    INCONSISTENT_REPLY         = barobo_rpc_Status_INCONSISTENT_REPLY, \
-    ILLEGAL_OPERATION          = barobo_rpc_Status_ILLEGAL_OPERATION, \
-    NO_SUCH_COMPONENT          = barobo_rpc_Status_NO_SUCH_COMPONENT, \
+    PROTOCOL_ERROR             = barobo_rpc_Status_PROTOCOL_ERROR, \
+    INTERFACE_ERROR            = barobo_rpc_Status_INTERFACE_ERROR, \
     NOT_CONNECTED              = barobo_rpc_Status_NOT_CONNECTED, \
     CONNECTION_REFUSED         = barobo_rpc_Status_CONNECTION_REFUSED, \
-    TIMED_OUT                  = barobo_rpc_Status_TIMED_OUT
+    TIMED_OUT                  = barobo_rpc_Status_TIMED_OUT, \
+    VERSION_MISMATCH           = barobo_rpc_Status_VERSION_MISMATCH
 
 enum class Status {
     rpc_Status_basic_enumeration,
-
-    UNSOLICITED_REPLY,
-    UNRECOGNIZED_RESULT,
-    VERSION_MISMATCH
 };
 
 enum class RemoteStatus {

@@ -8,7 +8,6 @@
 #include "rpc/asio/tcppolyserver.hpp"
 #include "rpc/asio/forwardcoroutines.hpp"
 
-#include "util/hexdump.hpp"
 #include "util/monospawn.hpp"
 
 #include <boost/asio.hpp>

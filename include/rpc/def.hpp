@@ -1,10 +1,10 @@
 #ifndef RPC_DEF_HPP
 #define RPC_DEF_HPP
 
-#include "rpc/version.hpp"
-#include "rpc/componenttraits.hpp"
-#include "rpc/hash.hpp"
-#include "rpc/message.hpp"
+#include <rpc/version.hpp>
+#include <rpc/componenttraits.hpp>
+#include <rpc/hash.hpp>
+#include <rpc/message.hpp>
 
 #include <boost/preprocessor/cat.hpp>
 #include <boost/preprocessor/stringize.hpp>
@@ -189,7 +189,7 @@
     switch (componentId) { \
         BOOST_PP_SEQ_FOR_EACH(rpcdef_case_invoke_fire, interface, methods) \
         default: \
-            status = Status::NO_SUCH_COMPONENT; \
+            status = Status::INTERFACE_ERROR; \
             break; \
     }
 
@@ -205,7 +205,7 @@
     switch (componentId) { \
         BOOST_PP_SEQ_FOR_EACH(rpcdef_case_invoke_broadcast, interface, broadcasts) \
         default: \
-            status = Status::NO_SUCH_COMPONENT; \
+            status = Status::INTERFACE_ERROR; \
     }
 
 #else // HAVE_CONSTEXPR_FUNCTION_TEMPLATES
@@ -230,7 +230,7 @@
         barobo_rpc_Request_Fire_payload_t&, barobo_rpc_Reply_Result_payload_t&, Status&)>>{ \
         BOOST_PP_SEQ_FOR_EACH(rpcdef_case_invoke_fire, interface, methods) \
     }; \
-    status = Status::NO_SUCH_COMPONENT; \
+    status = Status::INTERFACE_ERROR; \
     auto iter = delegates.find(componentId); \
     if (iter != delegates.end()) { \
         iter->second(*this, server, in, out, status); \
@@ -253,7 +253,7 @@
         barobo_rpc_Broadcast_payload_t&, Status&)>>{ \
         BOOST_PP_SEQ_FOR_EACH(rpcdef_case_invoke_broadcast, interface, broadcasts) \
     }; \
-    status = Status::NO_SUCH_COMPONENT; \
+    status = Status::INTERFACE_ERROR; \
     auto iter = delegates.find(componentId); \
     if (iter != delegates.end()) { \
         iter->second(*this, client, in, status); \
@@ -309,7 +309,7 @@
     rpcdef_constexpr uint32_t componentId (type<interface>::component) { \
         return hash(BOOST_PP_STRINGIZE(component)); \
     }
-    
+
 #define rpcdef_method_componentId(s, interface, method) \
     rpcdef_define_componentId(MethodIn, interface, method)
 

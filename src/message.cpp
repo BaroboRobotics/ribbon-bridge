@@ -1,5 +1,5 @@
-#include "rpc/stdlibheaders.hpp"
-#include "rpc/message.hpp"
+#include <rpc/stdlibheaders.hpp>
+#include <rpc/message.hpp>
 
 #include "pb_encode.h"
 #include "pb_decode.h"
@@ -25,7 +25,8 @@ void encode (const void* pbStruct, const pb_field_t* pbFields,
     if (!pb_encode(&stream, pbFields, pbStruct)) {
         status = Status::ENCODING_FAILURE;
     }
-    nWritten = stream.bytes_written;
+    nWritten = pb_size_t(stream.bytes_written);
+    assert(nWritten == stream.bytes_written);
 }
 
 void decode (void* pbStruct, const pb_field_t* pbFields,

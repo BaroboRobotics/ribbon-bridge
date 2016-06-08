@@ -1,7 +1,7 @@
 #ifndef RPC_VERSION_HPP
 #define RPC_VERSION_HPP
 
-#include "rpc/config.hpp"
+#include <rpc/config.hpp>
 
 #include "rpc.pb.h"
 
@@ -67,31 +67,31 @@ struct Version<void> {
 	static VersionTriplet triplet () { return { major, minor, patch }; }
 };
 
-class ServiceInfo {
+class Versions {
 public:
-	ServiceInfo () = default;
+	Versions () = default;
 
-	ServiceInfo (barobo_rpc_Reply_ServiceInfo info)
-			: mRpcVersion(info.rpcVersion)
-			, mInterfaceVersion(info.interfaceVersion) { }
+	Versions (barobo_rpc_Versions vers)
+			: mRpcVersion(vers.rpc)
+			, mInterfaceVersion(vers.interface) { }
 
 	template <class Interface>
-	static ServiceInfo create () {
-		barobo_rpc_Reply_ServiceInfo info;
-		info.rpcVersion = Version<>::triplet();
-		info.interfaceVersion = Version<Interface>::triplet();
-		return info;
+	static Versions create () {
+		barobo_rpc_Versions vers;
+		vers.rpc = Version<>::triplet();
+		vers.interface = Version<Interface>::triplet();
+		return vers;
 	}
 
-	operator barobo_rpc_Reply_ServiceInfo () const {
-		barobo_rpc_Reply_ServiceInfo info;
-        info.rpcVersion = rpcVersion();
-        info.interfaceVersion = interfaceVersion();
-        return info;
+	operator barobo_rpc_Versions () const {
+		barobo_rpc_Versions vers;
+        vers.rpc = rpc();
+        vers.interface = interface();
+        return vers;
 	}
 
-	VersionTriplet rpcVersion () const { return mRpcVersion; }
-	VersionTriplet interfaceVersion () const { return mInterfaceVersion; }
+	VersionTriplet rpc () const { return mRpcVersion; }
+	VersionTriplet interface () const { return mInterfaceVersion; }
 
 private:
 	VersionTriplet mRpcVersion = { 0, 0, 0 };

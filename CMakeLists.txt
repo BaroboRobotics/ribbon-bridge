@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.2.1)
 project(rpc C CXX)
 
 set(VERSION_MAJOR 0)
@@ -11,19 +11,16 @@ if(CMAKE_SYSTEM_NAME MATCHES "AVR")
     set(AVR ON)
 endif()
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
-
 option(RPC_BUILD_TESTS "Build ribbon-bridge tests" OFF)
 
 if(AVR)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
+else()
+    set(Boost_USE_STATIC_LIBS ON)
+    find_package(Boost 1.54.0 REQUIRED COMPONENTS system filesystem log thread date_time regex)
 endif()
-
-include(LinkbotLabs)
-ll_add_dependency(cxx-util cxx-util)
 
 ##############################################################################
 # Configure our project given the available features
@@ -44,26 +41,13 @@ check_cxx_source_compiles("int main () { throw int(); }" HAVE_EXCEPTIONS)
 check_cxx_source_compiles("#include <typeinfo>
 int main () { (void)typeid(void); }" HAVE_RTTI)
 
-if(WIN32)
+if(WIN32 OR APPLE)
     set(HAVE_STDLIB ON)
 else()
     check_library_exists(stdc++ exit "" HAVE_STDLIB)
 endif()
 
 configure_file(config.hpp.in include/rpc/config.hpp)
-
-##############################################################################
-# Boost
-
-# Linking statically to Boost is easier for prototyping. For multi-module
-# projects we'll want to use shared libraries and defined -DBOOST_ALL_DYN_LINK
-# or the like.
-set(Boost_USE_STATIC_LIBS ON)
-
-# Boost.Log was introduced in Boost version 1.54.0.
-# system is required for asio
-find_package(Boost 1.54.0 REQUIRED COMPONENTS system filesystem log thread date_time regex)
-
 
 ##############################################################################
 # Set up nanopb
@@ -97,7 +81,7 @@ set(PROTOC_EXECUTABLE
 # absolute paths of the generated .c and .h files, respectively.
 # <proto-filepath> is the input file; its path will be interpreted relative to
 # the current source directory, if it is not absolute. <c-filepath-result-var>
-# and <h-filepath-result-var> 
+# and <h-filepath-result-var>
 function(nanopb_compile_proto cFilepathResultVar hFilepathResultVar protoFilepath)
     # Get the input .proto file's name, stripped of the last extension. Note:
     # using get_filename_component(... NAME_WE) instead of the funky regex
@@ -115,7 +99,7 @@ function(nanopb_compile_proto cFilepathResultVar hFilepathResultVar protoFilepat
     get_filename_component(_dir ${_absProto} DIRECTORY)
 
     add_custom_command(OUTPUT ${cOutput} ${hOutput}
-        COMMAND ${PROTOC_EXECUTABLE} -I${_dir} -I${PROTOC_INCLUDE_DIR}
+        COMMAND ${PROTOC_EXECUTABLE} -I${_dir} -I${PROTOC_INCLUDE_DIR} -I${rpc_SOURCE_DIR}/proto
             --nanopb_out=${CMAKE_CURRENT_BINARY_DIR} ${_absProto}
         MAIN_DEPENDENCY ${protoFilepath}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -149,6 +133,15 @@ nanopb_add_proto(rpc-proto proto/rpc.proto)
 
 ##############################################################################
 
+if(MSVC)
+    # Disable warning C4127: conditional expression is constant
+    set_source_files_properties(
+        ${NANOPB_ROOT}/pb_decode.c
+        ${NANOPB_ROOT}/pb_encode.c
+        PROPERTIES COMPILE_FLAGS /wd4127
+        )
+endif()
+
 set(SOURCES
     src/message.cpp
     src/status.cpp
@@ -160,11 +153,19 @@ if(HAVE_EXCEPTIONS)
     list(APPEND SOURCES src/system_error.cpp)
 endif()
 
-set_source_files_properties(src/message.cpp src/status.cpp src/system_error.cpp PROPERTIES
-    COMPILE_FLAGS "-std=c++11 -D__STDC_FORMAT_MACROS")
 
 add_library(rpc STATIC ${SOURCES})
 
+set_target_properties(rpc PROPERTIES
+    CXX_STANDARD 14
+    CXX_STANDARD_REQUIRED ON
+    COMPILE_FLAGS "-D__STDC_FORMAT_MACROS")
+
+if(MSVC)
+    target_compile_options(rpc PRIVATE /W4)
+else()
+    target_compile_options(rpc PRIVATE -Wall)
+endif()
 target_include_directories(rpc
     PUBLIC ${NANOPB_ROOT}
     PUBLIC include
@@ -172,7 +173,6 @@ target_include_directories(rpc
     PUBLIC ${PROJECT_BINARY_DIR}
     PUBLIC ${PROJECT_BINARY_DIR}/include
     PUBLIC ${Boost_INCLUDE_DIRS}
-    $<TARGET_PROPERTY:cxx-util,INTERFACE_INCLUDE_DIRECTORIES>
     )
 
 # Our asio code is header-only, so no need for us to link with Boost/Winsock
