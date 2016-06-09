@@ -1,0 +1,6 @@
+set(Boost_USE_STATIC_LIBS ON)
+find_package(Boost 1.54.0 REQUIRED COMPONENTS system filesystem log thread date_time regex)
+include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@-targets.cmake")
+
+set(RPC_PROTO_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/../proto")
+include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@-functions.cmake")

@@ -1,10 +1,5 @@
-cmake_minimum_required(VERSION 3.2.1)
-project(rpc C CXX)
-
-set(VERSION_MAJOR 0)
-set(VERSION_MINOR 3)
-set(VERSION_PATCH 0)
-set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
+cmake_minimum_required(VERSION 3.5)
+project(ribbon-bridge VERSION 0.3.0 LANGUAGES C CXX)
 
 set(AVR OFF)
 if(CMAKE_SYSTEM_NAME MATCHES "AVR")
@@ -49,84 +44,8 @@ endif()
 
 configure_file(config.hpp.in include/rpc/config.hpp)
 
-##############################################################################
-# Set up nanopb
-
-if(NOT DEFINED NANOPB_ROOT)
-    if(DEFINED ENV{NANOPB_ROOT})
-        set(NANOPB_ROOT "$ENV{NANOPB_ROOT}")
-    else()
-        message(FATAL_ERROR "NANOPB_ROOT must be set")
-    endif()
-endif()
-
-file(TO_CMAKE_PATH "${NANOPB_ROOT}" NANOPB_ROOT)
-
-set(NANOPB_INCLUDE_DIR ${NANOPB_ROOT} CACHE PATH "Location of pb.h")
-
-set(PROTOC_INCLUDE_DIR
-    "${NANOPB_ROOT}/generator/proto"
-    CACHE PATH "protocol buffer compiler's include directory")
-
-set(PROTOC_EXECUTABLE
-    "${NANOPB_ROOT}/generator-bin/protoc"
-    CACHE FILEPATH "protocol buffer compiler")
-
-# nanopb_compile_proto(<c-filepath-result-var>
-#                   <h-filepath-result-var>
-#                   <proto-filepath>)
-#
-# Compile a .proto file to a .c and a .h using nanopb's protocol buffer
-# compiler. Set <c-filepath-result-var> and <h-filepath-result-var> to the
-# absolute paths of the generated .c and .h files, respectively.
-# <proto-filepath> is the input file; its path will be interpreted relative to
-# the current source directory, if it is not absolute. <c-filepath-result-var>
-# and <h-filepath-result-var>
-function(nanopb_compile_proto cFilepathResultVar hFilepathResultVar protoFilepath)
-    # Get the input .proto file's name, stripped of the last extension. Note:
-    # using get_filename_component(... NAME_WE) instead of the funky regex
-    # business would incorrectly strip all extensions. protoc only strips the
-    # last, and we want to mimic its behavior.
-    get_filename_component(_name ${protoFilepath} NAME)
-    string(REGEX REPLACE "^(.+)(\\.[^.]+)$" "\\1" _basename ${_name})
-    set(cOutput ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.pb.c)
-    set(hOutput ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.pb.h)
-
-    set(${cFilepathResultVar} ${cOutput} PARENT_SCOPE)
-    set(${hFilepathResultVar} ${hOutput} PARENT_SCOPE)
-
-    get_filename_component(_absProto ${protoFilepath} ABSOLUTE)
-    get_filename_component(_dir ${_absProto} DIRECTORY)
-
-    add_custom_command(OUTPUT ${cOutput} ${hOutput}
-        COMMAND ${PROTOC_EXECUTABLE} -I${_dir} -I${PROTOC_INCLUDE_DIR} -I${rpc_SOURCE_DIR}/proto
-            --nanopb_out=${CMAKE_CURRENT_BINARY_DIR} ${_absProto}
-        MAIN_DEPENDENCY ${protoFilepath}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        COMMENT "Generating ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.pb.{c,h} from ${protoFilepath}"
-        VERBATIM)
-endfunction()
-
-# nanopb_add_proto(<target-name> <proto-filepath> [<other-source-files>...])
-#
-# Define a target to represent a nanopb protobuf library. You can use
-# <target-name> in the rest of your code as a static library target (but
-# containing position-independent code, and include its headers by using the
-#
-#   $<TARGET_PROPERTY:<target-name>,INCLUDE_DIRECTORIES>
-#
-# generator expression in a suitable command's arguments.
-function(nanopb_add_proto _targetName _protoFile)
-    nanopb_compile_proto(cFile hFile ${_protoFile})
-    get_filename_component(protoName ${_protoFile} NAME_WE)
-    add_library(${_targetName} STATIC ${cFile} ${ARGN})
-    get_filename_component(protoDir ${hFile} DIRECTORY)
-    target_include_directories(${_targetName}
-        PRIVATE ${NANOPB_INCLUDE_DIR}
-        PUBLIC ${protoDir}
-        PUBLIC .)
-    set_target_properties(${_targetName} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-endfunction()
+set(RPC_PROTO_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/proto)
+include(ribbon-bridge-functions.cmake)
 
 # Eat own dog food.
 nanopb_add_proto(rpc-proto proto/rpc.proto)
@@ -168,23 +87,21 @@ else()
 endif()
 target_include_directories(rpc
     PUBLIC ${NANOPB_ROOT}
-    PUBLIC include
-    PRIVATE src
-    PUBLIC ${PROJECT_BINARY_DIR}
-    PUBLIC ${PROJECT_BINARY_DIR}/include
-    PUBLIC ${Boost_INCLUDE_DIRS}
-    )
+    PRIVATE include
+    PRIVATE ${PROJECT_BINARY_DIR}
+    PRIVATE ${PROJECT_BINARY_DIR}/include
+)
 
 # Our asio code is header-only, so no need for us to link with Boost/Winsock
 # ourselves. Consumers of our headers will have to, though.
-target_link_libraries(rpc PRIVATE rpc-proto INTERFACE ${Boost_LIBRARIES})
+target_link_libraries(rpc PRIVATE rpc-proto PUBLIC Boost::system)
 if(WIN32)
     target_link_libraries(rpc INTERFACE ws2_32)
 endif()
 set_target_properties(rpc PROPERTIES
     POSITION_INDEPENDENT_CODE ON
-    VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
-    SOVERSION ${VERSION_MAJOR}
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}
     MACOSX_RPATH ON
 )
 
@@ -194,3 +111,44 @@ if(RPC_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
+
+
+install(TARGETS rpc rpc-proto EXPORT barobo
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION bin
+    INCLUDES DESTINATION include
+)
+
+install(DIRECTORY include/ DESTINATION include)
+install(DIRECTORY ${PROJECT_BINARY_DIR}/include/ DESTINATION include)
+install(DIRECTORY proto/ DESTINATION proto)
+install(FILES ${PROJECT_BINARY_DIR}/rpc.pb.h DESTINATION include)
+install(FILES ${PROJECT_NAME}-functions.cmake DESTINATION cmake)
+
+# Boilerplate follows
+
+export(EXPORT barobo
+    FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-targets.cmake"
+    NAMESPACE barobo::
+)
+
+install(EXPORT barobo
+    FILE ${PROJECT_NAME}-targets.cmake
+    NAMESPACE barobo::
+    DESTINATION cmake
+)
+
+configure_file(${PROJECT_NAME}-config.cmake.in ${PROJECT_NAME}-config.cmake @ONLY)
+
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-configVersion.cmake"
+    COMPATIBILITY SameMajorVersion
+)
+
+install(FILES
+    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
+    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-configVersion.cmake"
+    DESTINATION cmake
+)
