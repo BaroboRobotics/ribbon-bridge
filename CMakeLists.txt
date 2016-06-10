@@ -94,7 +94,10 @@ target_include_directories(rpc
 
 # Our asio code is header-only, so no need for us to link with Boost/Winsock
 # ourselves. Consumers of our headers will have to, though.
-target_link_libraries(rpc PRIVATE rpc-proto PUBLIC Boost::system)
+target_link_libraries(rpc PRIVATE rpc-proto)
+if(HAVE_EXCEPTIONS)
+    target_link_libraries(rpc PUBLIC Boost::system)
+endif()
 if(WIN32)
     target_link_libraries(rpc INTERFACE ws2_32)
 endif()
