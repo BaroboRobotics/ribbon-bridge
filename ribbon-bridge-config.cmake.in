@@ -1,7 +1,15 @@
+set(Boost_USE_STATIC_LIBS ON)
 if(@HAVE_EXCEPTIONS@)
-    set(Boost_USE_STATIC_LIBS ON)
-    find_package(Boost 1.54.0 REQUIRED COMPONENTS system filesystem log thread date_time regex)
+    set(boostComponents system filesystem log thread date_time regex)
 endif()
+find_package(Boost 1.54.0 REQUIRED COMPONENTS ${boostComponents})
+
+# We need to be able to express an interface dependency on the Boost headers, so set up this fancy
+# IMPORTED target.
+add_library(boost INTERFACE IMPORTED)
+set_property(TARGET boost PROPERTY
+    INTERFACE_INCLUDE_DIRECTORIES ${Boost_INCLUDE_DIR})
+
 include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@-targets.cmake")
 
 set(RPC_PROTO_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/../proto")

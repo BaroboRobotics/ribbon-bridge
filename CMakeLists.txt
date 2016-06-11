@@ -13,9 +13,17 @@ if(AVR)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 else()
-    set(Boost_USE_STATIC_LIBS ON)
-    find_package(Boost 1.54.0 REQUIRED COMPONENTS system filesystem log thread date_time regex)
+    set(boostComponents system filesystem log thread date_time regex)
 endif()
+
+set(Boost_USE_STATIC_LIBS ON)
+find_package(Boost 1.54.0 REQUIRED COMPONENTS ${boostComponents})
+
+# We need to be able to express an interface dependency on the Boost headers, so set up this fancy
+# IMPORTED target.
+add_library(boost INTERFACE IMPORTED)
+set_property(TARGET boost PROPERTY
+    INTERFACE_INCLUDE_DIRECTORIES ${Boost_INCLUDE_DIR})
 
 ##############################################################################
 # Configure our project given the available features
@@ -92,13 +100,13 @@ target_include_directories(rpc
     PRIVATE ${PROJECT_BINARY_DIR}/include
 )
 
-# Our asio code is header-only, so no need for us to link with Boost/Winsock
-# ourselves. Consumers of our headers will have to, though.
-target_link_libraries(rpc PRIVATE rpc-proto)
+target_link_libraries(rpc PRIVATE rpc-proto INTERFACE boost)
 if(HAVE_EXCEPTIONS)
     target_link_libraries(rpc PUBLIC Boost::system)
 endif()
 if(WIN32)
+    # Our asio code is header-only, so no need for us to link with Winsock
+    # ourselves. Consumers of our headers will have to, though.
     target_link_libraries(rpc INTERFACE ws2_32)
 endif()
 set_target_properties(rpc PROPERTIES
