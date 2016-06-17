@@ -16,8 +16,8 @@
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/steady_timer.hpp>
 
-//#include <boost/log/attributes/constant.hpp>
-//#include <boost/log/utility/manipulators/add_value.hpp>
+#include <boost/log/attributes/constant.hpp>
+#include <boost/log/utility/manipulators/add_value.hpp>
 
 #include <boost/optional.hpp>
 
