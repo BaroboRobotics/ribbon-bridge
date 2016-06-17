@@ -3,16 +3,14 @@
 
 #include "rpc.pb.h"
 
+#include <util/log.hpp>
 #include <util/asio/asynccompletion.hpp>
 
-#include <boost/asio/async_result.hpp>
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/strand.hpp>
 
 #include <boost/log/attributes/constant.hpp>
-#include <boost/log/sources/logger.hpp>
-#include <boost/log/sources/record_ostream.hpp>
 
 #include <functional>
 #include <utility>
@@ -62,7 +60,7 @@ public:
 	MessageQueue& messageQueue () { return mMessageQueue; }
 	const MessageQueue& messageQueue () const { return mMessageQueue; }
 
-    boost::log::sources::logger& log () { return mLog; }
+    util::log::Logger& log () { return mLog; }
 
     template <class Handler>
     BOOST_ASIO_INITFN_RESULT_TYPE(Handler, RequestHandlerSignature)
@@ -168,7 +166,7 @@ public:
 private:
     MessageQueue mMessageQueue;
 
-    boost::log::sources::logger mLog;
+    util::log::Logger mLog;
 };
 
 template <class S, class Broadcast, class Handler>

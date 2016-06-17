@@ -3,15 +3,14 @@
 
 #include "rpc.pb.h"
 
+#include <util/log.hpp>
 #include <util/asio/asynccompletion.hpp>
 #include <util/asio/operation.hpp>
 #include <util/asio/transparentservice.hpp>
 
 #include <boost/asio/io_service.hpp>
 
-#include <boost/log/sources/logger.hpp>
 #include <boost/log/utility/manipulators/add_value.hpp>
-#include <boost/log/sources/record_ostream.hpp>
 
 #include <chrono>
 
@@ -53,7 +52,7 @@ struct ProxyImpl {
     Client mClient;
     Server mServer;
 
-    mutable boost::log::sources::logger mLog;
+    mutable util::log::Logger mLog;
 };
 
 template <class C, class S>
@@ -69,7 +68,7 @@ public:
     Client& client () { return this->get_implementation()->client(); }
     Server& server () { return this->get_implementation()->server(); }
 
-    boost::log::sources::logger& log () { return this->get_implementation()->log(); }
+    util::log::Logger& log () { return this->get_implementation()->log(); }
 };
 
 typedef void ForwardHandlerSignature(boost::system::error_code);

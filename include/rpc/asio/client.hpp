@@ -1,6 +1,7 @@
 #ifndef RPC_ASIO_CLIENT_HPP
 #define RPC_ASIO_CLIENT_HPP
 
+#include <util/log.hpp>
 #include <util/asio/asynccompletion.hpp>
 #include <util/asio/operation.hpp>
 #include <util/asio/transparentservice.hpp>
@@ -15,10 +16,8 @@
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/steady_timer.hpp>
 
-#include <boost/log/attributes/constant.hpp>
-#include <boost/log/sources/logger.hpp>
-#include <boost/log/utility/manipulators/add_value.hpp>
-#include <boost/log/sources/record_ostream.hpp>
+//#include <boost/log/attributes/constant.hpp>
+//#include <boost/log/utility/manipulators/add_value.hpp>
 
 #include <boost/optional.hpp>
 
@@ -58,7 +57,7 @@ struct ClientImpl : public std::enable_shared_from_this<ClientImpl<MessageQueue>
         return mMessageQueue;
     }
 
-    boost::log::sources::logger& log () {
+    util::log::Logger& log () {
         return mLog;
     }
 
@@ -227,7 +226,7 @@ struct ClientImpl : public std::enable_shared_from_this<ClientImpl<MessageQueue>
     bool mReceivePumpRunning = false;
     boost::system::error_code mReceivePumpError;
 
-    mutable boost::log::sources::logger mLog;
+    mutable util::log::Logger mLog;
 };
 
 
@@ -402,7 +401,7 @@ public:
         return this->get_implementation()->messageQueue();
     }
 
-    boost::log::sources::logger& log () {
+    util::log::Logger& log () {
         return this->get_implementation()->log();
     }
 
