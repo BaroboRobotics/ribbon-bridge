@@ -217,6 +217,7 @@ asyncReply (S& server, typename S::RequestId requestId, Versions vers, Handler&&
     server.asyncSendReply(requestId, reply, std::forward<Handler>(handler));
 }
 
+#if 0
 template <class S>
 struct WaitForConnectionOperation {
     using RequestPair = typename S::RequestPair;
@@ -260,6 +261,7 @@ asyncWaitForConnection (S& server, CompletionToken&& token) {
 
     return init.result.get();
 }
+#endif
 
 template <class Interface, class S, class Impl>
 struct ServeUntilDisconnectionOperation {
@@ -365,9 +367,9 @@ struct RunServerOperation {
     template <class Op>
     void operator() (Op&& op, boost::system::error_code ec = {}, RequestPair rp = {}) {
         if (!ec) reenter (op) {
-            yield asyncWaitForConnection(server_, std::move(op));
-            BOOST_LOG(server_.log()) << "connection received";
-            yield asyncReply(server_, rp.id, Versions::create<Interface>(), std::move(op));
+            //yield asyncWaitForConnection(server_, std::move(op));
+            //BOOST_LOG(server_.log()) << "connection received";
+            //yield asyncReply(server_, rp.id, Versions::create<Interface>(), std::move(op));
             BOOST_LOG(server_.log()) << "now serving!";
             yield asyncServeUntilDisconnection<Interface>(server_, impl_, std::move(op));
             BOOST_LOG(server_.log()) << "finished serving";
