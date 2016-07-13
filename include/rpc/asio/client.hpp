@@ -71,7 +71,7 @@ struct ClientImpl : public std::enable_shared_from_this<ClientImpl<MessageQueue>
         > init { std::forward<CompletionToken>(token) };
 
         using Op = SendRequestOperation;
-        util::asio::makeOperation<Op>(std::move(init.handler),
+        util::asio::v1::makeOperation<Op>(std::move(init.handler),
             this->shared_from_this(), requestId, request)();
 
         return init.result.get();
@@ -146,7 +146,7 @@ struct ClientImpl : public std::enable_shared_from_this<ClientImpl<MessageQueue>
             mReceivePumpError = ec;
         };
         using Op = ReceivePumpOperation;
-        util::asio::makeOperation<Op>(std::move(handler), self)();
+        util::asio::v1::makeOperation<Op>(std::move(handler), self)();
     }
 
     void handleMessage (uint8_t* data, size_t size, boost::system::error_code& ec) {
@@ -379,7 +379,7 @@ asyncRequest (
     > init { std::forward<CompletionToken>(token) };
 
     using Op = RequestOperation<C, Duration>;
-    util::asio::makeOperation<Op>(std::move(init.handler),
+    util::asio::v1::makeOperation<Op>(std::move(init.handler),
         client, request, std::forward<Duration>(timeout))();
 
     return init.result.get();
@@ -696,7 +696,7 @@ asyncRunClient (C& client, Impl& impl, Handler&& handler) {
     > init { std::forward<Handler>(handler) };
 
     using Op = RunClientOperation<Interface, C, Impl>;
-    util::asio::makeOperation<Op>(std::move(init.handler), client, impl)();
+    util::asio::v1::makeOperation<Op>(std::move(init.handler), client, impl)();
 
     return init.result.get();
 }

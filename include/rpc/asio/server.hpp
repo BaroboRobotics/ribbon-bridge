@@ -257,7 +257,7 @@ asyncWaitForConnection (S& server, CompletionToken&& token) {
     > init { std::forward<CompletionToken>(token) };
 
     using Op = WaitForConnectionOperation<S>;
-    util::asio::makeOperation<Op>(std::move(init.handler), server)();
+    util::asio::v1::makeOperation<Op>(std::move(init.handler), server)();
 
     return init.result.get();
 }
@@ -344,7 +344,7 @@ asyncServeUntilDisconnection (S& server, Impl& impl, CompletionToken&& token) {
     > init { std::forward<CompletionToken>(token) };
 
     using Op = ServeUntilDisconnectionOperation<Interface, S, Impl>;
-    util::asio::makeOperation<Op>(std::move(init.handler), server, impl)();
+    util::asio::v1::makeOperation<Op>(std::move(init.handler), server, impl)();
 
     return init.result.get();
 }
@@ -390,7 +390,7 @@ asyncRunServer (S& server, Impl& impl, CompletionToken&& token) {
     > init { std::forward<CompletionToken>(token) };
 
     using Op = RunServerOperation<Interface, S, Impl>;
-    util::asio::makeOperation<Op>(std::move(init.handler), server, impl)();
+    util::asio::v1::makeOperation<Op>(std::move(init.handler), server, impl)();
 
     return init.result.get();
 }

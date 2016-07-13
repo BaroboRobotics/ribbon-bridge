@@ -141,7 +141,7 @@ asyncForwardOneRequest (Proxy& proxy, typename Proxy::Server::RequestPair rp,
     > init { std::forward<CompletionToken>(token) };
 
     using Op = ForwardOneRequestOperation<Proxy>;
-    util::asio::makeOperation<Op>(std::move(init.handler), proxy, rp)();
+    util::asio::v1::makeOperation<Op>(std::move(init.handler), proxy, rp)();
 
     return init.result.get();
 }
@@ -188,7 +188,7 @@ asyncForwardRequests (Proxy& proxy, CompletionToken&& token) {
     > init { std::forward<CompletionToken>(token) };
 
     using Op = ForwardRequestsOperation<Proxy>;
-    util::asio::makeOperation<Op>(std::move(init.handler), proxy)();
+    util::asio::v1::makeOperation<Op>(std::move(init.handler), proxy)();
 
     return init.result.get();
 }
@@ -233,7 +233,7 @@ asyncForwardBroadcasts (Proxy& proxy, CompletionToken&& token) {
     > init { std::forward<CompletionToken>(token) };
 
     using Op = ForwardBroadcastsOperation<Proxy>;
-    util::asio::makeOperation<Op>(std::move(init.handler), proxy)();
+    util::asio::v1::makeOperation<Op>(std::move(init.handler), proxy)();
 
     return init.result.get();
 }
@@ -283,7 +283,7 @@ asyncRunProxy (Proxy& proxy, CompletionToken&& token) {
     > init { std::forward<CompletionToken>(token) };
 
     using Op = RunProxyOperation<Proxy>;
-    util::asio::makeOperation<Op>(std::move(init.handler), proxy)();
+    util::asio::v1::makeOperation<Op>(std::move(init.handler), proxy)();
 
     return init.result.get();
 }
