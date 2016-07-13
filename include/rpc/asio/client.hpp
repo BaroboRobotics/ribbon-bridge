@@ -43,6 +43,10 @@ struct ClientImpl : public std::enable_shared_from_this<ClientImpl<MessageQueue>
         mLog.add_attribute("Protocol", boost::log::attributes::constant<std::string>("RB-CL"));
     }
 
+    void init (MessageQueue&& messageQueue) {
+        mMessageQueue = std::move(messageQueue);
+    }
+
     void close (boost::system::error_code& ec) {
         mMessageQueue.close(ec);
         mMessageQueue.get_io_service().post([self=this->shared_from_this(), this] {
@@ -385,35 +389,6 @@ asyncRequest (
     return init.result.get();
 }
 
-template <class MessageQueue>
-class Client : public util::asio::TransparentIoObject<ClientImpl<MessageQueue>> {
-public:
-    using RequestId = typename ClientImpl<MessageQueue>::RequestId;
-
-    explicit Client (boost::asio::io_service& context)
-        : util::asio::TransparentIoObject<ClientImpl<MessageQueue>>(context)
-    {}
-
-    MessageQueue& messageQueue () {
-        return this->get_implementation()->messageQueue();
-    }
-    const MessageQueue& messageQueue () const {
-        return this->get_implementation()->messageQueue();
-    }
-
-    util::log::Logger& log () {
-        return this->get_implementation()->log();
-    }
-
-    RequestId nextRequestId () {
-        return this->get_implementation()->nextRequestId();
-    }
-
-    UTIL_ASIO_DECL_ASYNC_METHOD(asyncSendRequest)
-    UTIL_ASIO_DECL_ASYNC_METHOD(asyncReceiveReply)
-    UTIL_ASIO_DECL_ASYNC_METHOD(asyncReceiveBroadcast)
-};
-
 // Make a disconnection request to the remote server.
 template <class RpcClient, class Duration, class Handler>
 BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code))
@@ -700,6 +675,41 @@ asyncRunClient (C& client, Impl& impl, Handler&& handler) {
 
     return init.result.get();
 }
+
+template <class MessageQueue>
+class Client : public util::asio::TransparentIoObject<ClientImpl<MessageQueue>> {
+public:
+    using RequestId = typename ClientImpl<MessageQueue>::RequestId;
+
+    explicit Client (boost::asio::io_service& context)
+        : util::asio::TransparentIoObject<ClientImpl<MessageQueue>>(context)
+    {}
+
+    explicit Client (MessageQueue&& messageQueue)
+        : util::asio::TransparentIoObject<ClientImpl<MessageQueue>>(messageQueue.get_io_service())
+    {
+        this->get_implementation()->init(std::move(messageQueue));
+    }
+
+    MessageQueue& messageQueue () {
+        return this->get_implementation()->messageQueue();
+    }
+    const MessageQueue& messageQueue () const {
+        return this->get_implementation()->messageQueue();
+    }
+
+    util::log::Logger& log () {
+        return this->get_implementation()->log();
+    }
+
+    RequestId nextRequestId () {
+        return this->get_implementation()->nextRequestId();
+    }
+
+    UTIL_ASIO_DECL_ASYNC_METHOD(asyncSendRequest)
+    UTIL_ASIO_DECL_ASYNC_METHOD(asyncReceiveReply)
+    UTIL_ASIO_DECL_ASYNC_METHOD(asyncReceiveBroadcast)
+};
 
 }} // namespace rpc::asio
 
