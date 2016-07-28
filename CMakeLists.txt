@@ -19,6 +19,10 @@ endif()
 set(Boost_USE_STATIC_LIBS ON)
 find_package(Boost 1.54.0 REQUIRED COMPONENTS ${boostComponents})
 
+if(AVR AND Boost_INCLUDE_DIR MATCHES "/usr/include")
+    message(FATAL_ERROR "Cannot use Boost installed at /usr/include: host machine headers will override libc-avr's")
+endif()
+
 # We need to be able to express an interface dependency on the Boost headers, so set up this fancy
 # IMPORTED target.
 add_library(boost INTERFACE IMPORTED)
