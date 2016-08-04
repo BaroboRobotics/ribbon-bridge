@@ -57,28 +57,17 @@ endif()
 configure_file(config.hpp.in include/rpc/config.hpp)
 
 set(RPC_PROTO_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/proto)
-include(ribbon-bridge-functions.cmake)
+include(${PROJECT_NAME}-functions.cmake)
 
 # Eat own dog food.
 nanopb_add_proto(rpc-proto proto/rpc.proto)
 
 ##############################################################################
 
-if(MSVC)
-    # Disable warning C4127: conditional expression is constant
-    set_source_files_properties(
-        ${NANOPB_ROOT}/pb_decode.c
-        ${NANOPB_ROOT}/pb_encode.c
-        PROPERTIES COMPILE_FLAGS /wd4127
-        )
-endif()
-
 set(SOURCES
     src/message.cpp
     src/status.cpp
-    ${NANOPB_ROOT}/pb_decode.c
-    ${NANOPB_ROOT}/pb_encode.c
-    ${NANOPB_ROOT}/pb_common.c)
+)
 
 if(HAVE_EXCEPTIONS)
     list(APPEND SOURCES src/system_error.cpp)
@@ -98,7 +87,6 @@ else()
     target_compile_options(rpc PRIVATE -Wall)
 endif()
 target_include_directories(rpc
-    PUBLIC ${NANOPB_ROOT}
     PRIVATE include
     PRIVATE ${PROJECT_BINARY_DIR}
     PRIVATE ${PROJECT_BINARY_DIR}/include
