@@ -76,10 +76,13 @@ endif()
 
 add_library(rpc STATIC ${SOURCES})
 
-set_target_properties(rpc PROPERTIES
-    CXX_STANDARD 14
-    CXX_STANDARD_REQUIRED ON
-    COMPILE_FLAGS "-D__STDC_FORMAT_MACROS")
+set_target_properties(rpc
+    PROPERTIES
+        CXX_STANDARD 14
+        CXX_STANDARD_REQUIRED ON
+        POSITION_INDEPENDENT_CODE ON
+        COMPILE_FLAGS "-D__STDC_FORMAT_MACROS"
+)
 
 if(MSVC)
     target_compile_options(rpc PRIVATE /W4)
