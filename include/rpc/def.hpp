@@ -175,8 +175,6 @@
 //////////////////////////////////////////////////////////////////////////////
 // Component Unions
 
-#if HAVE_CONSTEXPR_FUNCTION_TEMPLATES
-
 # define rpcdef_case_invoke_fire(s, interface, method) \
     case ::rpc::componentId(MethodIn<interface>::method{}): \
         decode(this->method, in.bytes, in.size, status); \
@@ -207,59 +205,6 @@
         default: \
             status = Status::INTERFACE_ERROR; \
     }
-
-#else // HAVE_CONSTEXPR_FUNCTION_TEMPLATES
-
-#include <map>
-
-# define rpcdef_case_invoke_fire(s, interface, method) \
-    { ::rpc::componentId(MethodIn<interface>::method{}) \
-    , [] (MethodInUnion<interface>& self, \
-        T& server, \
-        barobo_rpc_Request_Fire_payload_t& in, \
-        barobo_rpc_Reply_Result_payload_t& out, \
-        Status& status) { \
-        decode(self.method, in.bytes, in.size, status); \
-        if (!hasError(status)) { \
-            encode(server.onFire(self.method), out.bytes, sizeof(out.bytes), out.size, status); \
-        } \
-    } },
-
-# define rpcdef_invoke_fire_impl(interface, methods) \
-    static const auto delegates = std::map<uint32_t, std::function<void(MethodInUnion<interface>&, T&, \
-        barobo_rpc_Request_Fire_payload_t&, barobo_rpc_Reply_Result_payload_t&, Status&)>>{ \
-        BOOST_PP_SEQ_FOR_EACH(rpcdef_case_invoke_fire, interface, methods) \
-    }; \
-    status = Status::INTERFACE_ERROR; \
-    auto iter = delegates.find(componentId); \
-    if (iter != delegates.end()) { \
-        iter->second(*this, server, in, out, status); \
-    }
-
-# define rpcdef_case_invoke_broadcast(s, interface, brdcst) \
-    { ::rpc::componentId(Broadcast<interface>::brdcst{}) \
-    , [] (BroadcastUnion<interface>& self, \
-        T& client, \
-        barobo_rpc_Broadcast_payload_t& in, \
-        Status& status) { \
-        decode(self.brdcst, in.bytes, in.size, status); \
-        if (!hasError(status)) { \
-            client.onBroadcast(self.brdcst); \
-        } \
-    } },
-
-# define rpcdef_invoke_broadcast_impl(interface, broadcasts) \
-    static const auto delegates = std::map<uint32_t, std::function<void(BroadcastUnion<interface>&, T&, \
-        barobo_rpc_Broadcast_payload_t&, Status&)>>{ \
-        BOOST_PP_SEQ_FOR_EACH(rpcdef_case_invoke_broadcast, interface, broadcasts) \
-    }; \
-    status = Status::INTERFACE_ERROR; \
-    auto iter = delegates.find(componentId); \
-    if (iter != delegates.end()) { \
-        iter->second(*this, client, in, status); \
-    }
-
-#endif // HAVE_CONSTEXPR_FUNCTION_TEMPLATES
 
 #define rpcdef_decl_method_input_object(s, interface, method) MethodIn<interface>::method method;
 
@@ -298,15 +243,9 @@
 //////////////////////////////////////////////////////////////////////////////
 // Component IDs
 
-#if HAVE_CONSTEXPR_FUNCTION_TEMPLATES
-# define rpcdef_constexpr constexpr
-#else
-# define rpcdef_constexpr static inline
-#endif // HAVE_CONSTEXPR_FUNCTION_TEMPLATES
-
 #define rpcdef_define_componentId(type, interface, component) \
     template <> \
-    rpcdef_constexpr uint32_t componentId (type<interface>::component) { \
+    constexpr uint32_t componentId (type<interface>::component) { \
         return hash(BOOST_PP_STRINGIZE(component)); \
     }
 

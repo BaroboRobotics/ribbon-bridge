@@ -42,12 +42,7 @@ union BroadcastUnion;
 
 // Access the component ID of an interface by type.
 template <class Payload>
-#if HAVE_CONSTEXPR_FUNCTION_TEMPLATES
-constexpr
-#else
-static inline
-#endif // HAVE_CONSTEXPR_FUNCTION_TEMPLATES
-uint32_t componentId (Payload);
+constexpr uint32_t componentId (Payload);
 
 template <class T>
 struct ResultOf;
