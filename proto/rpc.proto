@@ -3,16 +3,13 @@ package barobo.rpc;
 
 enum Status {
     OK = 0;
-    /* nanopb failures */
+    // nanopb errors
     DECODING_FAILURE = 1;
     ENCODING_FAILURE = 2;
-    /* ribbon-bridge logic error */
+    // ribbon-bridge protocol errors
     PROTOCOL_ERROR = 3;
-    /* interface version mismatch */
+    // interface version mismatch
     INTERFACE_ERROR = 4;
-    /* not connected to the request's origin */
-    NOT_CONNECTED = 5;
-    CONNECTION_REFUSED = 6;
     TIMED_OUT = 7;
     VERSION_MISMATCH = 8;
 }

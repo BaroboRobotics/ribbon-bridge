@@ -10,8 +10,6 @@ namespace rpc {
         ITEM(t, ENCODING_FAILURE); \
         ITEM(t, PROTOCOL_ERROR); \
         ITEM(t, INTERFACE_ERROR); \
-        ITEM(t, NOT_CONNECTED); \
-        ITEM(t, CONNECTION_REFUSED); \
         ITEM(t, TIMED_OUT); \
         ITEM(t, VERSION_MISMATCH); \
         default: \

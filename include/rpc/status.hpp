@@ -13,8 +13,6 @@ namespace rpc {
     ENCODING_FAILURE           = barobo_rpc_Status_ENCODING_FAILURE, \
     PROTOCOL_ERROR             = barobo_rpc_Status_PROTOCOL_ERROR, \
     INTERFACE_ERROR            = barobo_rpc_Status_INTERFACE_ERROR, \
-    NOT_CONNECTED              = barobo_rpc_Status_NOT_CONNECTED, \
-    CONNECTION_REFUSED         = barobo_rpc_Status_CONNECTION_REFUSED, \
     TIMED_OUT                  = barobo_rpc_Status_TIMED_OUT, \
     VERSION_MISMATCH           = barobo_rpc_Status_VERSION_MISMATCH
 

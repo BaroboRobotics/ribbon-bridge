@@ -52,50 +52,6 @@ public:
         return status;
     }
 
-    Status refuseConnection (barobo_rpc_ClientMessage clMessage) {
-        barobo_rpc_ServerMessage svMessage;
-        memset(&svMessage, 0, sizeof(svMessage));
-
-        svMessage.type = barobo_rpc_ServerMessage_Type_REPLY;
-        svMessage.has_reply = true;
-        svMessage.reply.type = barobo_rpc_Reply_Type_STATUS;
-        svMessage.reply.has_status = true;
-        svMessage.reply.status.value = barobo_rpc_Status_CONNECTION_REFUSED;
-        svMessage.has_inReplyTo = true;
-        svMessage.inReplyTo = clMessage.id;
-
-        BufferType response;
-        Status status;
-        encode(svMessage, response.bytes, sizeof(response.bytes), response.size, status);
-        if (!hasError(status)) {
-            static_cast<T*>(this)->bufferToClient(response);
-        }
-
-        return status;
-    }
-
-    Status refuseRequest (barobo_rpc_ClientMessage clMessage) {
-        barobo_rpc_ServerMessage svMessage;
-        memset(&svMessage, 0, sizeof(svMessage));
-
-        svMessage.type = barobo_rpc_ServerMessage_Type_REPLY;
-        svMessage.has_reply = true;
-        svMessage.reply.type = barobo_rpc_Reply_Type_STATUS;
-        svMessage.reply.has_status = true;
-        svMessage.reply.status.value = barobo_rpc_Status_NOT_CONNECTED;
-        svMessage.has_inReplyTo = true;
-        svMessage.inReplyTo = clMessage.id;
-
-        BufferType response;
-        Status status;
-        encode(svMessage, response.bytes, sizeof(response.bytes), response.size, status);
-        if (!hasError(status)) {
-            static_cast<T*>(this)->bufferToClient(response);
-        }
-
-        return status;
-    }
-
     Status receiveClientBuffer (BufferType in) {
         barobo_rpc_ClientMessage message;
         Status status;
