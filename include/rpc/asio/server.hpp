@@ -217,52 +217,6 @@ asyncReply (S& server, typename S::RequestId requestId, Versions vers, Handler&&
     server.asyncSendReply(requestId, reply, std::forward<Handler>(handler));
 }
 
-#if 0
-template <class S>
-struct WaitForConnectionOperation {
-    using RequestPair = typename S::RequestPair;
-
-    WaitForConnectionOperation (S& server) : server_(server) {}
-    S& server_;
-
-    boost::system::error_code rc_ = boost::asio::error::operation_aborted;
-    RequestPair rp_;
-
-    auto result () {
-        return std::make_tuple(rc_, rp_);
-    }
-
-    template <class Op>
-    void operator() (Op&& op, boost::system::error_code ec = {}, RequestPair rp = {}) {
-        if (!ec) reenter (op) {
-            yield server_.asyncReceiveRequest(std::move(op));
-            while (rp.request.type != barobo_rpc_Request_Type_CONNECT) {
-                yield asyncReply(server_, rp.id, Status::NOT_CONNECTED, std::move(op));
-                yield server_.asyncReceiveRequest(std::move(op));
-            }
-            rc_ = ec;
-            rp_ = rp;
-        }
-        else if (boost::asio::error::operation_aborted != ec) {
-            rc_ = ec;
-        }
-    }
-};
-
-template <class S, class CompletionToken>
-BOOST_ASIO_INITFN_RESULT_TYPE(CompletionToken, typename S::RequestHandlerSignature)
-asyncWaitForConnection (S& server, CompletionToken&& token) {
-    util::asio::AsyncCompletion<
-        CompletionToken, typename S::RequestHandlerSignature
-    > init { std::forward<CompletionToken>(token) };
-
-    using Op = WaitForConnectionOperation<S>;
-    util::asio::v1::makeOperation<Op>(std::move(init.handler), server)();
-
-    return init.result.get();
-}
-#endif
-
 template <class Interface, class S, class Impl>
 struct ServeUntilDisconnectionOperation {
     using RequestPair = typename S::RequestPair;
