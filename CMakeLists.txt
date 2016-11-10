@@ -61,6 +61,7 @@ include(${PROJECT_NAME}-functions.cmake)
 
 # Eat own dog food.
 nanopb_add_proto(rpc-proto proto/rpc.proto)
+target_compile_definitions(rpc-proto PUBLIC PB_FIELD_16BIT)  # barobo.rpc.ServerMessage is too big :(
 
 ##############################################################################
 
