@@ -20,6 +20,7 @@
 
 #include <boost/log/attributes/constant.hpp>
 #include <boost/log/utility/manipulators/add_value.hpp>
+#include <boost/log/utility/manipulators/dump.hpp>
 
 #include <boost/optional.hpp>
 
@@ -203,8 +204,10 @@ struct ClientImpl : public std::enable_shared_from_this<ClientImpl<MessageQueue>
             mBroadcastQueue.produce(ec, barobo_rpc_Broadcast());
         }
         while (mBroadcastQueue.depth() > 0) {
-            mBroadcastQueue.consume([this](boost::system::error_code ec2, barobo_rpc_Broadcast) {
+            mBroadcastQueue.consume([this](boost::system::error_code ec2, barobo_rpc_Broadcast bc) {
                 BOOST_LOG(mLog) << "RPC client discarding broadcast: " << ec2.message();
+                BOOST_LOG(mLog) << "broadcast id=[" << bc.id << "] payload=["
+                        << boost::log::dump(bc.payload.bytes, bc.payload.size, 32) << "]";
             });
         }
     }
