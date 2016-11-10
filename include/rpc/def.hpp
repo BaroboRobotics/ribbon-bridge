@@ -1,6 +1,10 @@
 #ifndef RPC_DEF_HPP
 #define RPC_DEF_HPP
 
+#include "rpc.pb.hpp"
+
+#include "pb.h"
+
 #include <rpc/version.hpp>
 #include <rpc/componenttraits.hpp>
 #include <rpc/hash.hpp>

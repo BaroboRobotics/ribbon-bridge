@@ -1,7 +1,7 @@
 #ifndef RPC_ASIO_SERVER_HPP
 #define RPC_ASIO_SERVER_HPP
 
-#include "rpc.pb.h"
+#include "rpc.pb.hpp"
 
 #include <util/log.hpp>
 #include <util/asio/asynccompletion.hpp>

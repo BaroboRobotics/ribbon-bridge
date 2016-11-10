@@ -1,7 +1,7 @@
 #ifndef RPC_SERVER_HPP
 #define RPC_SERVER_HPP
 
-#include "rpc.pb.h"
+#include "rpc.pb.hpp"
 
 #include <rpc/stdlibheaders.hpp>
 #include <rpc/enableif.hpp>

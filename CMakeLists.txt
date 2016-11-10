@@ -124,7 +124,7 @@ install(TARGETS rpc rpc-proto EXPORT barobo
 install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY ${PROJECT_BINARY_DIR}/include/ DESTINATION include)
 install(DIRECTORY proto/ DESTINATION proto)
-install(FILES ${PROJECT_BINARY_DIR}/rpc.pb.h DESTINATION include)
+install(FILES ${PROJECT_BINARY_DIR}/rpc.pb.h ${PROJECT_BINARY_DIR}/rpc.pb.hpp DESTINATION include)
 install(FILES ${PROJECT_NAME}-functions.cmake DESTINATION cmake)
 
 # Boilerplate follows
