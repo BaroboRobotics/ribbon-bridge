@@ -76,8 +76,12 @@ public:
                 if (!ec) {
                     if (size) {
                         barobo_rpc_ClientMessage message;
-                        Status status;
-                        rpc::decode(message, buf->data(), size, status);
+                        auto status = Status::OK;
+                        auto stream = pb_istream_from_buffer(buf->data(), size);
+                        if (!nanopb::decode(stream, message)) {
+                            BOOST_LOG(mLog) << "asyncReceiveRequest: " << PB_GET_ERROR(&stream);
+                            status = Status::DECODING_FAILURE;
+                        }
                         this->mMessageQueue.get_io_service().post(
                             std::bind(realHandler, status, RequestPair{message.id, message.request}));
                     }
@@ -113,9 +117,12 @@ public:
 
         auto buf = std::make_shared<std::vector<uint8_t>>(1024);
         try {
-            pb_size_t bytesWritten;
-            rpc::encode(message, buf->data(), buf->size(), bytesWritten);
-            buf->resize(bytesWritten);
+            auto stream = pb_ostream_from_buffer(buf->data(), buf->size());
+            if (!nanopb::encode(stream, message)) {
+                BOOST_LOG(mLog) << "asyncSendReply: " << PB_GET_ERROR(&stream);
+                throw boost::system::system_error{Status::ENCODING_FAILURE};
+            }
+            buf->resize(stream.bytes_written);
             mMessageQueue.asyncSend(boost::asio::buffer(*buf),
                 [buf, realHandler] (boost::system::error_code ec) mutable {
                     realHandler(ec);
@@ -147,9 +154,13 @@ public:
 
         auto buf = std::make_shared<std::vector<uint8_t>>(1024);
         try {
-            pb_size_t bytesWritten;
-            rpc::encode(message, buf->data(), buf->size(), bytesWritten);
-            buf->resize(bytesWritten);
+            auto status = Status::OK;
+            auto stream = pb_ostream_from_buffer(buf->data(), buf->size());
+            if (!nanopb::encode(stream, message)) {
+                BOOST_LOG(mLog) << "asyncSendBroadcast: " << PB_GET_ERROR(&stream);
+                throw boost::system::system_error{Status::ENCODING_FAILURE};
+            }
+            buf->resize(stream.bytes_written);
             mMessageQueue.asyncSend(boost::asio::buffer(*buf),
                 [buf, realHandler] (boost::system::error_code ec) mutable {
                     realHandler(ec);
@@ -180,15 +191,14 @@ asyncBroadcast (S& server, Broadcast args, Handler&& handler) {
     barobo_rpc_Broadcast broadcast;
     broadcast = decltype(broadcast)();
     broadcast.id = componentId(args);
-    Status status;
-    rpc::encode(args,
-        broadcast.payload.bytes,
-        sizeof(broadcast.payload.bytes),
-        broadcast.payload.size, status);
-    if (hasError(status)) {
-        server.get_io_service().post(std::bind(realHandler, status));
+    auto stream = pb_ostream_from_buffer(broadcast.payload.bytes, sizeof(broadcast.payload.bytes));
+    if (!nanopb::encode(stream, args)) {
+        util::log::Logger lg;
+        BOOST_LOG(lg) << "asyncBroadcast: " << PB_GET_ERROR(&stream);
+        server.get_io_service().post(std::bind(realHandler, Status::ENCODING_FAILURE));
     }
     else {
+        broadcast.payload.size = stream.bytes_written;
         server.asyncSendBroadcast(broadcast, realHandler);
     }
 

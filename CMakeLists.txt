@@ -60,7 +60,6 @@ target_compile_definitions(rpc-proto PUBLIC PB_FIELD_16BIT)  # barobo.rpc.Server
 ##############################################################################
 
 set(SOURCES
-    src/message.cpp
     src/status.cpp
 )
 

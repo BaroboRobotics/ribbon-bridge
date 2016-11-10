@@ -8,7 +8,6 @@
 #include <rpc/version.hpp>
 #include <rpc/componenttraits.hpp>
 #include <rpc/hash.hpp>
-#include <rpc/message.hpp>
 
 #include <boost/preprocessor/cat.hpp>
 #include <boost/preprocessor/stringize.hpp>
@@ -23,31 +22,6 @@
 //////////////////////////////////////////////////////////////////////////////
 // IMPLEMENTATION MACROS
 
-
-//////////////////////////////////////////////////////////////////////////////
-// pbFields
-
-#define rpcdef_pbFields(r, prefix, component) \
-    template <> \
-    const pb_field_t* pbFieldPtr<BOOST_PP_CAT(prefix, component)> () { \
-        return BOOST_PP_CAT(prefix, BOOST_PP_CAT(component, _fields)); \
-    }
-
-#define add_suffix(s, suffix, elem) BOOST_PP_CAT(elem, suffix)
-#define add_prefix(s, prefix, elem) BOOST_PP_CAT(prefix, elem)
-
-#define RPCDEF_pbFields_methods(prefix, methods) \
-    namespace _ { \
-    BOOST_PP_SEQ_FOR_EACH(rpcdef_pbFields, prefix, \
-            BOOST_PP_SEQ_TRANSFORM(add_suffix, _In, methods)) \
-    BOOST_PP_SEQ_FOR_EACH(rpcdef_pbFields, prefix, \
-            BOOST_PP_SEQ_TRANSFORM(add_suffix, _Result, methods)) \
-    }
-
-#define RPCDEF_pbFields_broadcasts(prefix, broadcasts) \
-    namespace _ { \
-    BOOST_PP_SEQ_FOR_EACH(rpcdef_pbFields, prefix, broadcasts) \
-    }
 
 //////////////////////////////////////////////////////////////////////////////
 // HEADER MACROS
@@ -181,13 +155,22 @@
 
 #define rpcdef_case_invoke_fire(s, interface, method) \
     case ::rpc::componentId(MethodIn<interface>::method{}): \
-        decode(this->method, in.bytes, in.size, status); \
+        iStream = pb_istream_from_buffer(in.bytes, in.size); \
+        if (!nanopb::decode(iStream, this->method)) { \
+            status = Status::DECODING_FAILURE; \
+        } \
         if (!hasError(status)) { \
-            encode(server.onFire(this->method), out.bytes, sizeof(out.bytes), out.size, status); \
+            oStream = pb_ostream_from_buffer(out.bytes, sizeof(out.bytes)); \
+            if (!nanopb::encode(oStream, server.onFire(this->method))) { \
+                status = Status::ENCODING_FAILURE; \
+            } \
+            out.size = oStream.bytes_written; \
         } \
         break;
 
 #define rpcdef_invoke_fire_impl(interface, methods) \
+    auto iStream = pb_istream_t{}; \
+    auto oStream = pb_ostream_t{}; \
     switch (componentId) { \
         BOOST_PP_SEQ_FOR_EACH(rpcdef_case_invoke_fire, interface, methods) \
         default: \
@@ -197,13 +180,17 @@
 
 #define rpcdef_case_invoke_broadcast(s, interface, brdcst) \
     case ::rpc::componentId(Broadcast<interface>::brdcst{}): \
-        decode(this->brdcst, in.bytes, in.size, status); \
+        iStream = pb_istream_from_buffer(in.bytes, in.size); \
+        if (!nanopb::decode(iStream, this->brdcst)) { \
+            status = Status::DECODING_FAILURE; \
+        } \
         if (!hasError(status)) { \
             client.onBroadcast(this->brdcst); \
         } \
         break;
 
 #define rpcdef_invoke_broadcast_impl(interface, broadcasts) \
+    auto iStream = pb_istream_t{}; \
     switch (componentId) { \
         BOOST_PP_SEQ_FOR_EACH(rpcdef_case_invoke_broadcast, interface, broadcasts) \
         default: \
@@ -218,7 +205,7 @@
         template <class T> \
         void invoke (T& server, \
                 uint32_t componentId, \
-                barobo_rpc_Request_Fire_payload_t& in, \
+                const barobo_rpc_Request_Fire_payload_t& in, \
                 barobo_rpc_Reply_Result_payload_t& out, \
                 Status& status) { \
             (void)AssertServerImplementsInterface<T, interface>(); \
@@ -236,7 +223,7 @@
         template <class T> \
         void invoke (T& client, \
                 uint32_t componentId, \
-                barobo_rpc_Broadcast_payload_t& in, \
+                const barobo_rpc_Broadcast_payload_t& in, \
                 Status& status) { \
             (void)AssertClientImplementsInterface<T, interface>(); \
             rpcdef_invoke_broadcast_impl(interface, broadcasts) \
@@ -302,8 +289,6 @@
 
 #define RPCDEF_CPP(interfaceNames, methods, broadcasts) \
     namespace rpc { \
-    RPCDEF_pbFields_methods(rpcdef_underscored_token(interfaceNames), methods) \
-    RPCDEF_pbFields_broadcasts(rpcdef_underscored_token(interfaceNames), broadcasts) \
     }
 
 #define RPCDEF_HPP(interfaceNames, version, methods, broadcasts) \

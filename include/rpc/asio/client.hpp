@@ -10,7 +10,6 @@
 #include <util/producerconsumerqueue.hpp>
 
 #include <rpc/componenttraits.hpp>
-#include <rpc/message.hpp>
 #include <rpc/system_error.hpp>
 #include <rpc/version.hpp>
 
@@ -158,10 +157,13 @@ struct ClientImpl : public std::enable_shared_from_this<ClientImpl<MessageQueue>
 
     void handleMessage (uint8_t* data, size_t size, boost::system::error_code& ec) {
         ec = {};
-        auto status = rpc::Status::OK;
         barobo_rpc_ServerMessage message;
-        decode(message, data, size, status);
-        if (rpc::hasError(status)) { ec = status; return; }
+        auto stream = pb_istream_from_buffer(data, size);
+        if (!nanopb::decode(stream, message)) {
+            ec = Status::DECODING_FAILURE;
+            BOOST_LOG(mLog) << "handleMessage: " << PB_GET_ERROR(&stream);
+            return;
+        }
 
         switch (message.type) {
             case barobo_rpc_ServerMessage_Type_REPLY:
@@ -272,15 +274,14 @@ struct ClientImpl<MessageQueue>::SendRequestOperation {
                 memset(&message, 0, sizeof(message));
                 message.id = requestId_;
                 memcpy(&message.request, &request_, sizeof(request_));
-                pb_size_t bytesWritten;
-                auto status = rpc::Status::OK;
-                rpc::encode(message, buf_.data(), buf_.size(), bytesWritten, status);
-                if (rpc::hasError(status)) {
-                    rc_ = status;
-                    BOOST_LOG(nest_->mLog) << "SendRequestOperation: " << rc_.message();
+                auto stream = pb_ostream_from_buffer(buf_.data(), buf_.size());
+                if (!nanopb::encode(stream, message)) {
+                    rc_ = Status::ENCODING_FAILURE;
+                    BOOST_LOG(nest_->mLog) << "SendRequestOperation: " << rc_.message()
+                            << ' ' << PB_GET_ERROR(&stream);
                     break;
                 }
-                buf_.resize(bytesWritten);
+                buf_.resize(stream.bytes_written);
                 nest_->mMessageQueue.asyncSend(boost::asio::buffer(buf_), std::move(op));
             }
             if (!ec) {
@@ -550,22 +551,19 @@ asyncFire (RpcClient& client, Method args, Duration&& timeout, Handler&& handler
 
     auto log = client.log();
 
-    barobo_rpc_Request request;
+    auto request = barobo_rpc_Request{};
     memset(&request, 0, sizeof(request));
     request.type = barobo_rpc_Request_Type_FIRE;
     request.has_fire = true;
     request.fire.id = componentId(args);
-    Status status;
-    rpc::encode(args,
-        request.fire.payload.bytes,
-        sizeof(request.fire.payload.bytes),
-        request.fire.payload.size, status);
-    if (hasError(status)) {
-        auto encodingEc = make_error_code(status);
-        BOOST_LOG(log) << "FIRE request failed to encode: " << encodingEc.message();
+    auto stream = pb_ostream_from_buffer(request.fire.payload.bytes, sizeof(request.fire.payload.bytes));
+    if (!nanopb::encode(stream, args)) {
+        auto encodingEc = make_error_code(Status::ENCODING_FAILURE);
+        BOOST_LOG(log) << "asyncFire: " << encodingEc.message() << ' ' << PB_GET_ERROR(&stream);
         client.get_io_service().post(std::bind(realHandler, encodingEc, Result()));
     }
     else {
+        request.fire.payload.size = stream.bytes_written;
         BOOST_LOG(log) << "sending FIRE request";
         asyncRequest(client, request, std::forward<Duration>(timeout),
             [realHandler, log] (boost::system::error_code ec,
@@ -602,10 +600,14 @@ asyncFire (RpcClient& client, Method args, Duration&& timeout, Handler&& handler
                             realHandler(Status::PROTOCOL_ERROR, Result());
                         }
                         else {
-                            Status status;
-                            Result result;
-                            memset(&result, 0, sizeof(result));
-                            rpc::decode(result, reply->result.payload.bytes, reply->result.payload.size, status);
+                            auto status = Status::OK;
+                            auto result = Result{};
+                            auto stream = pb_istream_from_buffer(
+                                    reply->result.payload.bytes, reply->result.payload.size);
+                            if (!nanopb::decode(stream, result)) {
+                                status = Status::DECODING_FAILURE;
+                                BOOST_LOG(log) << "FIRE request: " << PB_GET_ERROR(&stream);
+                            }
                             auto decodingEc = make_error_code(status);
                             BOOST_LOG(log) << "FIRE request completed with RESULT (decoding status: "
                                            << decodingEc.message() << ")";
