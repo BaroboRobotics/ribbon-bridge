@@ -37,12 +37,6 @@ include(CheckLibraryExists)
 
 set(CMAKE_REQUIRED_FLAGS "-std=c++11")
 
-# Visual Studio 2015 Preview fails this test, gcc and clang pass
-check_cxx_source_compiles("template <unsigned N>
-constexpr unsigned f (const char (&)[N]) { return N; }
-int main () { switch (2) { case f(\"a\"): break; } }"
-    HAVE_CONSTEXPR_FUNCTION_TEMPLATES)
-
 check_cxx_source_compiles("int main () { throw int(); }" HAVE_EXCEPTIONS)
 
 check_cxx_source_compiles("#include <typeinfo>
